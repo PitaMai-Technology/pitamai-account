@@ -30,6 +30,32 @@ const schema = z.object({
   name: z.string().optional(),
 });
 
+const onSignOut = async () => {
+
+  loading.value = true;
+  try {
+    await authClient.signOut();
+    toast.add({
+      title: '成功',
+      description: 'ログアウトしました。',
+      color: 'success',
+    });
+  } catch (err) {
+    console.error('Sign out error:', err);
+    const errorMessage =
+      err instanceof Error
+        ? err.message
+        : 'エラーが発生しました。もう一度お試しください。';
+    toast.add({
+      title: 'エラー',
+      description: errorMessage,
+      color: 'error',
+    });
+  } finally {
+    loading.value = false;
+  }
+};
+
 type Schema = z.output<typeof schema>;
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
@@ -90,7 +116,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       <template #right>
         <template v-if="session.data">
           <UButton to="/apps/dashboard" target="_blank">ダッシュボード</UButton>
-          <UButton icon="i-lucide-log-out" @click="signOut">
+          <UButton icon="i-lucide-log-out" @click="onSignOut">
             ログアウト
           </UButton>
         </template>
@@ -108,17 +134,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             別のメールアドレスでログイン
           </UButton>
         </div>
-        <UAuthForm
-          v-else
-          :schema="schema"
-          :fields="fields"
-          :loading="loading"
-          title="ログイン"
-          description="メールアドレスにログインリンクを送信します"
-          icon="i-lucide-mail"
-          :submit="{ label: 'ログインリンクを送信' }"
-          @submit="onSubmit"
-        />
+        <UAuthForm v-else :schema="schema" :fields="fields" :loading="loading" title="ログイン"
+          description="メールアドレスにログインリンクを送信します" icon="i-lucide-mail" :submit="{ label: 'ログインリンクを送信' }"
+          @submit="onSubmit" />
       </UPageCard>
     </div>
   </div>

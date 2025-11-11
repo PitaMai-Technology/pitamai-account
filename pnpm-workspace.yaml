@@ -5,8 +5,4 @@ ignoredBuiltDependencies:
   - vue-demi
 
 onlyBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
   - argon2
-  - better-sqlite3
-  - prisma

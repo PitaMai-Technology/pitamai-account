@@ -18,7 +18,7 @@ export default defineNuxtConfig({
     // クライアントにも公開
     public: {
       // ベース URL（リバースプロキシ配下などでホスト名を固定したい場合に使用）
-      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+      // BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     },
   },
 });

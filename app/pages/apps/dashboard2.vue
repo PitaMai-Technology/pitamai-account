@@ -1,39 +1,11 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client';
 
-const sessionRef = authClient.useSession();
-// const session = sessionRef.value.data;
-const isPending = computed(() => sessionRef.value.isPending);
+// セッション情報を取得
+const sessionRef = await authClient.useSession(useFetch);
+const session = computed(() => sessionRef.data.value);
+// const isPending = computed(() => sessionRef.isPending);
 
-const loading = ref(false);
-const toast = useToast();
-const router = useRouter();
-
-const onSignOut = async () => {
-  loading.value = true;
-  try {
-    await authClient.signOut();
-    toast.add({
-      title: '成功',
-      description: 'ログアウトしました。',
-      color: 'success',
-    });
-    await router.push('/');
-  } catch (err) {
-    console.error('Sign out error:', err);
-    const errorMessage =
-      err instanceof Error
-        ? err.message
-        : 'エラーが発生しました。もう一度お試しください。';
-    toast.add({
-      title: 'エラー',
-      description: errorMessage,
-      color: 'error',
-    });
-  } finally {
-    loading.value = false;
-  }
-};
 </script>
 
 <template>
@@ -46,41 +18,37 @@ const onSignOut = async () => {
             <h1 class="text-2xl font-bold">ダッシュボード</h1>
             <p class="text-gray-500">PitaMAIへようこそ</p>
           </div>
-          <UButton icon="i-lucide-log-out" :loading="loading" @click="onSignOut">
+          <UButton icon="i-lucide-log-out" :loading="loading" @click="signOut">
             ログアウト
           </UButton>
         </div>
 
         <!-- ローディング状態 -->
-        <div v-if="isPending" class="flex items-center justify-center py-12">
+        <!-- <div v-if="isPending" class="flex items-center justify-center py-12">
           <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
-        </div>
+        </div> -->
 
         <!-- ユーザー情報 -->
-        <div v-else-if="sessionRef.data" class="space-y-4">
+        <div v-if="session" class="space-y-4">
           <div class="rounded-lg bg-white p-6 shadow">
             <h2 class="mb-4 text-lg font-semibold">ユーザー情報</h2>
             <div class="space-y-2">
               <div class="flex items-center space-x-2">
                 <UIcon name="i-lucide-mail" class="text-gray-400" />
                 <span class="font-medium">メール:</span>
-                <span class="text-gray-600">{{ sessionRef.data.user.email }}</span>
+                <span class="text-gray-600">{{ session.user.email }}</span>
               </div>
-              <div v-if="sessionRef.data.user.name" class="flex items-center space-x-2">
+              <div v-if="session.user.name" class="flex items-center space-x-2">
                 <UIcon name="i-lucide-user" class="text-gray-400" />
                 <span class="font-medium">名前:</span>
-                <span class="text-gray-600">{{ sessionRef.data.user.name }}</span>
+                <span class="text-gray-600">{{ session.user.name }}</span>
               </div>
               <div class="flex items-center space-x-2">
                 <UIcon name="i-lucide-calendar" class="text-gray-400" />
                 <span class="font-medium">登録日:</span>
-                <span class="text-gray-600">
-                  {{
-                    sessionRef.data.user.createdAt
-                      ? new Date(sessionRef.data.user.createdAt).toLocaleDateString('ja-JP')
-                      : '-'
-                  }}
-                </span>
+                <span class="text-gray-600">{{
+                  new Date(session.user.createdAt).toLocaleDateString('ja-JP')
+                }}</span>
               </div>
             </div>
           </div>
@@ -93,20 +61,17 @@ const onSignOut = async () => {
                 <UIcon name="i-lucide-shield-check" class="text-green-500" />
                 <span class="text-green-600">認証済み</span>
               </div>
-              <div v-if="sessionRef.data && sessionRef.data.session.expiresAt" class="flex items-center space-x-2">
+              <div v-if="session.session.expiresAt" class="flex items-center space-x-2">
                 <UIcon name="i-lucide-clock" class="text-gray-400" />
                 <span class="font-medium">有効期限:</span>
-                <span class="text-gray-600">
-                  {{ new Date(sessionRef.data.session.expiresAt).toLocaleDateString('ja-JP') }}
-                </span>
+                <span class="text-gray-600">{{
+                  new Date(session.session.expiresAt).toLocaleDateString(
+                    'ja-JP'
+                  )
+                }}</span>
               </div>
             </div>
           </div>
-        </div>
-
-        <div v-else class="py-12 text-center text-gray-500">
-          {{ sessionRef.data ? sessionRef.data : 'nullです' }}
-          セッションがありません。ログインしてください。
         </div>
       </UPageCard>
     </div>

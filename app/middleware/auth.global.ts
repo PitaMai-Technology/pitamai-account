@@ -1,9 +1,15 @@
 import { authClient } from '~/composable/auth-client';
 
-export default defineNuxtRouteMiddleware(async (to, _from) => {
-  const { data: session } = await authClient.useSession(useFetch);
+export default defineNuxtRouteMiddleware((to) => {
+  // ログインページは認証チェックをスキップ
+  if (to.path === '/') {
+    return;
+  }
 
-  if (session.value && to.path !== '/') {
+  const session = authClient.useSession(useFetch);
+
+  if (!session) {
+    console.log('No session found, redirecting to login...');
     return navigateTo('/');
   }
 });

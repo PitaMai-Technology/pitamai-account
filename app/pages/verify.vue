@@ -1,100 +1,67 @@
 <script setup lang="ts">
+import * as z from 'zod';
+import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 
-const route = useRoute();
-const router = useRouter();
+const schema = z.object({
+  email: z.string('メールアドレスを入力してください').email('有効なメールアドレスを入力してください'),
+  otp: z.string('OTPコードを入力してください').min(6, 'OTPは6文字以上です'),
+});
+
+type Schema = z.output<typeof schema>;
+
+const state = reactive<Partial<Schema>>({
+  email: '',
+  otp: '',
+});
+
+const loading = ref(false);
 const toast = useToast();
-const verifying = ref(true);
 
-onMounted(async () => {
-  const token = route.query.token as string;
-
-  if (!token) {
-    toast.add({
-      title: '認証エラー',
-      description:
-        '無効なリンクです。もう一度ログインリンクを送信してください。',
-      color: 'error',
-    });
-    await router.push('/');
-    return;
-  }
-
+async function onSubmit(event: FormSubmitEvent<Schema>) {
+  if (loading.value) return;
+  loading.value = true;
   try {
-    const { error } = await authClient.magicLink.verify({
-      query: {
-        token,
-      },
+    const { error } = await authClient.emailOtp.verifyEmail({
+      email: event.data.email,
+      otp: event.data.otp,
     });
-
     if (error) {
-      console.error('Verification error:', error);
-
-      let errorMessage = 'リンクが無効または期限切れです';
-
-      if (error.status === 400) {
-        errorMessage =
-          'リンクが無効です。もう一度ログインリンクを送信してください。';
-      } else if (error.status === 401) {
-        errorMessage =
-          'リンクの有効期限が切れています。もう一度ログインリンクを送信してください。';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       toast.add({
-        title: '認証エラー',
-        description: errorMessage,
+        title: '認証失敗',
+        description: `メール認証に失敗しました: ${error.message}`,
         color: 'error',
       });
-
-      await router.push('/');
-      verifying.value = false;
-      return;
+    } else {
+      toast.add({
+        title: '認証成功',
+        description: 'メール認証が完了しました。',
+        color: 'success',
+      });
     }
-
+  } catch (e: unknown) {
     toast.add({
-      title: '認証成功',
-      description: 'ログインしました',
-      color: 'success',
-    });
-
-    // リダイレクトURLがある場合はそこへ、なければダッシュボードへ
-    const callbackURL =
-      (route.query.callbackURL as string) || '/apps/dashboard';
-    await router.push(callbackURL);
-  } catch (err) {
-    console.error('Unexpected verification error:', err);
-
-    const errorMessage =
-      err instanceof Error ? err.message : 'リンクが無効または期限切れです';
-
-    toast.add({
-      title: '認証エラー',
-      description: errorMessage,
+      title: 'エラー',
+      description: e instanceof Error ? e.message : '予期しないエラーが発生しました',
       color: 'error',
     });
-
-    await router.push('/');
-    verifying.value = false;
+  } finally {
+    loading.value = false;
   }
-});
+}
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center p-4">
-    <UPageCard class="w-full max-w-md">
-      <div class="flex flex-col items-center justify-center space-y-4 py-8">
-        <!-- 検証中 -->
-        <div v-if="verifying" class="flex flex-col items-center space-y-4">
-          <UIcon
-            name="i-lucide-loader-circle"
-            class="h-12 w-12 animate-spin text-primary"
-          />
-          <h2 class="text-xl font-semibold">認証中...</h2>
-          <p class="text-center text-gray-600">リンクを確認しています...</p>
-        </div>
-      </div>
-    </UPageCard>
+  <div>
+    <h1 class="text-4xl mb-6">メール認証</h1>
+    <UForm :schema="schema" :state="state" class="space-y-4 m-10" @submit="onSubmit">
+      <UFormField label="メールアドレス" name="email" required>
+        <UInput v-model="state.email" />
+      </UFormField>
+      <UFormField label="OTPコード" name="otp" required>
+        <UInput v-model="state.otp" />
+      </UFormField>
+      <UButton type="submit" :loading="loading" :disabled="loading">認証</UButton>
+    </UForm>
   </div>
 </template>
