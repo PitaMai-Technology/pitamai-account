@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
-import { organization, magicLink, emailOTP } from 'better-auth/plugins';
+import { organization, magicLink } from 'better-auth/plugins';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { ac, owner, admin, member } from "~~/server/utils/permissions"
 import { PrismaClient } from '@prisma/client';
 import { sendEmail } from './email';
 
@@ -11,32 +12,34 @@ export const auth = betterAuth({
     provider: 'sqlite',
   }),
   emailAndPassword: {
-    enabled: true,
+    enabled: false,
     requireEmailVerification: true,
+    disableSignUp: false,
   },
-  emailVerification: {
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url }) => {
-      console.log(`🔔 sendVerificationEmail called for ${user.email}`);
-      console.log(`🔗 verification url: ${url}`);
-      try {
-        await sendEmail({
-          to: user.email,
-          subject: "pitaMAI Hub - 認証コード",
-          text: `認証コードです: ${url}`,
-        });
-        console.log(`✅ Verification email queued/sent to ${user.email}`);
-      } catch (err) {
-        console.error('❌ sendVerificationEmail failed:', err);
-        // 失敗をそのまま投げて Better Auth 側で扱わせる（ログ確認用）
-        throw err instanceof Error ? err : new Error(String(err));
-      }
-    },
-    sendOnSignUp: true,
-    sendOnSignIn: true,
-  },
+  // emailVerification: {
+  //   autoSignInAfterVerification: true,
+  //   sendVerificationEmail: async ({ user, url }) => {
+  //     console.log(`🔔 sendVerificationEmail called for ${user.email}`);
+  //     console.log(`🔗 verification url: ${url}`);
+  //     try {
+  //       await sendEmail({
+  //         to: user.email,
+  //         subject: "pitaMAI Hub - 認証コード",
+  //         text: `認証コードです: ${url}`,
+  //       });
+  //       console.log(`✅ Verification email queued/sent to ${user.email}`);
+  //     } catch (err) {
+  //       console.error('❌ sendVerificationEmail failed:', err);
+  //       // 失敗をそのまま投げて Better Auth 側で扱わせる（ログ確認用）
+  //       throw err instanceof Error ? err : new Error(String(err));
+  //     }
+  //   },
+  //   sendOnSignUp: true,
+  //   sendOnSignIn: true,
+  // },
   plugins: [
     magicLink({
+      disableSignUp: true,
       sendMagicLink: async ({ email, url }) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('='.repeat(80));
@@ -70,38 +73,44 @@ export const auth = betterAuth({
         }
       },
       expiresIn: 300,
-      disableSignUp: false,
     }),
-    emailOTP({
-      overrideDefaultEmailVerification: true,
-      async sendVerificationOTP({ email, otp, type }) {
-        let subject = '';
-        let text = '';
+    // emailOTP({
+    //   overrideDefaultEmailVerification: true,
+    //   async sendVerificationOTP({ email, otp, type }) {
+    //     let subject = '';
+    //     let text = '';
 
-        if (type === "sign-in") {
-          subject = 'pitaMAI Hub - サインイン認証コード';
-          text = `サインイン用の認証コード: ${otp}\nこのコードは5分間有効です。`;
-        } else if (type === "email-verification") {
-          subject = 'pitaMAI Hub - メール認証コード';
-          text = `メール認証用の認証コード: ${otp}\nこのコードは5分間有効です。`;
-        } else {
-          subject = 'pitaMAI Hub - パスワードリセット認証コード';
-          text = `パスワードリセット用の認証コード: ${otp}\nこのコードは5分間有効です。`;
-        }
+    //     if (type === "sign-in") {
+    //       subject = 'pitaMAI Hub - サインイン認証コード';
+    //       text = `サインイン用の認証コード: ${otp}\nこのコードは5分間有効です。`;
+    //     } else if (type === "email-verification") {
+    //       subject = 'pitaMAI Hub - メール認証コード';
+    //       text = `メール認証用の認証コード: ${otp}\nこのコードは5分間有効です。`;
+    //     } else {
+    //       subject = 'pitaMAI Hub - パスワードリセット認証コード';
+    //       text = `パスワードリセット用の認証コード: ${otp}\nこのコードは5分間有効です。`;
+    //     }
 
-        try {
-          await sendEmail({
-            to: email,
-            subject,
-            text,
-          });
-          console.log(`✅ OTPメール送信: ${type} - ${email}`);
-        } catch (error) {
-          console.error('❌ OTPメール送信失敗:', error);
-          throw new Error('OTPメール送信に失敗しました');
-        }
-      },
+    //     try {
+    //       await sendEmail({
+    //         to: email,
+    //         subject,
+    //         text,
+    //       });
+    //       console.log(`✅ OTPメール送信: ${type} - ${email}`);
+    //     } catch (error) {
+    //       console.error('❌ OTPメール送信失敗:', error);
+    //       throw new Error('OTPメール送信に失敗しました');
+    //     }
+    //   },
+    // }),
+    organization({
+      ac,
+      roles: {
+        owner,
+        admin,
+        member,
+      }
     }),
-    organization(),
   ],
 });

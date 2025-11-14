@@ -21,6 +21,7 @@
     "eslint": "^9.39.0",
     "nodemailer": "^7.0.10",
     "nuxt": "^4.2.1",
+    "pita-css": "^0.6.4",
     "prisma": "^6.18.0",
     "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3",

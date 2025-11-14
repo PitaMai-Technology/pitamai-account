@@ -1,55 +1,22 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client';
 
+definePageMeta({
+  layout: 'the-app'
+});
+
 const sessionRef = authClient.useSession();
 // const session = sessionRef.value.data;
 const isPending = computed(() => sessionRef.value.isPending);
 
-const loading = ref(false);
-const toast = useToast();
-const router = useRouter();
-
-const onSignOut = async () => {
-  loading.value = true;
-  try {
-    await authClient.signOut();
-    toast.add({
-      title: '成功',
-      description: 'ログアウトしました。',
-      color: 'success',
-    });
-    await router.push('/');
-  } catch (err) {
-    console.error('Sign out error:', err);
-    const errorMessage =
-      err instanceof Error
-        ? err.message
-        : 'エラーが発生しました。もう一度お試しください。';
-    toast.add({
-      title: 'エラー',
-      description: errorMessage,
-      color: 'error',
-    });
-  } finally {
-    loading.value = false;
-  }
-};
+const organizations = authClient.useListOrganizations();
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div>
     <div class="container mx-auto p-4">
+
       <UPageCard class="mx-auto max-w-4xl">
-        <!-- ヘッダー -->
-        <div class="mb-6 flex items-center justify-between border-b pb-4">
-          <div>
-            <h1 class="text-2xl font-bold">ダッシュボード</h1>
-            <p class="text-gray-500">PitaMAIへようこそ</p>
-          </div>
-          <UButton icon="i-lucide-log-out" :loading="loading" @click="onSignOut">
-            ログアウト
-          </UButton>
-        </div>
 
         <!-- ローディング状態 -->
         <div v-if="isPending" class="flex items-center justify-center py-12">
@@ -58,6 +25,27 @@ const onSignOut = async () => {
 
         <!-- ユーザー情報 -->
         <div v-else-if="sessionRef.data" class="space-y-4">
+          <!-- 組織リンク -->
+          <div class="rounded-lg bg-white p-6 shadow">
+            <h2 class="mb-4 text-lg font-semibold">所属組織</h2>
+            <div v-if="organizations.isPending" class="flex items-center justify-center py-4">
+              <UIcon name="i-lucide-loader-circle" class="h-6 w-6 animate-spin text-primary" />
+            </div>
+            <div v-else-if="organizations.data && organizations.data.length > 0" class="space-y-2">
+              <NuxtLink v-for="org in organizations.data" :key="org.id" :to="`/apps/organaization/${org.id}`"
+                class="flex items-center justify-between rounded-lg border p-3 transition hover:bg-gray-50">
+                <div class="flex items-center space-x-3">
+                  <UIcon name="i-lucide-building-2" class="text-gray-400" />
+                  <span class="font-medium">{{ org.name }}</span>
+                </div>
+                <UIcon name="i-lucide-chevron-right" class="text-gray-400" />
+              </NuxtLink>
+            </div>
+            <div v-else class="py-4 text-center text-gray-500">
+              所属している組織がありません
+            </div>
+          </div>
+
           <div class="rounded-lg bg-white p-6 shadow">
             <h2 class="mb-4 text-lg font-semibold">ユーザー情報</h2>
             <div class="space-y-2">

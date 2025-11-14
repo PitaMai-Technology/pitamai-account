@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { z } from 'zod';
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
+
+definePageMeta({
+  layout: 'the-front'
+});
 
 const toast = useToast();
 const loading = ref(false);
@@ -19,44 +22,14 @@ const fields: AuthFormField[] = [
   {
     name: 'name',
     type: 'text',
-    label: '名前（任意）',
+    label: '名前(任意)',
     placeholder: 'your-name',
     required: false,
   },
 ];
 
-const schema = z.object({
-  email: z.email('有効なメールアドレスを入力してください'),
-  name: z.string().optional(),
-});
-
-const onSignOut = async () => {
-
-  loading.value = true;
-  try {
-    await authClient.signOut();
-    toast.add({
-      title: '成功',
-      description: 'ログアウトしました。',
-      color: 'success',
-    });
-  } catch (err) {
-    console.error('Sign out error:', err);
-    const errorMessage =
-      err instanceof Error
-        ? err.message
-        : 'エラーが発生しました。もう一度お試しください。';
-    toast.add({
-      title: 'エラー',
-      description: errorMessage,
-      color: 'error',
-    });
-  } finally {
-    loading.value = false;
-  }
-};
-
-type Schema = z.output<typeof schema>;
+// shared/types/auth.ts から自動インポートされる
+type Schema = MagicLinkForm;
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true;
@@ -112,16 +85,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
 <template>
   <div>
-    <UHeader title="Nuxt UI">
-      <template #right>
-        <template v-if="session.data">
-          <UButton to="/apps/dashboard" target="_blank">ダッシュボード</UButton>
-          <UButton icon="i-lucide-log-out" @click="onSignOut">
-            ログアウト
-          </UButton>
-        </template>
-      </template>
-    </UHeader>
+    <FrontHeader />
+    <p>
+      {{ session }}
+    </p>
     <div class="flex min-h-screen items-center justify-center p-4">
       <UPageCard class="w-full max-w-md">
         <div v-if="emailSent" class="flex flex-col items-center space-y-4 py-8">
@@ -134,7 +101,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             別のメールアドレスでログイン
           </UButton>
         </div>
-        <UAuthForm v-else :schema="schema" :fields="fields" :loading="loading" title="ログイン"
+        <UAuthForm v-else :schema="magicLinkFormSchema" :fields="fields" :loading="loading" title="ログイン"
           description="メールアドレスにログインリンクを送信します" icon="i-lucide-mail" :submit="{ label: 'ログインリンクを送信' }"
           @submit="onSubmit" />
       </UPageCard>
