@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { organization, magicLink } from 'better-auth/plugins';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { ac, owner, admin, member } from "~~/server/utils/permissions"
+import { ac, owner, admin, member } from '~~/server/utils/permissions';
 import { PrismaClient } from '@prisma/client';
 import { sendEmail } from './email';
 
@@ -110,7 +110,7 @@ export const auth = betterAuth({
         owner,
         admin,
         member,
-      }
+      },
     }),
   ],
 });

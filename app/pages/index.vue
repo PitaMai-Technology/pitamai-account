@@ -3,7 +3,7 @@ import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 
 definePageMeta({
-  layout: 'the-front'
+  layout: 'the-front',
 });
 
 const toast = useToast();
@@ -101,9 +101,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             別のメールアドレスでログイン
           </UButton>
         </div>
-        <UAuthForm v-else :schema="magicLinkFormSchema" :fields="fields" :loading="loading" title="ログイン"
-          description="メールアドレスにログインリンクを送信します" icon="i-lucide-mail" :submit="{ label: 'ログインリンクを送信' }"
-          @submit="onSubmit" />
+        <UAuthForm
+          v-else
+          :schema="magicLinkFormSchema"
+          :fields="fields"
+          :loading="loading"
+          title="ログイン"
+          description="メールアドレスにログインリンクを送信します"
+          icon="i-lucide-mail"
+          :submit="{ label: 'ログインリンクを送信' }"
+          @submit="onSubmit"
+        />
       </UPageCard>
     </div>
   </div>

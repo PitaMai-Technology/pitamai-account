@@ -1,6 +1,6 @@
 import { authClient } from '~/composable/auth-client';
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async to => {
   // ログインページは認証チェックをスキップ
   if (to.path === '/') {
     return;
@@ -13,13 +13,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // better-auth側がバグってusefetchが使えないため、一旦ラップする
   const relativeFetch = ((url: string, opts?: any) => {
     try {
-      if (url.startsWith('http')) url = new URL(url).pathname
+      if (url.startsWith('http')) url = new URL(url).pathname;
     } catch (error: unknown) {
       console.error('Error parsing URL in auth middleware:', error);
     }
-    return useFetch(url, opts)
-  }) as any
-  const { data: session } = await authClient.useSession(relativeFetch)
+    return useFetch(url, opts);
+  }) as any;
+  const { data: session } = await authClient.useSession(relativeFetch);
 
   if (!session.value) {
     console.log('No session found, redirecting to login...');

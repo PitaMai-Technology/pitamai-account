@@ -9,7 +9,7 @@ const organizationSchema = z.object({
     .regex(/^[a-zA-Z0-9-]+$/, '英数字とハイフンのみ使用できます'),
 });
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const body = await readBody(event);
     const result = organizationSchema.safeParse(body);
@@ -33,7 +33,10 @@ export default defineEventHandler(async (event) => {
   } catch (e: unknown) {
     if (e instanceof Error) {
       console.error('Organization creation error:', e);
-      throw createError({ statusCode: 400, message: '組織の作成に失敗しました' });
+      throw createError({
+        statusCode: 400,
+        message: '組織の作成に失敗しました',
+      });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });
   }

@@ -21,7 +21,6 @@ const loading = ref(false); // 追加
 
 const toast = useToast();
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-
   if (loading.value) return; // 二重送信防止
   loading.value = true;
   try {
@@ -68,7 +67,12 @@ const session = authClient.useSession();
   <div>
     <h1 v-if="session.data">ようこそ、{{ session.data.user.name }}さん</h1>
     <h1 class="text-5xl">組織作成</h1>
-    <UForm :schema="schema" :state="state" class="space-y-4 m-10" @submit="onSubmit">
+    <UForm
+      :schema="schema"
+      :state="state"
+      class="space-y-4 m-10"
+      @submit="onSubmit"
+    >
       <UFormField label="組織名" name="name" required>
         <UInput v-model="state.name" />
       </UFormField>
@@ -77,7 +81,9 @@ const session = authClient.useSession();
         <UInput v-model="state.slug" class="w-full" />
       </UFormField>
 
-      <UButton type="submit" :loading="loading" :disabled="loading"> 送信 </UButton>
+      <UButton type="submit" :loading="loading" :disabled="loading">
+        送信
+      </UButton>
     </UForm>
   </div>
 </template>

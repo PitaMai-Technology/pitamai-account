@@ -2,7 +2,7 @@
 import { authClient } from '~/composable/auth-client';
 
 definePageMeta({
-  layout: 'the-app'
+  layout: 'the-app',
 });
 
 const sessionRef = authClient.useSession();
@@ -15,12 +15,13 @@ const organizations = authClient.useListOrganizations();
 <template>
   <div>
     <div class="container mx-auto p-4">
-
       <UPageCard class="mx-auto max-w-4xl">
-
         <!-- ローディング状態 -->
         <div v-if="isPending" class="flex items-center justify-center py-12">
-          <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
+          <UIcon
+            name="i-lucide-loader-circle"
+            class="h-8 w-8 animate-spin text-primary"
+          />
         </div>
 
         <!-- ユーザー情報 -->
@@ -28,12 +29,25 @@ const organizations = authClient.useListOrganizations();
           <!-- 組織リンク -->
           <div class="rounded-lg bg-white p-6 shadow">
             <h2 class="mb-4 text-lg font-semibold">所属組織</h2>
-            <div v-if="organizations.isPending" class="flex items-center justify-center py-4">
-              <UIcon name="i-lucide-loader-circle" class="h-6 w-6 animate-spin text-primary" />
+            <div
+              v-if="organizations.isPending"
+              class="flex items-center justify-center py-4"
+            >
+              <UIcon
+                name="i-lucide-loader-circle"
+                class="h-6 w-6 animate-spin text-primary"
+              />
             </div>
-            <div v-else-if="organizations.data && organizations.data.length > 0" class="space-y-2">
-              <NuxtLink v-for="org in organizations.data" :key="org.id" :to="`/apps/organaization/${org.id}`"
-                class="flex items-center justify-between rounded-lg border p-3 transition hover:bg-gray-50">
+            <div
+              v-else-if="organizations.data && organizations.data.length > 0"
+              class="space-y-2"
+            >
+              <NuxtLink
+                v-for="org in organizations.data"
+                :key="org.id"
+                :to="`/apps/organaization/${org.id}`"
+                class="flex items-center justify-between rounded-lg border p-3 transition hover:bg-gray-50"
+              >
                 <div class="flex items-center space-x-3">
                   <UIcon name="i-lucide-building-2" class="text-gray-400" />
                   <span class="font-medium">{{ org.name }}</span>
@@ -52,12 +66,19 @@ const organizations = authClient.useListOrganizations();
               <div class="flex items-center space-x-2">
                 <UIcon name="i-lucide-mail" class="text-gray-400" />
                 <span class="font-medium">メール:</span>
-                <span class="text-gray-600">{{ sessionRef.data.user.email }}</span>
+                <span class="text-gray-600">{{
+                  sessionRef.data.user.email
+                }}</span>
               </div>
-              <div v-if="sessionRef.data.user.name" class="flex items-center space-x-2">
+              <div
+                v-if="sessionRef.data.user.name"
+                class="flex items-center space-x-2"
+              >
                 <UIcon name="i-lucide-user" class="text-gray-400" />
                 <span class="font-medium">名前:</span>
-                <span class="text-gray-600">{{ sessionRef.data.user.name }}</span>
+                <span class="text-gray-600">{{
+                  sessionRef.data.user.name
+                }}</span>
               </div>
               <div class="flex items-center space-x-2">
                 <UIcon name="i-lucide-calendar" class="text-gray-400" />
@@ -65,7 +86,9 @@ const organizations = authClient.useListOrganizations();
                 <span class="text-gray-600">
                   {{
                     sessionRef.data.user.createdAt
-                      ? new Date(sessionRef.data.user.createdAt).toLocaleDateString('ja-JP')
+                      ? new Date(
+                          sessionRef.data.user.createdAt
+                        ).toLocaleDateString('ja-JP')
                       : '-'
                   }}
                 </span>
@@ -81,11 +104,18 @@ const organizations = authClient.useListOrganizations();
                 <UIcon name="i-lucide-shield-check" class="text-green-500" />
                 <span class="text-green-600">認証済み</span>
               </div>
-              <div v-if="sessionRef.data && sessionRef.data.session.expiresAt" class="flex items-center space-x-2">
+              <div
+                v-if="sessionRef.data && sessionRef.data.session.expiresAt"
+                class="flex items-center space-x-2"
+              >
                 <UIcon name="i-lucide-clock" class="text-gray-400" />
                 <span class="font-medium">有効期限:</span>
                 <span class="text-gray-600">
-                  {{ new Date(sessionRef.data.session.expiresAt).toLocaleDateString('ja-JP') }}
+                  {{
+                    new Date(
+                      sessionRef.data.session.expiresAt
+                    ).toLocaleDateString('ja-JP')
+                  }}
                 </span>
               </div>
             </div>

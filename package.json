@@ -9,7 +9,9 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "generate:better-auth": "pnpx @better-auth/cli generate --config server/utils/auth.ts",
-    "migration:better-auth": "pnpx @better-auth/cli migrate --config server/utils/auth.ts"
+    "migration:better-auth": "pnpx @better-auth/cli migrate --config server/utils/auth.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@nuxt/eslint": "1.10.0",
