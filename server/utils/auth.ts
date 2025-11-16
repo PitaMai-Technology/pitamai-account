@@ -39,7 +39,7 @@ export const auth = betterAuth({
   // },
   plugins: [
     magicLink({
-      // disableSignUp: true,
+      disableSignUp: true,
       sendMagicLink: async ({ email, url }) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('='.repeat(80));
@@ -109,7 +109,7 @@ export const auth = betterAuth({
         const config = useRuntimeConfig();
         const inviteLink =
           config.public.BETTER_AUTH_URL +
-          `/accept-invitation?invitationId=${data.id}`;
+          `/apps/organaization/accept-invitation?invitationId=${data.id}`;
         await sendEmail({
           to: data.email,
           subject: `組織内システム「MaiMai Hub」への招待メール`,
@@ -123,12 +123,6 @@ export const auth = betterAuth({
 
               このメールに心当たりがない場合は、無視してください。
             `,
-
-          // email: data.email,
-          // invitedByUsername: data.inviter.user.name,
-          // invitedByEmail: data.inviter.user.email,
-          // teamName: data.organization.name,
-          // inviteLink,
         });
       },
       ac,

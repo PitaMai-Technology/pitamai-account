@@ -85,7 +85,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
 <template>
   <div>
-    <FrontHeader />
     <p>
       {{ session }}
     </p>

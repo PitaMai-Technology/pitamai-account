@@ -23,7 +23,7 @@ export default defineEventHandler(async event => {
       headers,
     });
     // 成功したら /verify にリダイレクト（POST → GET は 303 を使用）
-    await sendRedirect(event, '/verify', 303);
+    await sendRedirect(event, '/apps/dashboard', 303);
     return data;
   } catch (e: unknown) {
     console.error('Sign-in(login) error raw:', e);

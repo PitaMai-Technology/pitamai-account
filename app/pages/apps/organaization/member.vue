@@ -36,7 +36,18 @@ watchEffect(() => {
 });
 
 const loading = ref(false);
-const members = ref<any[]>([]);
+interface Member {
+  id: string;
+  userId: string;
+  role: string;
+  createdAt: string | Date;
+  user?: {
+    email?: string | null;
+    name?: string | null;
+  } | null;
+};
+
+const members = ref<Member[]>([]);
 const total = ref<number | undefined>(undefined);
 
 const operatorOptions = [
@@ -107,7 +118,7 @@ async function fetchMembers() {
       return;
     }
 
-    console.debug('Client: listMembers response data:', data); // [!code highlight]
+    console.debug('Client: listMembers response data:', data);
 
     if (data?.members && Array.isArray(data.members)) {
       members.value = data.members;
@@ -287,7 +298,7 @@ function resetForm() {
             <td class="px-3 py-2">{{ member.role }}</td>
             <td class="px-3 py-2">{{
               new Date(member.createdAt).toLocaleDateString('ja-JP')
-            }}</td>
+              }}</td>
           </tr>
         </tbody>
       </table>
