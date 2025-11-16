@@ -1,11 +1,10 @@
 import { auth } from '~~/server/utils/auth';
-import { getQuery, createError } from 'h3';
+import { readBody, createError } from 'h3';
 
 export default defineEventHandler(async event => {
   try {
-    const query = getQuery(event);
-    // shared/types/member.ts から自動インポートされる
-    const result = ListMembers.safeParse(query);
+    const body = await readBody(event);
+    const result = InviteMemberForm.safeParse(body);
 
     if (!result.success) {
       throw createError({
@@ -16,19 +15,18 @@ export default defineEventHandler(async event => {
 
     const validated = result.data;
 
-    // 認証情報を全ヘッダーごと渡す（better-auth公式推奨）
     const { headers } = event;
-    const data = await auth.api.listMembers({
-      query: validated,
+    const data = await auth.api.createInvitation({
+      body: validated,
       headers,
     });
     return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('List members error:', e);
+      console.error('Organization creation error:', e);
       throw createError({
         statusCode: 400,
-        message: 'メンバー一覧の取得に失敗しました',
+        message: '招待に失敗しました',
       });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });

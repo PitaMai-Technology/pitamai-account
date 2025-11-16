@@ -39,17 +39,12 @@ const onSignOut = async () => {
         <h1 class="text-2xl font-bold">MaiMai Hub</h1>
         <div class="hidden xl:block">
           <UPopover>
-            <UButton
-              icon="i-lucide-chevron-down"
-              size="md"
-              color="neutral"
-              variant="outline"
-              >組織を見る
+            <UButton icon="i-lucide-chevron-down" size="md" color="neutral" variant="outline">組織を見る
             </UButton>
 
             <template #content>
               <div class="p-4 max-h-48 overflow-y-scroll">
-                <AppOrganaizationCheck class="mt-6" />
+                <LazyAppOrganaizationCheck class="" />
               </div>
             </template>
           </UPopover>
@@ -57,20 +52,16 @@ const onSignOut = async () => {
       </div>
     </template>
     <template #right>
-      <UButton icon="i-lucide-log-out" :loading="loading" @click="onSignOut">
-        ログアウト
-      </UButton>
+      <div class="hidden xl:block">
+        <UButton icon="i-lucide-log-out" :loading="loading" @click="onSignOut">
+          ログアウト
+        </UButton>
+      </div>
     </template>
 
     <template #body>
       <UPopover class="">
-        <UButton
-          icon="i-lucide-chevron-down"
-          size="md"
-          color="neutral"
-          variant="outline"
-          >組織を見る</UButton
-        >
+        <UButton icon="i-lucide-chevron-down" size="md" color="neutral" variant="outline">組織を見る</UButton>
 
         <template #content>
           <div class="p-4 max-h-48 overflow-y-scroll">

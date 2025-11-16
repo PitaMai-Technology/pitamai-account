@@ -4,6 +4,15 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/eslint', '@nuxt/ui'],
   css: ['~/assets/main.css'],
+  nitro: {
+    externals: {
+      inline: [],
+    },
+    moduleSideEffects: ['@prisma/client', '.prisma/client/default'],
+    rollupConfig: {
+      external: ['@prisma/client', '.prisma/client/default'],
+    },
+  },
 
   runtimeConfig: {
     // サーバ専用（公開されない）
@@ -17,8 +26,7 @@ export default defineNuxtConfig({
     SMTP_DISABLED: process.env.SMTP_DISABLED,
     // クライアントにも公開
     public: {
-      // ベース URL（リバースプロキシ配下などでホスト名を固定したい場合に使用）
-      // BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     },
   },
 });

@@ -5,4 +5,5 @@ ignoredBuiltDependencies:
   - vue-demi
 
 onlyBuiltDependencies:
+  - '@prisma/client'
   - argon2

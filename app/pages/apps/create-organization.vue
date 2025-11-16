@@ -67,12 +67,7 @@ const session = authClient.useSession();
   <div>
     <h1 v-if="session.data">ようこそ、{{ session.data.user.name }}さん</h1>
     <h1 class="text-5xl">組織作成</h1>
-    <UForm
-      :schema="schema"
-      :state="state"
-      class="space-y-4 m-10"
-      @submit="onSubmit"
-    >
+    <UForm :schema="schema" :state="state" class="space-y-4 m-10" @submit="onSubmit">
       <UFormField label="組織名" name="name" required>
         <UInput v-model="state.name" />
       </UFormField>

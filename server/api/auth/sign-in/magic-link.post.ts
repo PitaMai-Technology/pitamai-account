@@ -26,7 +26,7 @@ export default defineEventHandler(async event => {
     return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('Sign-in(login) error:', e);
+      console.error('Sign-in(login) by magicLink error:', e);
       throw createError({
         statusCode: 400,
         message: 'メールアドレスが正しくありません',

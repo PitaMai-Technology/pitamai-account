@@ -1,25 +1,18 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
-import * as z from 'zod';
 import { authClient } from '~/composable/auth-client';
+import type { z } from 'zod';
+
+definePageMeta({
+  layout: 'the-app',
+});
 
 const toast = useToast();
 const activeOrganization = authClient.useActiveOrganization();
 const organizations = authClient.useListOrganizations();
 
-const schema = z.object({
-  organizationId: z.string().optional(), // 内部ではIDを使用
-  limit: z.coerce.number().int().min(1).max(100).optional(),
-  offset: z.coerce.number().int().min(0).optional(),
-  sortBy: z.string().optional(),
-  sortDirection: z.enum(['asc', 'desc']).optional(),
-  filterField: z.string().optional(),
-  filterOperator: z
-    .enum(['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'contains'])
-    .optional(),
-  filterValue: z.string().optional(),
-});
-type Schema = z.infer<typeof schema>;
+// shared/types/member.ts から自動インポートされる
+type Schema = z.infer<typeof ListMembersForm>;
 
 const state = reactive<Partial<Schema>>({
   organizationId: undefined,
@@ -159,7 +152,7 @@ async function onSubmit(event?: FormSubmitEvent<Schema>) {
   event?.preventDefault?.();
   if (loading.value) return;
 
-  const parsed = schema.safeParse(state);
+  const parsed = ListMembersForm.safeParse(state);
   if (!parsed.success) {
     toast.add({
       title: '入力エラー',
@@ -190,32 +183,19 @@ function resetForm() {
   <div class="p-4 space-y-6">
     <h1 class="text-2xl font-semibold">オーガナイゼーション メンバー検索</h1>
 
-    <form
-      @submit.prevent="onSubmit()"
-      class="grid grid-cols-1 md:grid-cols-3 gap-4"
-    >
+    <form class="grid grid-cols-1 md:grid-cols-3 gap-4" @submit.prevent="onSubmit()">
       <div>
         <label class="block text-sm mb-1">Organization</label>
         <div v-if="organizations.isPending" class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-loader-circle"
-            class="h-4 w-4 animate-spin text-primary"
-          />
+          <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin text-primary" />
           <span class="text-sm text-gray-500">読み込み中...</span>
         </div>
-        <div
-          v-else-if="!organizations.data || organizations.data.length === 0"
-          class="text-sm text-gray-500"
-        >
+        <div v-else-if="!organizations.data || organizations.data.length === 0" class="text-sm text-gray-500">
           所属している組織がありません
         </div>
         <select v-else v-model="state.organizationId" class="w-full input">
           <option value="">-- 組織を選択 --</option>
-          <option
-            v-for="org in organizations.data"
-            :key="org.id"
-            :value="org.id"
-          >
+          <option v-for="org in organizations.data" :key="org.id" :value="org.id">
             {{ org.name }} ({{ org.slug }})
           </option>
         </select>
@@ -226,34 +206,19 @@ function resetForm() {
 
       <div>
         <label class="block text-sm mb-1">Limit</label>
-        <input
-          v-model.number="state.limit"
-          type="number"
-          min="1"
-          max="100"
-          class="w-full input"
-        />
+        <input v-model.number="state.limit" type="number" min="1" max="100" class="w-full input">
       </div>
 
       <div>
         <label class="block text-sm mb-1">Offset</label>
-        <input
-          v-model.number="state.offset"
-          type="number"
-          min="0"
-          class="w-full input"
-        />
+        <input v-model.number="state.offset" type="number" min="0" class="w-full input">
       </div>
 
       <div>
         <label class="block text-sm mb-1">Sort By</label>
         <select v-model="state.sortBy" class="w-full input">
           <option value="">-- 選択 --</option>
-          <option
-            v-for="field in fieldOptions"
-            :key="field.value"
-            :value="field.value"
-            >{{ field.label }}
+          <option v-for="field in fieldOptions" :key="field.value" :value="field.value">{{ field.label }}
           </option>
         </select>
       </div>
@@ -270,11 +235,7 @@ function resetForm() {
         <label class="block text-sm mb-1">Filter Field</label>
         <select v-model="state.filterField" class="w-full input">
           <option value="">-- 選択 --</option>
-          <option
-            v-for="field in fieldOptions"
-            :key="field.value"
-            :value="field.value"
-            >{{ field.label }}
+          <option v-for="field in fieldOptions" :key="field.value" :value="field.value">{{ field.label }}
           </option>
         </select>
       </div>
@@ -283,32 +244,21 @@ function resetForm() {
         <label class="block text-sm mb-1">Filter Operator</label>
         <select v-model="state.filterOperator" class="w-full input">
           <option value="">-- 選択 --</option>
-          <option
-            v-for="operator in operatorOptions"
-            :key="operator.value"
-            :value="operator.value"
-            >{{ operator.label }}</option
-          >
+          <option v-for="operator in operatorOptions" :key="operator.value" :value="operator.value">{{ operator.label }}
+          </option>
         </select>
       </div>
 
       <div>
         <label class="block text-sm mb-1">Filter Value</label>
-        <input
-          v-model="state.filterValue"
-          type="text"
-          class="w-full input"
-          placeholder="値（複数はカンマ区切り）"
-        />
+        <input v-model="state.filterValue" type="text" class="w-full input" placeholder="値（複数はカンマ区切り）">
       </div>
 
       <div class="md:col-span-3 flex gap-2 justify-end items-end">
         <button type="submit" class="btn btn-primary" :disabled="!canSearch">
           {{ loading ? '検索中...' : '検索' }}
         </button>
-        <button type="button" class="btn" @click="resetForm" :disabled="loading"
-          >リセット</button
-        >
+        <button type="button" class="btn" :disabled="loading" @click="resetForm">リセット</button>
       </div>
     </form>
 
@@ -343,8 +293,11 @@ function resetForm() {
       </table>
     </div>
 
-    <div v-else-if="!loading" class="text-sm text-gray-600"
-      >メンバーが見つかりません。</div
-    >
+    <div v-else-if="!loading" class="text-sm text-gray-600">メンバーが見つかりません。</div>
+
+    <hr class="mt-6">
+
+
+
   </div>
 </template>
