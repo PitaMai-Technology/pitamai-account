@@ -15,15 +15,17 @@ const ac = createAccessControl(statement);
 
 const member = ac.newRole({
   ...memberAc.statements,
+  // member には project: "share" 権限を付与しない
   project: ['create'],
 });
 const admin = ac.newRole({
   ...adminAc.statements,
-  project: ['create', 'update'],
+  // admin 以上だけが project: "share" を持つようにする
+  project: ['create', 'update', 'share'],
 });
 const owner = ac.newRole({
   ...ownerAc.statements,
-  project: ['create', 'update', 'delete'],
+  project: ['create', 'update', 'delete', 'share'],
 });
 
 export { ac, member, admin, owner };

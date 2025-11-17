@@ -1,42 +1,43 @@
 <script setup lang="ts">
+import { authClient } from '~/composable/auth-client';
+
+// const activeOrganization = authClient.useActiveOrganization();
+
 const items = ref([
   {
-    label: 'ダッシュボード',
-    description: '組織のメイン画面',
-    icon: 'i-lucide-house',
-    to: '/apps/dashboard'
+    label: 'ホーム',
+    icon: 'i-lucide-home',
+    to: '/apps/dashboard',
   },
   {
-    label: '組織',
-    icon: 'i-lucide-building', // 組織関連のアイコンを追加
+    label: '管理者ダッシュボード',
+    icon: 'i-lucide-home',
+    to: '/apps/admin',
     children: [
       {
-        label: '組織作成',
-        description: '新しい組織を作成する',
-        icon: 'i-lucide-plus',
-        to: '/apps/create-organization'
-      },
-      {
-        label: 'アカウント追加',
-        description: 'アカウントを追加する',
-        icon: 'i-lucide-user-plus',
-        to: '/apps/account-add'
+        label: 'メンバー管理',
+        icon: 'i-lucide-users',
+        to: '/apps/admin/member',
       },
       {
         label: 'メンバー追加',
-        description: '組織にメンバーを追加する',
-        icon: 'i-lucide-users',
-        to: '/apps/organization/member-add'
+        icon: 'i-lucide-user-plus',
+        to: '/apps/admin/member-add',
       },
       {
-        label: 'メンバー管理',
-        description: '組織のメンバーを管理する',
-        icon: 'i-lucide-users',
-        to: '/apps/organization/member'
-      }
-    ]
-  }
-])
+        label: 'アカウント追加',
+        icon: 'i-lucide-user-plus',
+        to: '/apps/admin/account-add',
+      },
+      {
+        label: '組織作成',
+        icon: 'i-lucide-plus-circle',
+        to: '/apps/admin/create-organization',
+      },
+    ],
+  },
+]);
+
 </script>
 
 <template>
