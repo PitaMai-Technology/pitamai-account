@@ -18,6 +18,7 @@ const fields: AuthFormField[] = [
     label: 'メールアドレス',
     placeholder: 'user@email.com',
     required: true,
+    autocomplete: 'email',
   },
   {
     name: 'name',

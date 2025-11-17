@@ -10,8 +10,8 @@ definePageMeta({
 const toast = useToast();
 
 const schema = z.object({
-  email: z.string().email('メールアドレスの形式が正しくありません'),
-  name: z.string().min(1, '名前を入力してください').optional(),
+  email: z.email('メールアドレスの形式が正しくありません'),
+  name: z.string(),
 });
 
 type Schema = z.output<typeof schema>;

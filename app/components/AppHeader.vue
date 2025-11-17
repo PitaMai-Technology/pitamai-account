@@ -36,19 +36,9 @@ const onSignOut = async () => {
   <UHeader mode="slideover">
     <template #left>
       <div class="flex gap-4">
-        <h1 class="text-2xl font-bold">MaiMai Hub</h1>
-        <div class="hidden xl:block">
-          <UPopover>
-            <UButton icon="i-lucide-chevron-down" size="md" color="neutral" variant="outline">組織を見る
-            </UButton>
-
-            <template #content>
-              <div class="p-4 max-h-48 overflow-y-scroll">
-                <LazyAppOrganaizationCheck class="" />
-              </div>
-            </template>
-          </UPopover>
-        </div>
+        <h1 class="text-2xl font-bold">
+          <NuxtLink to="/apps/dashboard">MaiMai Hub</NuxtLink>
+        </h1>
       </div>
     </template>
     <template #right>

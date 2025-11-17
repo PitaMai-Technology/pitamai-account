@@ -3,6 +3,10 @@ import * as z from 'zod';
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 
+definePageMeta({
+  layout: 'the-app',
+});
+
 const schema = z.object({
   name: z.string('組織名を入力してください'),
   slug: z

@@ -2,6 +2,10 @@
 import { authClient } from '~/composable/auth-client';
 import { useOrg } from '~/composable/useOrg';
 
+definePageMeta({
+  layout: 'the-app',
+});
+
 const route = useRoute();
 const organizationId = computed(() => route.params.id as string);
 
@@ -30,23 +34,15 @@ const currentOrganization = computed(() => {
 
 <template>
   <div>
-    <div
-      v-if="
-        isValidating || organizations.isPending || activeOrganization.isPending
-      "
-      class="flex items-center justify-center py-12"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-8 w-8 animate-spin text-primary"
-      />
+    <div v-if="
+      isValidating || organizations.isPending || activeOrganization.isPending
+    " class="flex items-center justify-center py-12">
+      <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
     </div>
     <div v-else-if="currentOrganization" class="space-y-4">
       <div class="rounded-lg bg-white p-6 shadow">
         <h1 class="text-2xl font-bold">{{ currentOrganization.name }}</h1>
-        <p class="text-sm text-gray-600"
-          >組織ID: {{ currentOrganization.id }}</p
-        >
+        <p class="text-sm text-gray-600">組織ID: {{ currentOrganization.id }}</p>
       </div>
       <!-- ここに組織固有のコンテンツを追加 -->
     </div>

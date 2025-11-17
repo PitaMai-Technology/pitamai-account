@@ -14,8 +14,8 @@ const organizations = authClient.useListOrganizations();
 
 <template>
   <div>
-    <div class="container mx-auto p-4">
-      <UPageCard class="mx-auto max-w-4xl">
+    <div class="container mx-auto mt-8">
+      <UPageCard class="mx-auto">
         <!-- ローディング状態 -->
         <div v-if="isPending" class="flex items-center justify-center py-12">
           <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
@@ -30,7 +30,7 @@ const organizations = authClient.useListOrganizations();
               <UIcon name="i-lucide-loader-circle" class="h-6 w-6 animate-spin text-primary" />
             </div>
             <div v-else-if="organizations.data && organizations.data.length > 0" class="space-y-2">
-              <NuxtLink v-for="org in organizations.data" :key="org.id" :to="`/apps/organaization/${org.id}`"
+              <NuxtLink v-for="org in organizations.data" :key="org.id" :to="`/apps/organization/${org.id}`"
                 class="flex items-center justify-between rounded-lg border p-3 transition hover:bg-gray-50">
                 <div class="flex items-center space-x-3">
                   <UIcon name="i-lucide-building-2" class="text-gray-400" />

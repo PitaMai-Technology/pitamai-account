@@ -3,6 +3,7 @@ import {
   defaultStatements,
   adminAc,
   ownerAc,
+  memberAc,
 } from 'better-auth/plugins/organization/access';
 
 const statement = {
@@ -13,6 +14,7 @@ const statement = {
 const ac = createAccessControl(statement);
 
 const member = ac.newRole({
+  ...memberAc.statements,
   project: ['create'],
 });
 const admin = ac.newRole({

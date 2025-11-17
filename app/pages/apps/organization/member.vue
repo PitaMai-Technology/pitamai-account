@@ -2,6 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import type { z } from 'zod';
+import type { TableColumn } from '@nuxt/ui';
 
 definePageMeta({
   layout: 'the-app',
@@ -188,6 +189,36 @@ function resetForm() {
   members.value = [];
   total.value = undefined;
 }
+
+const columns: TableColumn<Member>[] = [
+  {
+    accessorKey: 'id',
+    header: 'メンバーID'
+  },
+  {
+    accessorKey: 'userId',
+    header: 'ユーザーID'
+  },
+  {
+    accessorKey: 'user.email',
+    header: 'メール',
+    cell: ({ row }) => row.original.user?.email || 'N/A'
+  },
+  {
+    accessorKey: 'user.name',
+    header: '名前',
+    cell: ({ row }) => row.original.user?.name || 'N/A'
+  },
+  {
+    accessorKey: 'role',
+    header: 'ロール'
+  },
+  {
+    accessorKey: 'createdAt',
+    header: '参加日',
+    cell: ({ row }) => new Date(row.getValue('createdAt')).toLocaleDateString('ja-JP')
+  }
+];
 </script>
 
 <template>
@@ -278,37 +309,11 @@ function resetForm() {
     </div>
 
     <div v-if="members.length" class="overflow-auto mt-2">
-      <table class="min-w-full">
-        <thead>
-          <tr>
-            <th class="px-3 py-2 text-left">メンバーID</th>
-            <th class="px-3 py-2 text-left">ユーザーID</th>
-            <th class="px-3 py-2 text-left">メール</th>
-            <th class="px-3 py-2 text-left">名前</th>
-            <th class="px-3 py-2 text-left">ロール</th>
-            <th class="px-3 py-2 text-left">参加日</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="member in members" :key="member.id">
-            <td class="px-3 py-2">{{ member.id }}</td>
-            <td class="px-3 py-2">{{ member.userId }}</td>
-            <td class="px-3 py-2">{{ member.user?.email || 'N/A' }}</td>
-            <td class="px-3 py-2">{{ member.user?.name || 'N/A' }}</td>
-            <td class="px-3 py-2">{{ member.role }}</td>
-            <td class="px-3 py-2">{{
-              new Date(member.createdAt).toLocaleDateString('ja-JP')
-              }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <UTable :data="members" :columns="columns" :loading="loading" empty="メンバーが見つかりません。" class="min-w-full" />
     </div>
 
     <div v-else-if="!loading" class="text-sm text-gray-600">メンバーが見つかりません。</div>
 
     <hr class="mt-6">
-
-
-
   </div>
 </template>
