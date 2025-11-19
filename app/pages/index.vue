@@ -86,10 +86,21 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
 <template>
   <div>
-    <p>
-      {{ session }}
-    </p>
-    <div class="flex min-h-screen items-center justify-center p-4">
+    <div v-if="session.data" class="flex items-center justify-center p-4">
+      <UPageCard class="w-full max-w-md">
+        <div class="flex flex-col items-center space-y-4 py-8">
+          <UIcon name="i-lucide-check-circle" class="h-16 w-16 text-success" />
+          <h2 class="text-xl font-semibold">ログイン済みです</h2>
+          <p class="text-center text-gray-600">
+            ようこそ、{{ session.data.user.name }}さん
+          </p>
+          <UButton to="/apps/dashboard" color="primary">
+            ダッシュボードへ移動
+          </UButton>
+        </div>
+      </UPageCard>
+    </div>
+    <div class="flex items-center justify-center p-4">
       <UPageCard class="w-full max-w-md">
         <div v-if="emailSent" class="flex flex-col items-center space-y-4 py-8">
           <UIcon name="i-lucide-mail-check" class="h-16 w-16 text-success" />

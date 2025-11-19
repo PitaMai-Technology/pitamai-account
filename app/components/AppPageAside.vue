@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client';
 
-// const activeOrganization = authClient.useActiveOrganization();
+const tabs = [
+  {
+    label: '設定',
+    icon: 'i-lucide-user',
+    slot: 'settings'
+  },
+  {
+    label: 'アプリ',
+    icon: 'i-lucide-app-window',
+    slot: 'apps'
+  }
+]
 
 const items = ref([
   {
@@ -9,6 +20,9 @@ const items = ref([
     icon: 'i-lucide-home',
     to: '/apps/dashboard',
   },
+]);
+
+const adminItems = [[
   {
     label: '管理者ダッシュボード',
     icon: 'i-lucide-home',
@@ -36,8 +50,19 @@ const items = ref([
       },
     ],
   },
-]);
+]];
 
+// ミドルウェアを参考にロールチェックを追加
+const { data: roleData } = await authClient.organization.getActiveMemberRole({});
+const canAccess = computed(() => {
+  if (!roleData?.role) return false;
+  return authClient.organization.checkRolePermission({
+    permissions: {
+      project: ['share'],
+    },
+    role: roleData.role as 'member' | 'admin' | 'owner',
+  });
+});
 </script>
 
 <template>
@@ -54,7 +79,20 @@ const items = ref([
         </template>
       </UPopover>
     </div>
-    <UNavigationMenu :items="items" orientation="vertical" />
+    <UTabs :items="tabs" class="gap-5" variant="link" color="info">
+
+      <template #settings>
+        <UNavigationMenu :items="items" orientation="vertical" />
+
+        <template v-if="canAccess">
+          <UNavigationMenu :items="adminItems" orientation="vertical" />
+        </template>
+      </template>
+
+      <template #apps>
+        <h1>あ</h1>
+      </template>
+    </UTabs>
   </UPageAside>
 </template>
 

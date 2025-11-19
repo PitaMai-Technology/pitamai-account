@@ -42,18 +42,15 @@ export const auth = betterAuth({
       disableSignUp: true,
       sendMagicLink: async ({ email, url }) => {
         if (process.env.NODE_ENV === 'development') {
-          console.log('='.repeat(80));
           console.log('🔗 Magic Link (Development Mode)');
-          console.log('='.repeat(80));
           console.log(`To: ${email}`);
           console.log(`URL: ${url}`);
-          console.log('='.repeat(80));
         }
 
         try {
           await sendEmail({
             to: email,
-            subject: 'ログインリンク - PitaMAI',
+            subject: 'ログインリンク - PitaMai',
             text: `
               ログインリンク
 
@@ -116,7 +113,9 @@ export const auth = betterAuth({
           text: `
               招待リンクです。
               ${data.inviter.user.email}さんからの招待です。
+
               あなたは「${data.organization.name}」のメンバーとして招待されています。
+              
               以下のリンクをクリックしてログインしてください：
               
               ${inviteLink}

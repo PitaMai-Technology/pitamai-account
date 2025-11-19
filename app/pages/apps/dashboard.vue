@@ -6,8 +6,6 @@ definePageMeta({
 });
 
 const sessionRef = authClient.useSession();
-// const session = sessionRef.value.data;
-const isPending = computed(() => sessionRef.value.isPending);
 
 const organizations = authClient.useListOrganizations();
 </script>
@@ -16,13 +14,9 @@ const organizations = authClient.useListOrganizations();
   <div>
     <div class="container mx-auto mt-8">
       <UPageCard class="mx-auto">
-        <!-- ローディング状態 -->
-        <div v-if="isPending" class="flex items-center justify-center py-12">
-          <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
-        </div>
 
         <!-- ユーザー情報 -->
-        <div v-else-if="sessionRef.data" class="space-y-4">
+        <div v-if="sessionRef.data" class="space-y-4">
           <!-- 組織リンク -->
           <div class="rounded-lg bg-white p-6 shadow">
             <h2 class="mb-4 text-lg font-semibold">所属組織</h2>

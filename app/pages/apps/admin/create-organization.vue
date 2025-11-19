@@ -2,6 +2,7 @@
 import * as z from 'zod';
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
+import { useConfirmDialog } from '~/composable/useConfirmDialog';
 
 definePageMeta({
   layout: 'the-app',
@@ -21,12 +22,21 @@ const state = reactive<Partial<Schema>>({
   slug: '',
 });
 
-const loading = ref(false); // 追加
+const loading = ref(false);
+
+// 共通確認モーダル composable
+const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
 
 const toast = useToast();
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return; // 二重送信防止
   loading.value = true;
+
+  const confirmed = await confirmDialog();
+  if (!confirmed) {
+    loading.value = false;
+    return;
+  }
   try {
     const { error } = await authClient.organization.create({
       name: event.data.name, // required
@@ -84,5 +94,8 @@ const session = authClient.useSession();
         送信
       </UButton>
     </UForm>
+
+    <ConfirmModal :open="confirmOpen" title="確認" message="本当に組織を作成しますか？" @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

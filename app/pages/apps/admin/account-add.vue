@@ -2,6 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { z } from 'zod';
 import { authClient } from '~/composable/auth-client';
+import { useConfirmDialog } from '~/composable/useConfirmDialog';
 
 definePageMeta({
   layout: 'the-app',
@@ -23,9 +24,19 @@ const state = reactive<Partial<Schema>>({
 
 const loading = ref(false);
 
+// 共通確認モーダル composable
+const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
   loading.value = true;
+
+  // モーダルで確認
+  const confirmed = await confirmDialog();
+  if (!confirmed) {
+    loading.value = false;
+    return;
+  }
 
   try {
     // 1. User を事前登録
@@ -125,6 +136,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           </UButton>
         </div>
       </UForm>
+
+      <!-- 確認モーダル -->
+      <ConfirmModal :open="confirmOpen" title="確認" message="本当にメールを送信しますか？" @confirm="() => resolveConfirm(true)"
+        @cancel="() => resolveConfirm(false)" />
     </UPageCard>
   </div>
 </template>
