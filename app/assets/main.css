@@ -1,3 +1,9 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
-@import 'pita-css/style-scoped';
+
+body {
+  font-family: 'BIZ UDPGothic', sans-serif;
+  /* 標準だとなぜか改行されないのでadd */
+  word-break: break-word;
+}
+/* @import 'pita-css/style-scoped'; */

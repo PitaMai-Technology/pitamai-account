@@ -16,7 +16,7 @@ const session = authClient.useSession();
     </template>
     <template v-else>
       <AppHeader />
-      <UPage class="m-auto min-h-screen bg-gray-50">
+      <UPage class="m-auto min-h-screen bg-emerald-50">
         <template #left>
           <AppPageAside />
         </template>

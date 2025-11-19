@@ -20,6 +20,7 @@ export default defineNuxtRouteMiddleware(async to => {
     return useFetch(url, opts);
   }) as any;
   const { data: session } = await authClient.useSession(relativeFetch);
+  // const { data: sessionUsefetch } = await authClient.useSession(useFetch);
 
   if (!session.value) {
     console.log('No session found, redirecting to login...');

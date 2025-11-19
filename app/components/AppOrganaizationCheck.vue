@@ -28,9 +28,9 @@ async function setActiveOrganization(id: string) {
   <div>
     <h2 class="text-lg font-semibold">現在のあなたの組織</h2>
     <div class="mb-4">
-      <UBadge v-if="activeOrganization.isPending">Loading...</UBadge>
-      <UBadge v-else-if="activeOrganization.data === null">No active organization.</UBadge>
-      <UBadge v-else>
+      <UBadge v-if="activeOrganization.isPending">読み込み中...</UBadge>
+      <UBadge v-else-if="activeOrganization.data === null" class="w-full">下のリストから選択してください。</UBadge>
+      <UBadge v-else class="w-full rounded-none">
         {{ activeOrganization.data.name }}
       </UBadge>
     </div>
@@ -42,15 +42,14 @@ async function setActiveOrganization(id: string) {
     <div v-else-if="organizations.data === null">あなたが所属している組織はありません🥲</div>
     <ul v-else>
       <li v-for="organization in organizations.data" :key="organization.id">
-        <UBadge :color="activeOrganization.data?.id !== organization.id ? 'neutral' : undefined"
+        <UButton class="w-full rounded-none"
+          :color="activeOrganization.data?.id !== organization.id ? 'neutral' : undefined"
           :variant="activeOrganization.data?.id !== organization.id ? 'outline' : undefined"
           :class="activeOrganization.data?.id !== organization.id ? 'cursor-pointer' : ''"
           :disabled="activeOrganization.isPending"
           @click="activeOrganization.data?.id !== organization.id && setActiveOrganization(organization.id)">
           {{ organization.name }}
-        </UBadge>
-        <span v-if="activeOrganization.data?.id == organization.id">
-          ←現在ここ！</span>
+        </UButton>
       </li>
     </ul>
   </div>
