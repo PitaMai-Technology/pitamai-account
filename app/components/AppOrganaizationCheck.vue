@@ -29,7 +29,8 @@ async function setActiveOrganization(id: string) {
     <h2 class="text-lg font-semibold">現在のあなたの組織</h2>
     <div class="mb-4">
       <UBadge v-if="activeOrganization.isPending">読み込み中...</UBadge>
-      <UBadge v-else-if="activeOrganization.data === null" class="w-full">下のリストから選択してください。</UBadge>
+      <UBadge v-else-if="activeOrganization.data === null" class="w-full" color="neutral" variant="subtle">
+        下のリストから選択してください。</UBadge>
       <UBadge v-else class="w-full rounded-none">
         {{ activeOrganization.data.name }}
       </UBadge>

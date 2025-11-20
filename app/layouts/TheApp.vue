@@ -1,7 +1,33 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client';
+import { useOrgRole } from '~/composable/useOrgRoleChecks';
 
 const session = authClient.useSession();
+const { canAccessAdmin } = useOrgRole();
+
+const toast = useToast();
+const hasRedirected = ref(false);
+
+if (import.meta.client) {
+  watch(
+    canAccessAdmin,
+    value => {
+      // 管理権限を失ったかつ管理ページにいる場合
+      if (!value && window.location.pathname.startsWith('/apps/admin') && !hasRedirected.value) {
+        hasRedirected.value = true;
+        toast.add({
+          title: '権限がないため、ダッシュボードに戻ります...',
+          color: 'info',
+        });
+        // 少し待ってから遷移（トーストの表示を確実にするため）
+        setTimeout(() => {
+          navigateTo('/apps/dashboard');
+        }, 300);
+      }
+    },
+    { immediate: true }
+  );
+}
 </script>
 
 <template>

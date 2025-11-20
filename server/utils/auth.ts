@@ -106,7 +106,7 @@ export const auth = betterAuth({
         const config = useRuntimeConfig();
         const inviteLink =
           config.public.BETTER_AUTH_URL +
-          `/apps/organaization/accept-invitation?invitationId=${data.id}`;
+          `/apps/organization/accept-invitation?invitationId=${data.id}`;
         await sendEmail({
           to: data.email,
           subject: `組織内システム「MaiMai Hub」への招待メール`,

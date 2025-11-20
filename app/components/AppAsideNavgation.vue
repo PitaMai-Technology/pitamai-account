@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { authClient } from '~/composable/auth-client';
+import { useOrgRole } from '~/composable/useOrgRoleChecks';
 
 const tabs = [
   {
@@ -50,24 +50,17 @@ const adminItems = [[
     ],
   },
 ]];
+const { canAccessAdmin } = useOrgRole();
 
-// ミドルウェアを参考にロールチェックを追加
-const { data: roleData } = await authClient.organization.getActiveMemberRole({});
-const canAccess = computed(() => {
-  if (!roleData?.role) return false;
-  return authClient.organization.checkRolePermission({
-    permissions: {
-      project: ['share'],
-    },
-    role: roleData.role as 'member' | 'admin' | 'owner',
-  });
-});
 </script>
 
 <template>
   <div>
     <div class="hidden xl:block mb-8">
       <AppLogOut class="mb-8" />
+      <!-- <UButton @click="onFetchNavigation">
+        ナビゲーションを更新
+      </UButton> -->
       <UPopover>
         <UButton icon="i-lucide-chevron-down" size="md" color="neutral" variant="outline" class="w-full">組織を見る
         </UButton>
@@ -84,7 +77,7 @@ const canAccess = computed(() => {
       <template #settings>
         <UNavigationMenu :items="items" orientation="vertical" />
 
-        <template v-if="canAccess">
+        <template v-if="canAccessAdmin">
           <USeparator class="my-4" label="管理者のみ" />
           <UNavigationMenu :items="adminItems" orientation="vertical" />
         </template>
