@@ -26,3 +26,6 @@ logs
 /app/generated/prisma
 .vscode/*
 !.vscode/settings.json
+
+
+prisma/prisma/dev.db

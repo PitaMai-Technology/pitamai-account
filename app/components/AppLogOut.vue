@@ -25,7 +25,7 @@ const onSignOut = async () => {
       description: 'ログアウトしました。',
       color: 'success',
     });
-    await router.push('/');
+    await router.push('/login');
   } catch (err) {
     console.error('Sign out error:', err);
     const errorMessage =
