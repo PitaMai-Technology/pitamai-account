@@ -1,4 +1,4 @@
-# PitaMAI - Magic Link Authentication
+# MaiMai Hub
 
 Nuxt 4 + Better Auth を使用した、パスワードレス認証＆組織管理システムです。
 
