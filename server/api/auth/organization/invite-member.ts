@@ -1,5 +1,6 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
+import prisma from '~~/lib/prisma';
 
 export default defineEventHandler(async event => {
   try {
@@ -14,6 +15,21 @@ export default defineEventHandler(async event => {
     }
 
     const validated = result.data;
+
+    const user = await prisma.user.findUnique({
+      where: { email: validated.email },
+    });
+
+    if (!user) {
+      console.warn(
+        `invite-member: user not found for email=${validated.email}`
+      );
+      throw createError({
+        statusCode: 404,
+        message:
+          'このメールアドレスに紐づくアカウントは存在しません。事前にアカウント登録（事前登録）を行ってください。',
+      });
+    }
 
     const { headers } = event;
     const data = await auth.api.createInvitation({

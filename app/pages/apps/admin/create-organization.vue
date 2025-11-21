@@ -1,23 +1,14 @@
 <script setup lang="ts">
-import * as z from 'zod';
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import { useConfirmDialog } from '~/composable/useConfirmDialog';
+import { organizationCreateSchema, type OrganizationCreateForm } from '~~/shared/types/organization-create';
 
 definePageMeta({
   layout: 'the-app',
 });
 
-const schema = z.object({
-  name: z.string('組織名を入力してください'),
-  slug: z
-    .string('スラッグを入力してください')
-    .regex(/^[a-zA-Z0-9-]+$/, '英数字とハイフンのみ使用できます'),
-});
-
-type Schema = z.output<typeof schema>;
-
-const state = reactive<Partial<Schema>>({
+const state = reactive<Partial<OrganizationCreateForm>>({
   name: '',
   slug: '',
 });
@@ -28,7 +19,7 @@ const loading = ref(false);
 const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
 
 const toast = useToast();
-async function onSubmit(event: FormSubmitEvent<Schema>) {
+async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
   if (loading.value) return; // 二重送信防止
   loading.value = true;
 
@@ -81,7 +72,7 @@ const session = authClient.useSession();
   <div>
     <h1 v-if="session.data">ようこそ、{{ session.data.user.name }}さん</h1>
     <h1 class="text-5xl">組織作成</h1>
-    <UForm :schema="schema" :state="state" class="space-y-4 m-10" @submit="onSubmit">
+    <UForm :schema="organizationCreateSchema" :state="state" class="space-y-4 m-10" @submit="onSubmit">
       <UFormField label="組織名" name="name" required>
         <UInput v-model="state.name" />
       </UFormField>

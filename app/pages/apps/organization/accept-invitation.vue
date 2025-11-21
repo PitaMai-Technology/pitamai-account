@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client'
+import { useConfirmDialog } from '~/composable/useConfirmDialog'
 const toast = useToast()
 
 definePageMeta({
-  layout: 'the-front',
+  layout: 'the-app',
 })
 
 const route = useRoute()
@@ -11,11 +12,18 @@ const router = useRouter()
 const invitationId = computed(() => route.query.invitationId as string | undefined)
 const loading = ref(false)
 const message = ref('')
+const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
 
 /**
 * 組織への招待を承認する関数
 */
 async function acceptInvitation() {
+  const confirmed = await confirmDialog();
+  if (!confirmed) {
+    loading.value = false;
+    return;
+  }
+
   if (!invitationId.value) {
     message.value = 'エラー: 招待IDが見つかりません。'
     toast.add({ title: 'エラー', description: message.value, color: 'error' })
@@ -76,6 +84,9 @@ async function acceptInvitation() {
       <UButton @click="acceptInvitation" :disabled="loading">
         招待を承認する
       </UButton>
+
+      <ConfirmModal :open="confirmOpen" title="確認" message="本当に招待を承認しますか？" @confirm="() => resolveConfirm(true)"
+        @cancel="() => resolveConfirm(false)" />
     </div>
   </div>
 </template>

@@ -58,7 +58,7 @@ async function onInviteSubmit(event?: FormSubmitEvent<InviteSchema>) {
     if (!inviteState.organizationId) {
       toast.add({
         title: 'エラー',
-        description: 'Organization が選択されていません。',
+        description: '組織が選択されていません。',
         color: 'error',
       });
       return;

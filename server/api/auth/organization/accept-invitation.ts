@@ -22,16 +22,11 @@ export default defineEventHandler(async event => {
       body: validated,
       headers,
     });
-    // 成功したら /verify にリダイレクト（POST → GET は 303 を使用）
+    // 成功したら ダッシュボード にリダイレクト（POST → GET は 303 を使用）
     await sendRedirect(event, '/apps/dashboard', 303);
     return data;
   } catch (e: unknown) {
     console.error('Sign-in(login) error raw:', e);
-    try {
-      console.error('Sign-in(login) error json:', JSON.stringify(e));
-    } catch {
-      // JSON.stringify できない場合の保険
-    }
 
     if (e instanceof Error) {
       console.error(
