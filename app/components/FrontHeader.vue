@@ -42,10 +42,7 @@ const onSignOut = async () => {
         </UButton>
       </template>
       <template v-else-if="session.isPending">
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="h-6 w-6 animate-spin text-primary"
-        />
+        <TheLoader />
       </template>
     </template>
   </UHeader>

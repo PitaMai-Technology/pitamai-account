@@ -37,7 +37,7 @@ const currentOrganization = computed(() => {
     <div v-if="
       isValidating || organizations.isPending || activeOrganization.isPending
     " class="flex items-center justify-center py-12">
-      <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
+      <TheLoader />
     </div>
     <div v-else-if="currentOrganization" class="space-y-4">
       <div class="rounded-lg bg-white p-6 shadow">

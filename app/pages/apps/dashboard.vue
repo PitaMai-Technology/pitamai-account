@@ -21,7 +21,7 @@ const organizations = authClient.useListOrganizations();
           <div class="rounded-lg bg-white p-6 shadow">
             <h2 class="mb-4 text-lg font-semibold">所属組織</h2>
             <div v-if="organizations.isPending" class="flex items-center justify-center py-4">
-              <UIcon name="i-lucide-loader-circle" class="h-6 w-6 animate-spin text-primary" />
+              <TheLoader />
             </div>
             <div v-else-if="organizations.data && organizations.data.length > 0" class="space-y-2">
               <NuxtLink v-for="org in organizations.data" :key="org.id" :to="`/apps/organization/${org.id}`"
@@ -46,14 +46,14 @@ const organizations = authClient.useListOrganizations();
                 <span class="font-medium">メール:</span>
                 <span class="text-gray-600">{{
                   sessionRef.data.user.email
-                  }}</span>
+                }}</span>
               </div>
               <div v-if="sessionRef.data.user.name" class="flex items-center space-x-2">
                 <UIcon name="i-lucide-user" class="text-gray-400" />
                 <span class="font-medium">名前:</span>
                 <span class="text-gray-600">{{
                   sessionRef.data.user.name
-                  }}</span>
+                }}</span>
               </div>
               <div class="flex items-center space-x-2">
                 <UIcon name="i-lucide-calendar" class="text-gray-400" />
