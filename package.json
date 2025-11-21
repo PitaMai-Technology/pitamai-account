@@ -3,13 +3,13 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "pnpx prisma generate && nuxt build",
+    "build": "pnpm exec prisma generate && nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "generate:better-auth": "pnpx @better-auth/cli generate --config server/utils/auth.ts",
-    "migration:better-auth": "pnpx @better-auth/cli migrate --config server/utils/auth.ts",
+    "generate:better-auth": "pnpm exec @better-auth/cli generate --config server/utils/auth.ts",
+    "migration:better-auth": "pnpm exec @better-auth/cli migrate --config server/utils/auth.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
