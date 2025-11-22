@@ -128,71 +128,74 @@ async function onSubmit(_: FormSubmitEvent<OrganizationDeleteForm>) {
     loading.value = false;
   }
 }
-
-const session = authClient.useSession();
 </script>
 
 <template>
   <div>
-    <h1 v-if="session.data">ようこそ、{{ session.data.user.name }}さん</h1>
-    <h1 class="text-5xl text-red-600">組織を削除</h1>
-    <p class="text-gray-500 mt-2 mb-6"
-      >注意: 組織を削除すると、関連するすべてのデータが失われます。</p
-    >
+    <UPageCard class="mx-auto w-full space-y-6">
+      <h1 class="text-2xl font-semiboldtext text-red-600">組織を削除</h1>
+      <p class="text-gray-500"
+        >注意: 組織を削除すると、関連するすべてのデータが失われます。</p
+      >
 
-    <UForm
-      :schema="organizationDeleteSchema"
-      :state="state"
-      class="space-y-4 m-10"
-      @submit="onSubmit"
-    >
-      <UFormField label="削除する組織" name="organizationId" required>
-        <div v-if="status === 'pending'" class="flex items-center gap-2">
-          <TheLoader />
-        </div>
-        <div
-          v-else-if="!ownerOrganizations || ownerOrganizations.length === 0"
-          class="text-sm text-gray-500"
+      <UForm
+        :schema="organizationDeleteSchema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
+        <UFormField label="削除する組織" name="organizationId" required>
+          <div v-if="status === 'pending'" class="flex items-center gap-2">
+            <TheLoader />
+          </div>
+          <div
+            v-else-if="!ownerOrganizations || ownerOrganizations.length === 0"
+            class="text-sm text-gray-500"
+          >
+            削除可能な組織がありません（オーナー権限を持つ組織のみ削除可能です）
+          </div>
+          <USelect
+            v-else
+            v-model="state.organizationId"
+            :items="ownerOrganizations"
+            label-key="name"
+            value-key="id"
+            placeholder="-- 組織を選択 --"
+            class="w-full"
+          />
+        </UFormField>
+
+        <p class="text-gray-700">{{ selectedOrg?.name }}</p>
+        <UFormField
+          v-if="state.organizationId"
+          label="確認のため、組織名を入力してください"
+          name="organizationName"
+          required
         >
-          削除可能な組織がありません（オーナー権限を持つ組織のみ削除可能です）
+          <UInput
+            v-model="state.organizationName"
+            :color="isNameMatched ? 'success' : undefined"
+            placeholder="選択した組織の名前を入力"
+            class="w-full"
+          />
+        </UFormField>
+
+        <div class="flex justify-end">
+          <UButton
+            type="submit"
+            color="error"
+            :loading="loading"
+            :disabled="
+              loading || !state.organizationId || !state.organizationName
+            "
+          >
+            削除する
+          </UButton>
         </div>
-        <USelect
-          v-else
-          v-model="state.organizationId"
-          :items="ownerOrganizations"
-          label-key="name"
-          value-key="id"
-          placeholder="-- 組織を選択 --"
-          class="w-full"
-        />
-      </UFormField>
+      </UForm>
+    </UPageCard>
 
-      <p class="text-gray-700">{{ selectedOrg?.name }}</p>
-      <UFormField
-        v-if="state.organizationId"
-        label="確認のため、組織名を入力してください"
-        name="organizationName"
-        required
-      >
-        <UInput
-          v-model="state.organizationName"
-          :color="isNameMatched ? 'success' : undefined"
-          placeholder="選択した組織の名前を入力"
-          class="w-full"
-        />
-      </UFormField>
-
-      <UButton
-        type="submit"
-        color="error"
-        :loading="loading"
-        :disabled="loading || !state.organizationId || !state.organizationName"
-      >
-        削除する
-      </UButton>
-    </UForm>
-
-    <ConfirmModal
+    <TheConfirmModal
       :open="confirmOpen"
       title="危険！組織の削除"
       message="本当にこの組織を削除しますか？この操作は取り消せません。"

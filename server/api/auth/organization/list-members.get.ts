@@ -1,5 +1,6 @@
+// TypeScript
 import { auth } from '~~/server/utils/auth';
-import { getQuery, createError } from 'h3';
+import { createError, getQuery } from 'h3';
 
 export default defineEventHandler(async event => {
   try {
@@ -14,15 +15,29 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const validated = result.data;
+    const validated = { ...result.data } as Record<string, unknown>;
+
+    // クライアント側で送られてくるフラットなフィールド名を
+    // Better Auth が期待するネストされたフィールド名にマッピングする
+    const fieldMap: Record<string, string> = {
+      email: 'user.email',
+      name: 'user.name',
+    };
+
+    if (
+      typeof validated.filterField === 'string' &&
+      fieldMap[validated.filterField]
+    ) {
+      validated.filterField = fieldMap[validated.filterField];
+    }
 
     // 認証情報を全ヘッダーごと渡す（better-auth公式推奨）
     const { headers } = event;
-    const data = await auth.api.listMembers({
+
+    return await auth.api.listMembers({
       query: validated,
       headers,
     });
-    return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
       console.error('List members error:', e);

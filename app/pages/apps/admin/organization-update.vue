@@ -203,86 +203,86 @@ function resetForm() {
 <template>
   <div>
     <h1 class="text-2xl font-semibold mb-4">組織情報の更新</h1>
-
-    <UForm
-      :schema="organizationUpdateSchema"
-      :state="state"
-      class="space-y-4"
-      @submit="onSubmit"
-    >
-      <UFormField label="組織を選択" name="organizationId" required>
-        <div v-if="status === 'pending'" class="flex items-center gap-2">
-          <TheLoader />
-        </div>
-        <div
-          v-else-if="!ownerOrganizations || ownerOrganizations.length === 0"
-          class="text-sm text-gray-500"
-        >
-          更新可能な組織がありません（オーナー権限が必要です）
-        </div>
-        <USelect
-          v-else
-          v-model="state.organizationId"
-          :items="ownerOrganizations"
-          label-key="name"
-          value-key="id"
-          class="w-full"
-          placeholder="-- 組織を選択 --"
-        />
-      </UFormField>
-
-      <UFormField v-if="state.organizationId" label="名前" name="data.name">
-        <UInput v-model="state.data!.name" class="w-full" />
-      </UFormField>
-
-      <UFormField v-if="state.organizationId" label="スラッグ" name="data.slug">
-        <UInput v-model="state.data!.slug" class="w-full" />
-      </UFormField>
-
-      <UFormField v-if="state.organizationId" label="ロゴURL" name="data.logo">
-        <UInput
-          v-model="state.data!.logo"
-          class="w-full"
-          placeholder="https://..."
-        />
-      </UFormField>
-
-      <UFormField
-        v-if="state.organizationId"
-        label="metadata (JSON)"
-        name="data.metadata"
+    <UPageCard class="mx-auto w-full space-y-6">
+      <UForm
+        :schema="organizationUpdateSchema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
       >
-        <UTextarea
-          v-model="metadataText"
-          class="w-full"
-          placeholder='例: {"customerId":"1234"}'
-          :rows="6"
-        />
-        <p class="text-xs text-gray-500 mt-1"
-          >空欄なら metadata は変更されません。JSON 形式で入力してください。</p
-        >
-      </UFormField>
+        <UFormField label="組織を選択" name="organizationId" required>
+          <div v-if="status === 'pending'" class="flex items-center gap-2">
+            <TheLoader />
+          </div>
+          <div
+            v-else-if="!ownerOrganizations || ownerOrganizations.length === 0"
+            class="text-sm text-gray-500"
+          >
+            更新可能な組織がありません（オーナー権限が必要です）
+          </div>
+          <USelect
+            v-else
+            v-model="state.organizationId"
+            :items="ownerOrganizations"
+            label-key="name"
+            value-key="id"
+            class="w-full"
+            placeholder="-- 組織を選択 --"
+          />
+        </UFormField>
 
-      <div class="flex gap-2 justify-end">
-        <UButton
-          type="button"
-          variant="outline"
-          :disabled="loading"
-          @click="resetForm"
-          >リセット</UButton
-        >
-        <UButton
-          type="submit"
-          color="primary"
-          :loading="loading"
-          :disabled="!state.organizationId"
-        >
-          更新する
-        </UButton>
-      </div>
-    </UForm>
+        <template v-if="state.organizationId">
+          <UFormField label="名前" name="data.name">
+            <UInput v-model="state.data!.name" class="w-full" />
+          </UFormField>
 
-    <ConfirmModal
+          <UFormField label="スラッグ" name="data.slug">
+            <UInput v-model="state.data!.slug" class="w-full" />
+          </UFormField>
+
+          <UFormField label="ロゴURL" name="data.logo">
+            <UInput
+              v-model="state.data!.logo"
+              class="w-full"
+              placeholder="https://..."
+            />
+          </UFormField>
+
+          <UFormField label="metadata (JSON)" name="data.metadata">
+            <UTextarea
+              v-model="metadataText"
+              class="w-full"
+              placeholder='例: {"customerId":"1234"}'
+              :rows="6"
+            />
+            <p class="text-xs text-gray-500 mt-1"
+              >空欄なら metadata は変更されません。JSON
+              形式で入力してください。</p
+            >
+          </UFormField>
+        </template>
+
+        <div class="flex gap-2 justify-end">
+          <UButton
+            type="button"
+            variant="outline"
+            :disabled="loading"
+            @click="resetForm"
+            >編集前にリセット</UButton
+          >
+          <UButton
+            type="submit"
+            color="primary"
+            :loading="loading"
+            :disabled="!state.organizationId"
+          >
+            更新する
+          </UButton>
+        </div>
+      </UForm>
+    </UPageCard>
+
+    <TheConfirmModal
       :open="confirmOpen"
       title="確認"
       message="この組織情報を更新しますか？"

@@ -25,7 +25,11 @@ const state = reactive<Partial<Schema>>({
 const loading = ref(false);
 
 // 共通確認モーダル composable
-const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
+const {
+  open: confirmOpen,
+  confirm: confirmDialog,
+  resolve: resolveConfirm,
+} = useConfirmDialog();
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
@@ -60,7 +64,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       toast.add({
         title: '既存ユーザー',
         description:
-          preRegisterRes.message ?? 'このメールアドレスは既に登録されています。',
+          preRegisterRes.message ??
+          'このメールアドレスは既に登録されています。',
         color: 'warning',
       });
       return;
@@ -113,7 +118,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
 <template>
   <div class="container mx-auto p-4">
-    <UPageCard class="mx-auto max-w-xl space-y-6">
+    <UPageCard class="mx-auto w-full space-y-6">
       <div>
         <h1 class="text-2xl font-semibold">アカウント事前登録</h1>
         <p class="mt-2 text-sm text-gray-600">
@@ -121,13 +126,27 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </p>
       </div>
 
-      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+      <UForm
+        :schema="schema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
         <UFormField label="メールアドレス" name="email" required>
-          <UInput v-model="state.email" type="email" placeholder="example@example.com" autocomplete="email" />
+          <UInput
+            v-model="state.email"
+            type="email"
+            placeholder="example@example.com"
+            autocomplete="email"
+          />
         </UFormField>
 
         <UFormField label="名前（任意）" name="name">
-          <UInput v-model="state.name" placeholder="山田 太郎" autocomplete="name" />
+          <UInput
+            v-model="state.name"
+            placeholder="山田 太郎"
+            autocomplete="name"
+          />
         </UFormField>
 
         <div class="pt-2 flex justify-end">
@@ -138,8 +157,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </UForm>
 
       <!-- 確認モーダル -->
-      <ConfirmModal :open="confirmOpen" title="確認" message="本当にメールを送信しますか？" @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)" />
+      <TheConfirmModal
+        :open="confirmOpen"
+        title="確認"
+        message="本当にメールを送信しますか？"
+        @confirm="() => resolveConfirm(true)"
+        @cancel="() => resolveConfirm(false)"
+      />
     </UPageCard>
   </div>
 </template>

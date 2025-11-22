@@ -46,7 +46,7 @@ interface Member {
     email?: string | null;
     name?: string | null;
   } | null;
-};
+}
 
 const members = ref<Member[]>([]);
 const total = ref<number | undefined>(undefined);
@@ -193,127 +193,186 @@ function resetForm() {
 const columns: TableColumn<Member>[] = [
   {
     accessorKey: 'id',
-    header: 'メンバーID'
+    header: 'メンバーID',
   },
   {
     accessorKey: 'userId',
-    header: 'ユーザーID'
+    header: 'ユーザーID',
   },
   {
     accessorKey: 'user.email',
     header: 'メール',
-    cell: ({ row }) => row.original.user?.email || 'N/A'
+    cell: ({ row }) => row.original.user?.email || 'N/A',
   },
   {
     accessorKey: 'user.name',
     header: '名前',
-    cell: ({ row }) => row.original.user?.name || 'N/A'
+    cell: ({ row }) => row.original.user?.name || 'N/A',
   },
   {
     accessorKey: 'role',
-    header: 'ロール'
+    header: 'ロール',
   },
   {
     accessorKey: 'createdAt',
     header: '参加日',
-    cell: ({ row }) => new Date(row.getValue('createdAt')).toLocaleDateString('ja-JP')
-  }
+    cell: ({ row }) =>
+      new Date(row.getValue('createdAt')).toLocaleDateString('ja-JP'),
+  },
 ];
 </script>
 
 <template>
-  <div class="p-4 space-y-6">
-    <h1 class="text-2xl font-semibold">オーガナイゼーション メンバー検索</h1>
-
-    <form class="grid grid-cols-1 md:grid-cols-3 gap-4" @submit.prevent="onSubmit()">
+  <div class="p-4">
+    <UPageCard class="mx-auto w-full space-y-6">
       <div>
-        <label class="block text-sm mb-1">Organization</label>
-        <div v-if="organizations.isPending" class="flex items-center gap-2">
-          <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin text-primary" />
-          <span class="text-sm text-gray-500">読み込み中...</span>
+        <h1 class="text-2xl font-semibold"
+          >オーガナイゼーション メンバー検索</h1
+        >
+        <p class="mt-2 text-sm text-gray-600">メンバーを検索します。</p>
+      </div>
+
+      <UForm
+        :schema="ListMembersForm"
+        :state="state"
+        class="grid grid-cols-1 md:grid-cols-3 gap-4"
+        @submit="onSubmit"
+      >
+        <UFormField label="Organization" name="organizationId">
+          <div>
+            <div v-if="organizations.isPending" class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-loader-circle"
+                class="h-4 w-4 animate-spin text-primary"
+              />
+              <span class="text-sm text-gray-500">読み込み中...</span>
+            </div>
+            <div
+              v-else-if="!organizations.data || organizations.data.length === 0"
+              class="text-sm text-gray-500"
+            >
+              所属している組織がありません
+            </div>
+            <div v-else>
+              <USelect
+                v-model="state.organizationId"
+                :items="
+                  organizations.data.map(org => ({
+                    label: `${org.name} (${org.slug})`,
+                    value: org.id,
+                  }))
+                "
+                placeholder="-- 組織を選択 --"
+                clearable
+                class="w-full"
+              />
+              <span
+                v-if="selectedOrganizationName"
+                class="text-xs text-gray-500"
+              >
+                選択中: {{ selectedOrganizationName }}
+              </span>
+            </div>
+          </div>
+        </UFormField>
+
+        <UFormField label="Limit" name="limit">
+          <UInput
+            v-model.number="state.limit"
+            type="number"
+            min="1"
+            max="100"
+          />
+        </UFormField>
+
+        <UFormField label="Offset" name="offset">
+          <UInput v-model.number="state.offset" type="number" min="0" />
+        </UFormField>
+
+        <UFormField label="Sort By" name="sortBy">
+          <USelect
+            v-model="state.sortBy"
+            :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
+            placeholder="-- 選択 --"
+            clearable
+          />
+        </UFormField>
+
+        <UFormField label="Sort Direction" name="sortDirection">
+          <USelect
+            v-model="state.sortDirection"
+            :items="[
+              { label: '昇順', value: 'asc' },
+              { label: '降順', value: 'desc' },
+            ]"
+          />
+        </UFormField>
+
+        <UFormField label="Filter Field" name="filterField">
+          <USelect
+            v-model="state.filterField"
+            :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
+            placeholder="-- 選択 --"
+            clearable
+          />
+        </UFormField>
+
+        <UFormField label="Filter Operator" name="filterOperator">
+          <USelect
+            v-model="state.filterOperator"
+            :items="
+              operatorOptions.map(o => ({ label: o.label, value: o.value }))
+            "
+            placeholder="-- 選択 --"
+            clearable
+          />
+        </UFormField>
+
+        <UFormField
+          label="Filter Value"
+          name="filterValue"
+          class="md:col-span-3"
+        >
+          <UInput
+            v-model="state.filterValue"
+            placeholder="値（複数はカンマ区切り）"
+          />
+        </UFormField>
+
+        <div class="md:col-span-3 flex gap-2 justify-end">
+          <UButton
+            type="submit"
+            color="primary"
+            :loading="loading"
+            :disabled="!canSearch"
+          >
+            {{ loading ? '検索中...' : '検索' }}
+          </UButton>
+          <UButton variant="ghost" :disabled="loading" @click="resetForm"
+            >リセット</UButton
+          >
         </div>
-        <div v-else-if="!organizations.data || organizations.data.length === 0" class="text-sm text-gray-500">
-          所属している組織がありません
-        </div>
-        <select v-else v-model="state.organizationId" class="w-full input">
-          <option value="">-- 組織を選択 --</option>
-          <option v-for="org in organizations.data" :key="org.id" :value="org.id">
-            {{ org.name }} ({{ org.slug }})
-          </option>
-        </select>
-        <span v-if="selectedOrganizationName" class="text-xs text-gray-500">
-          選択中: {{ selectedOrganizationName }}
-        </span>
+      </UForm>
+
+      <div v-if="total !== undefined" class="mt-4">
+        <p>結果: {{ total }} 件</p>
       </div>
 
-      <div>
-        <label class="block text-sm mb-1">Limit</label>
-        <input v-model.number="state.limit" type="number" min="1" max="100" class="w-full input">
+      <div v-if="members.length" class="overflow-auto mt-2">
+        <UTable
+          :data="members"
+          :columns="columns"
+          :loading="loading"
+          empty="メンバーが見つかりません。"
+          class="min-w-full"
+        />
       </div>
 
-      <div>
-        <label class="block text-sm mb-1">Offset</label>
-        <input v-model.number="state.offset" type="number" min="0" class="w-full input">
-      </div>
+      <div v-else-if="!loading" class="text-sm text-gray-600"
+        >メンバーが見つかりません。</div
+      >
 
-      <div>
-        <label class="block text-sm mb-1">Sort By</label>
-        <select v-model="state.sortBy" class="w-full input">
-          <option value="">-- 選択 --</option>
-          <option v-for="field in fieldOptions" :key="field.value" :value="field.value">{{ field.label }}
-          </option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-sm mb-1">Sort Direction</label>
-        <select v-model="state.sortDirection" class="w-full input">
-          <option value="asc">昇順</option>
-          <option value="desc">降順</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-sm mb-1">Filter Field</label>
-        <select v-model="state.filterField" class="w-full input">
-          <option value="">-- 選択 --</option>
-          <option v-for="field in fieldOptions" :key="field.value" :value="field.value">{{ field.label }}
-          </option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-sm mb-1">Filter Operator</label>
-        <select v-model="state.filterOperator" class="w-full input">
-          <option value="">-- 選択 --</option>
-          <option v-for="operator in operatorOptions" :key="operator.value" :value="operator.value">{{ operator.label }}
-          </option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-sm mb-1">Filter Value</label>
-        <input v-model="state.filterValue" type="text" class="w-full input" placeholder="値（複数はカンマ区切り）">
-      </div>
-
-      <div class="md:col-span-3 flex gap-2 justify-end items-end">
-        <button type="submit" class="btn btn-primary" :disabled="!canSearch">
-          {{ loading ? '検索中...' : '検索' }}
-        </button>
-        <button type="button" class="btn" :disabled="loading" @click="resetForm">リセット</button>
-      </div>
-    </form>
-
-    <div v-if="total !== undefined" class="mt-4">
-      <p>結果: {{ total }} 件</p>
-    </div>
-
-    <div v-if="members.length" class="overflow-auto mt-2">
-      <UTable :data="members" :columns="columns" :loading="loading" empty="メンバーが見つかりません。" class="min-w-full" />
-    </div>
-
-    <div v-else-if="!loading" class="text-sm text-gray-600">メンバーが見つかりません。</div>
-
-    <hr class="mt-6">
+      <hr class="mt-6" />
+    </UPageCard>
   </div>
 </template>

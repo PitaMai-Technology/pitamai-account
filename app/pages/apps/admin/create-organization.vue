@@ -2,7 +2,10 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import { useConfirmDialog } from '~/composable/useConfirmDialog';
-import { organizationCreateSchema, type OrganizationCreateForm } from '~~/shared/types/organization-create';
+import {
+  organizationCreateSchema,
+  type OrganizationCreateForm,
+} from '~~/shared/types/organization-create';
 
 definePageMeta({
   layout: 'the-app',
@@ -16,7 +19,11 @@ const state = reactive<Partial<OrganizationCreateForm>>({
 const loading = ref(false);
 
 // 共通確認モーダル composable
-const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
+const {
+  open: confirmOpen,
+  confirm: confirmDialog,
+  resolve: resolveConfirm,
+} = useConfirmDialog();
 
 const toast = useToast();
 async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
@@ -64,29 +71,43 @@ async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
     loading.value = false;
   }
 }
-
-const session = authClient.useSession();
 </script>
 
 <template>
   <div>
-    <h1 v-if="session.data">ようこそ、{{ session.data.user.name }}さん</h1>
-    <h1 class="text-5xl">組織作成</h1>
-    <UForm :schema="organizationCreateSchema" :state="state" class="space-y-4 m-10" @submit="onSubmit">
-      <UFormField label="組織名" name="name" required>
-        <UInput v-model="state.name" />
-      </UFormField>
+    <UPageCard class="mx-auto w-full space-y-6">
+      <h1 class="text-2xl font-semibold">組織作成</h1>
+      <p class="mt-2 text-sm text-gray-600"> 新たな組織を作成します。 </p>
+      <UForm
+        :schema="organizationCreateSchema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
+        <UFormField label="組織名" name="name" required>
+          <UInput v-model="state.name" />
+        </UFormField>
 
-      <UFormField label="スラッグ" name="slug" class="w-full" required>
-        <UInput v-model="state.slug" class="w-full" />
-      </UFormField>
+        <UFormField label="スラッグ" name="slug" required>
+          <UInput v-model="state.slug" />
+        </UFormField>
+        <p class="text-xs text-gray-500 mt-1"
+          >名前とは別にシステム内部で識別しやすくするのがslugです。</p
+        >
+        <div class="flex justify-end">
+          <UButton type="submit" :loading="loading" :disabled="loading">
+            送信
+          </UButton>
+        </div>
+      </UForm>
 
-      <UButton type="submit" :loading="loading" :disabled="loading">
-        送信
-      </UButton>
-    </UForm>
-
-    <ConfirmModal :open="confirmOpen" title="確認" message="本当に組織を作成しますか？" @confirm="() => resolveConfirm(true)"
-      @cancel="() => resolveConfirm(false)" />
+      <TheConfirmModal
+        :open="confirmOpen"
+        title="確認"
+        message="本当に組織を作成しますか？"
+        @confirm="() => resolveConfirm(true)"
+        @cancel="() => resolveConfirm(false)"
+      />
+    </UPageCard>
   </div>
 </template>
