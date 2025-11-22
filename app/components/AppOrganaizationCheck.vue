@@ -26,7 +26,7 @@ async function setActiveOrganization(id: string) {
 
 <template>
   <div>
-    <h2 class="text-lg font-semibold">現在のあなたの組織</h2>
+    <!-- <h2 class="text-lg font-semibold">現在のあなたの組織</h2>
     <div class="mb-4">
       <TheLoader v-if="activeOrganization.isPending" />
       <UBadge v-else-if="activeOrganization.data === null" class="w-full" color="neutral" variant="subtle">
@@ -34,24 +34,27 @@ async function setActiveOrganization(id: string) {
       <UBadge v-else class="w-full rounded-none">
         {{ activeOrganization.data.name }}
       </UBadge>
-    </div>
+    </div> -->
 
     <h2>所属している組織一覧</h2>
     <div v-if="organizations.isPending">
-      <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
+      <UIcon
+        name="i-lucide-loader-circle"
+        class="h-8 w-8 animate-spin text-primary"
+      />
     </div>
-    <div v-else-if="organizations.data === null">あなたが所属している組織はありません🥲</div>
-    <ul v-else>
-      <li v-for="organization in organizations.data" :key="organization.id">
-        <UButton class="w-full rounded-none"
-          :color="activeOrganization.data?.id !== organization.id ? 'neutral' : undefined"
-          :variant="activeOrganization.data?.id !== organization.id ? 'outline' : undefined"
-          :class="activeOrganization.data?.id !== organization.id ? 'cursor-pointer' : ''"
-          :disabled="activeOrganization.isPending"
-          @click="activeOrganization.data?.id !== organization.id && setActiveOrganization(organization.id)">
-          {{ organization.name }}
-        </UButton>
-      </li>
-    </ul>
+    <div v-else-if="organizations.data === null"
+      >あなたが所属している組織はありません🥲</div
+    >
+    <div v-else>
+      <USelect
+        :items="[...(organizations.data || [])]"
+        label-key="name"
+        value-key="id"
+        class="w-full"
+        :model-value="activeOrganization.data?.id"
+        @update:model-value="setActiveOrganization"
+      />
+    </div>
   </div>
 </template>

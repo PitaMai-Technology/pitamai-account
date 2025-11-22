@@ -47,6 +47,16 @@ const adminItems = [[
         icon: 'i-lucide-plus-circle',
         to: '/apps/admin/create-organization',
       },
+      {
+        label: '組織情報更新',
+        icon: 'i-lucide-edit',
+        to: '/apps/admin/organization-update',
+      },
+      {
+        label: '組織削除',
+        icon: 'i-lucide-trash',
+        to: '/apps/admin/organization-delete',
+      },
     ],
   },
 ]];
@@ -61,16 +71,9 @@ const { canAccessAdmin } = useOrgRole();
       <!-- <UButton @click="onFetchNavigation">
         ナビゲーションを更新
       </UButton> -->
-      <UPopover>
-        <UButton icon="i-lucide-chevron-down" size="md" color="neutral" variant="outline" class="w-full">組織を見る
-        </UButton>
-
-        <template #content>
-          <div class="p-4 max-h-48 max-w-64 overflow-y-scroll">
-            <LazyAppOrganaizationCheck class="" />
-          </div>
-        </template>
-      </UPopover>
+      <div class="my-4">
+        <AppOrganaizationCheck />
+      </div>
     </div>
     <UTabs :items="tabs" class="gap-5" variant="link" color="info">
 
