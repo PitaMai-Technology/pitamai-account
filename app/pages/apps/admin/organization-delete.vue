@@ -165,7 +165,7 @@ async function onSubmit(_: FormSubmitEvent<OrganizationDeleteForm>) {
       </UForm>
     </UPageCard>
 
-    <TheConfirmModal :open="confirmOpen" title="危険！組織の削除" message="本当にこの組織を削除しますか？この操作は取り消せません。"
+    <LazyTheConfirmModal :open="confirmOpen" title="危険！組織の削除" message="本当にこの組織を削除しますか？この操作は取り消せません。"
       @confirm="() => resolveConfirm(true)" @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

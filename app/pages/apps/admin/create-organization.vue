@@ -78,12 +78,7 @@ async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
     <UPageCard class="mx-auto w-full space-y-6">
       <h1 class="text-2xl font-semibold">組織作成</h1>
       <p class="mt-2 text-sm text-gray-600"> 新たな組織を作成します。 </p>
-      <UForm
-        :schema="organizationCreateSchema"
-        :state="state"
-        class="space-y-4"
-        @submit="onSubmit"
-      >
+      <UForm :schema="organizationCreateSchema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="組織名" name="name" required>
           <UInput v-model="state.name" />
         </UFormField>
@@ -91,9 +86,7 @@ async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
         <UFormField label="スラッグ" name="slug" required>
           <UInput v-model="state.slug" />
         </UFormField>
-        <p class="text-xs text-gray-500 mt-1"
-          >名前とは別にシステム内部で識別しやすくするのがslugです。</p
-        >
+        <p class="text-xs text-gray-500 mt-1">名前とは別にシステム内部で識別しやすくするのがslugです。</p>
         <div class="flex justify-end">
           <UButton type="submit" :loading="loading" :disabled="loading">
             送信
@@ -101,13 +94,8 @@ async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
         </div>
       </UForm>
 
-      <TheConfirmModal
-        :open="confirmOpen"
-        title="確認"
-        message="本当に組織を作成しますか？"
-        @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)"
-      />
+      <LazyTheConfirmModal :open="confirmOpen" title="確認" message="本当に組織を作成しますか？" @confirm="() => resolveConfirm(true)"
+        @cancel="() => resolveConfirm(false)" />
     </UPageCard>
   </div>
 </template>

@@ -251,7 +251,7 @@ function resetForm() {
       </UForm>
     </UPageCard>
 
-    <TheConfirmModal :open="confirmOpen" title="確認" message="この組織情報を更新しますか？" @confirm="() => resolveConfirm(true)"
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" message="この組織情報を更新しますか？" @confirm="() => resolveConfirm(true)"
       @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

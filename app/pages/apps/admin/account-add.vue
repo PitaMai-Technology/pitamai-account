@@ -143,7 +143,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </UForm>
 
       <!-- 確認モーダル -->
-      <TheConfirmModal :open="confirmOpen" title="確認" message="本当にメールを送信しますか？" @confirm="() => resolveConfirm(true)"
+      <LazyTheConfirmModal :open="confirmOpen" title="確認" message="本当にメールを送信しますか？" @confirm="() => resolveConfirm(true)"
         @cancel="() => resolveConfirm(false)" />
     </UPageCard>
   </div>

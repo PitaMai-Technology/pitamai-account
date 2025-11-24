@@ -85,13 +85,8 @@ async function acceptInvitation() {
         招待を承認する
       </UButton>
 
-      <TheConfirmModal
-        :open="confirmOpen"
-        title="確認"
-        message="本当に招待を承認しますか？"
-        @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)"
-      />
+      <LazyTheConfirmModal :open="confirmOpen" title="確認" message="本当に招待を承認しますか？" @confirm="() => resolveConfirm(true)"
+        @cancel="() => resolveConfirm(false)" />
     </div>
   </div>
 </template>
