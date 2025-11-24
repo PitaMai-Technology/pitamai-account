@@ -8,7 +8,7 @@ export const organizationUpdateSchema = z.object({
   // 更新するフィールド（少なくとも1つは指定する必要があります）
   data: z
     .object({
-      name: z.string().min(1).optional(),
+      name: z.string().max(32).optional(),
       slug: z.string().min(1).optional(),
       logo: z.string().min(1).optional(),
       metadata: z.record(z.string(), z.unknown()).nullable().optional(),
