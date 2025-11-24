@@ -15,7 +15,7 @@ const toast = useToast();
 // authClient.useListOrganizations() ではロール情報が取得できないため、
 // サーバーサイドでオーナー権限を持つ組織のみを取得するAPIを使用します。
 const { data: ownerOrganizations, status } = await useFetch(
-  '/api/auth/owner-list'
+  '/api/pitamai/owner-list'
 );
 
 const state = reactive<Partial<OrganizationDeleteForm>>({
@@ -132,75 +132,40 @@ async function onSubmit(_: FormSubmitEvent<OrganizationDeleteForm>) {
 
 <template>
   <div>
-    <UPageCard class="mx-auto w-full space-y-6">
+    <UPageCard class="mx-auto space-y-6">
       <h1 class="text-2xl font-semiboldtext text-red-600">組織を削除</h1>
-      <p class="text-gray-500"
-        >注意: 組織を削除すると、関連するすべてのデータが失われます。</p
-      >
+      <p class="text-gray-500">注意: 組織を削除すると、関連するすべてのデータが失われます。</p>
 
-      <UForm
-        :schema="organizationDeleteSchema"
-        :state="state"
-        class="space-y-4"
-        @submit="onSubmit"
-      >
-        <UFormField label="削除する組織" name="organizationId" required>
+      <UForm :schema="organizationDeleteSchema" :state="state" class="space-y-4" @submit="onSubmit">
+        <UFormField label="削除する組織" name="organizationId" required class="w-full min-w-0">
           <div v-if="status === 'pending'" class="flex items-center gap-2">
             <TheLoader />
           </div>
-          <div
-            v-else-if="!ownerOrganizations || ownerOrganizations.length === 0"
-            class="text-sm text-gray-500"
-          >
+          <div v-else-if="!ownerOrganizations || ownerOrganizations.length === 0" class="text-sm text-gray-500">
             削除可能な組織がありません（オーナー権限を持つ組織のみ削除可能です）
           </div>
-          <USelect
-            v-else
-            v-model="state.organizationId"
-            :items="ownerOrganizations"
-            label-key="name"
-            value-key="id"
-            placeholder="-- 組織を選択 --"
-            class="w-full"
-          />
+          <div v-else class="w-full min-w-0 overflow-hidden">
+            <USelect v-model="state.organizationId" :items="ownerOrganizations" label-key="name" value-key="id"
+              placeholder="-- 組織を選択 --" class="w-full" />
+          </div>
         </UFormField>
 
-        <p class="text-gray-700">{{ selectedOrg?.name }}</p>
-        <UFormField
-          v-if="state.organizationId"
-          label="確認のため、組織名を入力してください"
-          name="organizationName"
-          required
-        >
-          <UInput
-            v-model="state.organizationName"
-            :color="isNameMatched ? 'success' : undefined"
-            placeholder="選択した組織の名前を入力"
-            class="w-full"
-          />
+        <p class="text-gray-700 font-bold">{{ selectedOrg?.name }}</p>
+        <UFormField v-if="state.organizationId" label="確認のため、組織名を入力してください" name="organizationName" required>
+          <UInput v-model="state.organizationName" :color="isNameMatched ? 'success' : undefined"
+            placeholder="選択した組織の名前を入力" class="w-full" />
         </UFormField>
 
         <div class="flex justify-end">
-          <UButton
-            type="submit"
-            color="error"
-            :loading="loading"
-            :disabled="
-              loading || !state.organizationId || !state.organizationName
-            "
-          >
+          <UButton type="submit" color="error" :loading="loading" :disabled="loading || !state.organizationId || !state.organizationName
+            ">
             削除する
           </UButton>
         </div>
       </UForm>
     </UPageCard>
 
-    <TheConfirmModal
-      :open="confirmOpen"
-      title="危険！組織の削除"
-      message="本当にこの組織を削除しますか？この操作は取り消せません。"
-      @confirm="() => resolveConfirm(true)"
-      @cancel="() => resolveConfirm(false)"
-    />
+    <TheConfirmModal :open="confirmOpen" title="危険！組織の削除" message="本当にこの組織を削除しますか？この操作は取り消せません。"
+      @confirm="() => resolveConfirm(true)" @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

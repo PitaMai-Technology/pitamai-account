@@ -49,7 +49,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       email: string;
       created: boolean;
       message?: string;
-    }>('/api/auth/pre-register', {
+    }>('/api/pitamai/pre-register', {
       method: 'POST',
       body: {
         email: event.data.email,
@@ -126,27 +126,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </p>
       </div>
 
-      <UForm
-        :schema="schema"
-        :state="state"
-        class="space-y-4"
-        @submit="onSubmit"
-      >
+      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="メールアドレス" name="email" required>
-          <UInput
-            v-model="state.email"
-            type="email"
-            placeholder="example@example.com"
-            autocomplete="email"
-          />
+          <UInput v-model="state.email" type="email" placeholder="example@example.com" autocomplete="email" />
         </UFormField>
 
         <UFormField label="名前（任意）" name="name">
-          <UInput
-            v-model="state.name"
-            placeholder="山田 太郎"
-            autocomplete="name"
-          />
+          <UInput v-model="state.name" placeholder="山田 太郎" autocomplete="name" />
         </UFormField>
 
         <div class="pt-2 flex justify-end">
@@ -157,13 +143,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </UForm>
 
       <!-- 確認モーダル -->
-      <TheConfirmModal
-        :open="confirmOpen"
-        title="確認"
-        message="本当にメールを送信しますか？"
-        @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)"
-      />
+      <TheConfirmModal :open="confirmOpen" title="確認" message="本当にメールを送信しますか？" @confirm="() => resolveConfirm(true)"
+        @cancel="() => resolveConfirm(false)" />
     </UPageCard>
   </div>
 </template>

@@ -48,6 +48,6 @@ const onSignOut = async () => {
     ログアウト
   </UButton>
 
-  <ConfirmModal :open="confirmOpen" title="確認" message="本当にログアウトしますか？" @confirm="() => resolveConfirm(true)"
+  <TheConfirmModal :open="confirmOpen" title="確認" message="本当にログアウトしますか？" @confirm="() => resolveConfirm(true)"
     @cancel="() => resolveConfirm(false)" />
 </template>

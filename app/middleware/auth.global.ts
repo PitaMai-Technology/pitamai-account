@@ -1,5 +1,3 @@
-import { authClient } from '~/composable/auth-client';
-
 export default defineNuxtRouteMiddleware(async to => {
   // ログインページは認証チェックをスキップ
   if (to.path === '/') {
@@ -10,20 +8,24 @@ export default defineNuxtRouteMiddleware(async to => {
     return;
   }
 
-  // better-auth側がバグってusefetchが使えないため、一旦ラップする
-  const relativeFetch = ((url: string, opts?: any) => {
-    try {
-      if (url.startsWith('http')) url = new URL(url).pathname;
-    } catch (error: unknown) {
-      console.error('Error parsing URL in auth middleware:', error);
-    }
-    return useFetch(url, opts);
-  }) as any;
-  const { data: session } = await authClient.useSession(relativeFetch);
-  // const { data: sessionUsefetch } = await authClient.useSession(useFetch);
+  // サーバー側レンダリング時は cookie を含めるため、リクエストヘッダーを渡す。
+  // クライアント側ではそのまま $fetch を呼び出せばよい。
+  try {
+    const headers = import.meta.server
+      ? useRequestHeaders(['cookie'])
+      : undefined;
 
-  if (!session.value) {
-    console.log('No session found, redirecting to login...');
+    // server/api/auth/get-session.ts は認証が無ければ null を返す
+    const session = await $fetch('/api/auth/get-session', { headers }).catch(
+      () => null
+    );
+
+    if (!session || !session.user) {
+      console.log('No session found, redirecting to login...');
+      return navigateTo('/');
+    }
+  } catch (error) {
+    console.error('認証チェック中にエラーが発生しました:', error);
     return navigateTo('/');
   }
 });

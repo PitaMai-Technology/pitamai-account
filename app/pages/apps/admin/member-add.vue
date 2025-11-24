@@ -133,7 +133,7 @@ function resetInviteForm() {
 
 <template>
   <div class="mt-6">
-    <UPageCard class="mx-auto w-full space-y-6">
+    <UPageCard class="mx-auto space-y-6">
       <div>
         <h2 class="text-xl font-semibold mb-1">メンバーを招待</h2>
         <p class="text-sm text-gray-600"
@@ -149,13 +149,16 @@ function resetInviteForm() {
       >
         <UFormField label="Organization" name="organizationId">
           <div>
-            <div v-if="organizations.isPending" class="flex items-center gap-2">
+            <template
+              v-if="organizations.isPending"
+              class="flex items-center gap-2"
+            >
               <UIcon
                 name="i-lucide-loader-circle"
                 class="h-4 w-4 animate-spin text-primary"
               />
               <span class="text-sm text-gray-500">読み込み中...</span>
-            </div>
+            </template>
 
             <div
               v-else-if="!organizations.data || organizations.data.length === 0"
@@ -164,7 +167,7 @@ function resetInviteForm() {
               所属している組織がありません
             </div>
 
-            <div v-else>
+            <template v-else>
               <USelect
                 v-model="inviteState.organizationId"
                 :items="
@@ -182,7 +185,7 @@ function resetInviteForm() {
                 class="text-xs text-gray-500"
                 >選択中: {{ selectedOrganizationName }}</span
               >
-            </div>
+            </template>
           </div>
         </UFormField>
 

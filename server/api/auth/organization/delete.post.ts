@@ -1,6 +1,5 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
-import { organizationDeleteSchema } from '~~/shared/types/organization-delete';
 
 export default defineEventHandler(async event => {
   try {
