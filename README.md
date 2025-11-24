@@ -145,10 +145,10 @@ Magic Link を送信します。
 }
 ```
 
-#### `POST /api/auth/pre-register`
+#### `POST /api/pitamai/pre-register`
 
-管理画面からのアカウント事前登録用エンドポイントです。  
-既存ユーザーの場合は新規作成せず情報のみ返します。
+メール検証を行う事前ユーザー登録エンドポイントです（`shared/types` のバリデーションあり）。
+既存ユーザーの場合は `created: false` と共に既存情報を返し、未登録の場合は新規ユーザーを作成して `created: true` を返します。
 
 ---
 
@@ -159,3 +159,15 @@ Magic Link を送信します。
 - 組織ロール / アクセス制御: [`server/utils/permissions.ts`](server/utils/permissions.ts)
 - 認証ミドルウェア: [`app/middleware/auth.global.ts`](app/middleware/auth.global.ts)
 - 管理者ガード: [`app/middleware/only-admin.global.ts`](app/middleware/only-admin.global.ts)
+
+### クライアント側のミドルウェア（`app/middleware`）
+
+- `auth.global.ts` — `/apps` 配下のルートに対して認証チェックを行うミドルウェアです。
+  - ルート条件: `/apps` 配下のみ適用（`/` はスキップ）。
+  - SSR 時は `useRequestHeaders(['cookie'])` を利用して Cookie を渡し、`/api/auth/get-session` へリクエストしてセッションを確認します。
+  - セッションが見つからない場合はログインページ (`/`) へリダイレクトします。
+
+- `only-admin.global.ts` — `/apps/admin` 配下のみを保護する管理者（管理者またはオーナー）向けのガードです。
+  - クライアント側でのみ動作（SSR ではスキップ）し、アクティブ組織内の自分のロールを `authClient.organization.getActiveMemberRole()` で取得します。
+  - 取得したロールに基づいて `authClient.organization.checkRolePermission()` で権限を検証し、権限不足の場合は `/apps/error` にリダイレクトします。
+  - このミドルウェアは UI 側でのルート保護（ページ遷移のガード）に使います。

@@ -9,7 +9,7 @@ export default defineNuxtRouteMiddleware(async to => {
   }
 
   // サーバー側レンダリング時は cookie を含めるため、リクエストヘッダーを渡す。
-  // クライアント側ではそのまま $fetch を呼び出せばよい。
+  // クライアント側ではそのまま $fetch を呼び出す。
   try {
     const headers = import.meta.server
       ? useRequestHeaders(['cookie'])
