@@ -1,4 +1,14 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+// faviconの指定
+useHead({
+  link: [
+    {
+      rel: 'icon',
+      href: '/favicon.png',
+    },
+  ],
+});
+</script>
 
 <template>
   <div>

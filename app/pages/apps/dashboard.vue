@@ -14,18 +14,27 @@ const organizations = authClient.useListOrganizations();
   <div>
     <div class="container mx-auto mt-8">
       <UPageCard class="mx-auto">
-
         <!-- ユーザー情報 -->
         <div v-if="sessionRef.data" class="space-y-4">
           <!-- 組織リンク -->
           <div class="rounded-lg bg-white p-6 shadow">
             <h2 class="mb-4 text-lg font-semibold">所属組織</h2>
-            <div v-if="organizations.isPending" class="flex items-center justify-center py-4">
+            <div
+              v-if="organizations.isPending"
+              class="flex items-center justify-center py-4"
+            >
               <TheLoader />
             </div>
-            <div v-else-if="organizations.data && organizations.data.length > 0" class="space-y-2">
-              <NuxtLink v-for="org in organizations.data" :key="org.id" :to="`/apps/organization/${org.id}`"
-                class="flex items-center justify-between rounded-lg border p-3 transition hover:bg-gray-50">
+            <div
+              v-else-if="organizations.data && organizations.data.length > 0"
+              class="space-y-2"
+            >
+              <NuxtLink
+                v-for="org in organizations.data"
+                :key="org.id"
+                :to="`/apps/organization/${org.id}`"
+                class="flex items-center justify-between rounded-lg border p-3 transition hover:bg-gray-50"
+              >
                 <div class="flex items-center space-x-3">
                   <UIcon name="i-lucide-building-2" class="text-gray-400" />
                   <span class="font-medium">{{ org.name }}</span>
@@ -48,7 +57,10 @@ const organizations = authClient.useListOrganizations();
                   sessionRef.data.user.email
                 }}</span>
               </div>
-              <div v-if="sessionRef.data.user.name" class="flex items-center space-x-2">
+              <div
+                v-if="sessionRef.data.user.name"
+                class="flex items-center space-x-2"
+              >
                 <UIcon name="i-lucide-user" class="text-gray-400" />
                 <span class="font-medium">名前:</span>
                 <span class="text-gray-600">{{
@@ -62,31 +74,9 @@ const organizations = authClient.useListOrganizations();
                   {{
                     sessionRef.data.user.createdAt
                       ? new Date(
-                        sessionRef.data.user.createdAt
-                      ).toLocaleDateString('ja-JP')
+                          sessionRef.data.user.createdAt
+                        ).toLocaleDateString('ja-JP')
                       : '-'
-                  }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- セッション情報 -->
-          <div class="rounded-lg bg-white p-6 shadow">
-            <h2 class="mb-4 text-lg font-semibold">セッション情報</h2>
-            <div class="space-y-2">
-              <div class="flex items-center space-x-2">
-                <UIcon name="i-lucide-shield-check" class="text-green-500" />
-                <span class="text-green-600">認証済み</span>
-              </div>
-              <div v-if="sessionRef.data && sessionRef.data.session.expiresAt" class="flex items-center space-x-2">
-                <UIcon name="i-lucide-clock" class="text-gray-400" />
-                <span class="font-medium">有効期限:</span>
-                <span class="text-gray-600">
-                  {{
-                    new Date(
-                      sessionRef.data.session.expiresAt
-                    ).toLocaleDateString('ja-JP')
                   }}
                 </span>
               </div>
@@ -95,8 +85,7 @@ const organizations = authClient.useListOrganizations();
         </div>
 
         <div v-else class="py-12 text-center text-gray-500">
-          {{ sessionRef.data ? sessionRef.data : 'nullです' }}
-          セッションがありません。ログインしてください。
+          {{ sessionRef.data ? sessionRef.data : '読み込み中です。' }}
         </div>
       </UPageCard>
     </div>

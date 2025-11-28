@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import type { FormSubmitEvent } from '@nuxt/ui';
+import { h, resolveComponent } from 'vue';
+import type { FormSubmitEvent, TableColumn } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import type { z } from 'zod';
-import type { TableColumn } from '@nuxt/ui';
+
+// @tanstack/vue-table の型がプロジェクトにインストールされていない環境向けに
+// 必要最低限の型エイリアスをローカル定義します。
+// ColumnFiltersState は TanStack の型では配列で、{ id, value } の形を取ることが多いです。
+// ここでは value を必須にして UTable の期待型に合わせます。
+type ColumnFiltersState = Array<{ id: string; value: unknown }>;
 
 definePageMeta({
   layout: 'the-app',
@@ -11,6 +17,7 @@ definePageMeta({
 const toast = useToast();
 const activeOrganization = authClient.useActiveOrganization();
 const organizations = authClient.useListOrganizations();
+const activeMember = authClient.useActiveMember();
 
 // shared/types/member.ts から自動インポートされる
 type Schema = z.infer<typeof ListMembersForm>;
@@ -50,6 +57,9 @@ interface Member {
 
 const members = ref<Member[]>([]);
 const total = ref<number | undefined>(undefined);
+const tableFilter = ref('');
+// カラムごとのクライアント側フィルタリング用（TanStack ColumnFiltersState）
+const columnFilters = ref<ColumnFiltersState>([]);
 
 const operatorOptions = [
   { label: '等しい (eq)', value: 'eq' },
@@ -132,12 +142,6 @@ async function fetchMembers() {
       members.value = [];
       total.value = undefined;
     }
-
-    toast.add({
-      title: '成功',
-      description: 'ユーザー一覧を取得しました。',
-      color: 'success',
-    });
   } catch (error: unknown) {
     console.error('Client: fetchMembers unexpected error:', error);
     if (error instanceof Error) {
@@ -188,6 +192,15 @@ function resetForm() {
   state.filterValue = undefined;
   members.value = [];
   total.value = undefined;
+  // フォームリセット時はテーブルフィルターもクリアする
+  tableFilter.value = '';
+  columnFilters.value = [];
+}
+
+// テーブルのフィルター（グローバル + カラム）をクリアするヘルパー
+function clearTableFilters(): void {
+  tableFilter.value = '';
+  columnFilters.value = [];
 }
 
 const columns: TableColumn<Member>[] = [
@@ -200,11 +213,14 @@ const columns: TableColumn<Member>[] = [
     header: 'ユーザーID',
   },
   {
+    // ヘッダースロットを安全にターゲットするための id
+    id: 'email',
     accessorKey: 'user.email',
     header: 'メール',
     cell: ({ row }) => row.original.user?.email || 'N/A',
   },
   {
+    id: 'name',
     accessorKey: 'user.name',
     header: '名前',
     cell: ({ row }) => row.original.user?.name || 'N/A',
@@ -219,12 +235,154 @@ const columns: TableColumn<Member>[] = [
     cell: ({ row }) =>
       new Date(row.getValue('createdAt')).toLocaleDateString('ja-JP'),
   },
+  {
+    accessorKey: 'actions',
+    header: 'アクション',
+    cell: ({ row }) => {
+      const member = row.original as Member;
+      const isSelf = activeMember.value?.data?.id === member.id;
+      const USelect = resolveComponent('USelect');
+      const UButton = resolveComponent('UButton');
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h(USelect, {
+          modelValue: member.role,
+          'onUpdate:modelValue': (v: string) =>
+            onChangeMemberRole(member, String(v)),
+          items: [
+            { label: 'member', value: 'member' },
+            { label: 'admin', value: 'admin' },
+            { label: 'owner', value: 'owner' },
+          ],
+          clearable: false,
+          class: 'w-36',
+        }),
+        // 削除ボタンは常に表示するが、現在のアクティブメンバーの場合は無効化する
+        h(
+          UButton,
+          {
+            variant: 'ghost',
+            class: isSelf ? 'text-gray-400' : 'text-red-500',
+            onClick: () => {
+              if (isSelf) return; // 誤操作防止のためのガード
+              confirmRemoveMember(member);
+            },
+            disabled: loading.value || isSelf,
+            title: isSelf ? '自分自身は削除できません' : '削除',
+            'aria-disabled': String(loading.value || isSelf),
+          },
+          '削除'
+        ),
+      ]);
+    },
+  },
 ];
+
+// 削除確認モーダルの状態
+const confirmOpen = ref(false);
+const confirmMessage = ref('');
+let pendingRemoveMember: Member | null = null;
+
+function confirmRemoveMember(member: Member) {
+  pendingRemoveMember = member;
+  confirmMessage.value = `${member.user?.email ?? member.userId} を組織から削除しますか？`;
+  confirmOpen.value = true;
+}
+
+async function onConfirmRemove() {
+  if (!pendingRemoveMember) return;
+  try {
+    loading.value = true;
+    const res = await authClient.organization.removeMember({
+      // メールを優先し、次に userId、最後に member レコードの id を使用
+      memberIdOrEmail:
+        pendingRemoveMember.user?.email ||
+        pendingRemoveMember.userId ||
+        pendingRemoveMember.id,
+      organizationId: state.organizationId,
+    });
+
+    if (res.error) {
+      console.error('Client: removeMember SDK error:', res.error);
+      toast.add({
+        title: 'エラー',
+        description: `メンバー削除に失敗しました: ${res.error.message}`,
+        color: 'error',
+      });
+      return;
+    }
+
+    toast.add({
+      title: '成功',
+      description: 'メンバーを削除しました',
+      color: 'success',
+    });
+    // 再取得
+    await fetchMembers();
+  } catch (e: unknown) {
+    console.error('Client: onConfirmRemove unexpected error:', e);
+    toast.add({
+      title: 'エラー',
+      description: 'メンバー削除中にエラーが発生しました',
+      color: 'error',
+    });
+  } finally {
+    loading.value = false;
+    confirmOpen.value = false;
+    pendingRemoveMember = null;
+  }
+}
+
+async function onChangeMemberRole(member: Member, newRole: string) {
+  if (!state.organizationId) {
+    toast.add({
+      title: 'エラー',
+      description: 'Organization が選択されていません。',
+      color: 'error',
+    });
+    return;
+  }
+  if (member.role === newRole) return;
+
+  try {
+    loading.value = true;
+    const res = await authClient.organization.updateMemberRole({
+      memberId: member.id,
+      role: newRole,
+      organizationId: state.organizationId,
+    });
+
+    if (res.error) {
+      console.error('Client: updateMemberRole SDK error:', res.error);
+      toast.add({
+        title: 'エラー',
+        description: `ロール更新に失敗しました: ${res.error.message}`,
+        color: 'error',
+      });
+      return;
+    }
+
+    toast.add({
+      title: '成功',
+      description: 'メンバーのロールを更新しました',
+      color: 'success',
+    });
+    await fetchMembers();
+  } catch (e: unknown) {
+    console.error('Client: onChangeMemberRole unexpected error:', e);
+    toast.add({
+      title: 'エラー',
+      description: 'ロール更新中にエラーが発生しました',
+      color: 'error',
+    });
+  } finally {
+    loading.value = false;
+  }
+}
 </script>
 
 <template>
-  <div class="p-4">
-    <UPageCard class="mx-auto w-full space-y-6">
+  <div>
+    <AppBackgroundCard class="mx-auto w-full space-y-6">
       <div>
         <h1 class="text-2xl font-semibold"
           >オーガナイゼーション メンバー検索</h1
@@ -358,21 +516,96 @@ const columns: TableColumn<Member>[] = [
         <p>結果: {{ total }} 件</p>
       </div>
 
+      <!-- グローバルテーブル検索（UX向上のためテーブル上部に配置） -->
+      <div
+        v-if="members.length"
+        class="mt-4 mb-2 flex items-center gap-2 justify-between"
+      >
+        <UInput
+          v-model="tableFilter"
+          placeholder="テーブル全体を検索..."
+          class="flex-1 max-w-md"
+        />
+        <UButton
+          variant="ghost"
+          :disabled="!tableFilter && columnFilters.length === 0"
+          label="すべてのフィルターをクリア"
+          @click="clearTableFilters"
+        />
+      </div>
+
       <div v-if="members.length" class="overflow-auto mt-2">
         <UTable
+          ref="membersTable"
+          v-model:global-filter="tableFilter"
+          v-model:column-filters="columnFilters"
           :data="members"
           :columns="columns"
           :loading="loading"
           empty="メンバーが見つかりません。"
-          class="min-w-full"
-        />
+          class="table-fixed"
+          :ui="{ td: 'break-words' }"
+        >
+          <!-- カラムフィルタ用のヘッダースロット -->
+          <template #email-header="{ column }">
+            <UInput
+              :model-value="(column.getFilterValue() as string) || ''"
+              placeholder="メールでフィルタ"
+              class="w-full max-w-xs"
+              @update:model-value="
+                val => column.setFilterValue(val || undefined)
+              "
+            />
+          </template>
+          <template #name-header="{ column }">
+            <UInput
+              :model-value="(column.getFilterValue() as string) || ''"
+              placeholder="名前でフィルタ"
+              class="w-full max-w-xs"
+              @update:model-value="
+                val => column.setFilterValue(val || undefined)
+              "
+            />
+          </template>
+          <template #role-header="{ column }">
+            <USelect
+              :model-value="(column.getFilterValue() as string) || ''"
+              :items="[
+                { label: 'member', value: 'member' },
+                { label: 'admin', value: 'admin' },
+                { label: 'owner', value: 'owner' },
+              ]"
+              placeholder="ロールでフィルタ"
+              clearable
+              class="w-full max-w-xs"
+              @update:model-value="
+                val => column.setFilterValue(val || undefined)
+              "
+            />
+          </template>
+          <template #createdAt-header="{ column }">
+            <UInput
+              :model-value="(column.getFilterValue() as string) || ''"
+              placeholder="参加日でフィルタ (YYYY-MM-DD)"
+              class="w-full max-w-xs"
+              @update:model-value="
+                val => column.setFilterValue(val || undefined)
+              "
+            />
+          </template>
+        </UTable>
       </div>
 
       <div v-else-if="!loading" class="text-sm text-gray-600"
         >メンバーが見つかりません。</div
       >
+    </AppBackgroundCard>
 
-      <hr class="mt-6" />
-    </UPageCard>
+    <!-- 削除確認モーダル -->
+    <TheConfirmModal
+      v-model:open="confirmOpen"
+      :message="confirmMessage"
+      @confirm="onConfirmRemove"
+    />
   </div>
 </template>

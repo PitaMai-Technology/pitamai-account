@@ -149,15 +149,14 @@ function resetInviteForm() {
       >
         <UFormField label="Organization" name="organizationId">
           <div>
-            <template
-              v-if="organizations.isPending"
-              class="flex items-center gap-2"
-            >
-              <UIcon
-                name="i-lucide-loader-circle"
-                class="h-4 w-4 animate-spin text-primary"
-              />
-              <span class="text-sm text-gray-500">読み込み中...</span>
+            <template v-if="organizations.isPending">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-loader-circle"
+                  class="h-4 w-4 animate-spin text-primary"
+                />
+                <span class="text-sm text-gray-500">読み込み中...</span>
+              </div>
             </template>
 
             <div
