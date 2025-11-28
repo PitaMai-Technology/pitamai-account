@@ -16,27 +16,31 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     disableSignUp: false,
   },
-  // emailVerification: {
-  //   autoSignInAfterVerification: true,
-  //   sendVerificationEmail: async ({ user, url }) => {
-  //     console.log(`🔔 sendVerificationEmail called for ${user.email}`);
-  //     console.log(`🔗 verification url: ${url}`);
-  //     try {
-  //       await sendEmail({
-  //         to: user.email,
-  //         subject: "pitaMAI Hub - 認証コード",
-  //         text: `認証コードです: ${url}`,
-  //       });
-  //       console.log(`✅ Verification email queued/sent to ${user.email}`);
-  //     } catch (err) {
-  //       console.error('❌ sendVerificationEmail failed:', err);
-  //       // 失敗をそのまま投げて Better Auth 側で扱わせる（ログ確認用）
-  //       throw err instanceof Error ? err : new Error(String(err));
-  //     }
-  //   },
-  //   sendOnSignUp: true,
-  //   sendOnSignIn: true,
-  // },
+  user: {
+    changeEmail: {
+      enabled: true,
+      updateEmailWithoutVerification: false,
+    },
+  },
+  emailVerification: {
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      console.log(`🔔 sendVerificationEmail called for ${user.email}`);
+      console.log(`🔗 verification url: ${url}`);
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: 'MaiMai Hub - メール検証',
+          text: `メール検証のためのリンク: ${url}\n\nこのリンクは有効期限があります。`,
+        });
+      } catch (err) {
+        console.error('❌ sendVerificationEmail failed:', err);
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+  },
   plugins: [
     magicLink({
       disableSignUp: true,
@@ -71,36 +75,6 @@ export const auth = betterAuth({
       },
       expiresIn: 300,
     }),
-    // emailOTP({
-    //   overrideDefaultEmailVerification: true,
-    //   async sendVerificationOTP({ email, otp, type }) {
-    //     let subject = '';
-    //     let text = '';
-
-    //     if (type === "sign-in") {
-    //       subject = 'pitaMAI Hub - サインイン認証コード';
-    //       text = `サインイン用の認証コード: ${otp}\nこのコードは5分間有効です。`;
-    //     } else if (type === "email-verification") {
-    //       subject = 'pitaMAI Hub - メール認証コード';
-    //       text = `メール認証用の認証コード: ${otp}\nこのコードは5分間有効です。`;
-    //     } else {
-    //       subject = 'pitaMAI Hub - パスワードリセット認証コード';
-    //       text = `パスワードリセット用の認証コード: ${otp}\nこのコードは5分間有効です。`;
-    //     }
-
-    //     try {
-    //       await sendEmail({
-    //         to: email,
-    //         subject,
-    //         text,
-    //       });
-    //       console.log(`✅ OTPメール送信: ${type} - ${email}`);
-    //     } catch (error) {
-    //       console.error('❌ OTPメール送信失敗:', error);
-    //       throw new Error('OTPメール送信に失敗しました');
-    //     }
-    //   },
-    // }),
     organization({
       async sendInvitationEmail(data) {
         const config = useRuntimeConfig();

@@ -20,6 +20,11 @@ const items = ref([
     icon: 'i-lucide-home',
     to: '/apps/dashboard',
   },
+  {
+    label: '設定',
+    icon: 'i-lucide-user',
+    to: '/apps/users/settings',
+  },
 ]);
 
 const adminItems = [
@@ -63,6 +68,16 @@ const adminItems = [
           label: 'アカウント追加',
           icon: 'i-lucide-user-plus',
           to: '/apps/admin/account-add',
+        },
+        {
+          label: 'ユーザー情報更新',
+          icon: 'i-lucide-edit-2',
+          to: '/apps/admin/user-update',
+        },
+        {
+          label: 'ユーザー: メール変更',
+          icon: 'i-lucide-mail',
+          to: '/apps/admin/user-change-email',
         },
       ],
     },
