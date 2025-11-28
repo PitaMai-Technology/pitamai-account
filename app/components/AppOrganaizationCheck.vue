@@ -56,5 +56,8 @@ async function setActiveOrganization(id: string) {
         @update:model-value="setActiveOrganization"
       />
     </div>
+    <p v-if="activeOrganization.data === null" class="text-sm text-info mt-2">
+      現在、組織は選択されていません。 上のリストから組織を選択してください。
+    </p>
   </div>
 </template>

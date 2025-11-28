@@ -16,21 +16,17 @@ export default defineEventHandler(async event => {
 
     const { organizationId, data } = result.data;
 
-    // metadata が null の場合は undefined に置き換えて型を満たす
-    const sanitizedData = {
-      ...data,
-      metadata: data.metadata ?? undefined,
-    };
-
-    // 認証情報を全ヘッダーごと渡す（better-auth公式推奨）
+    // 認証情報を全ヘッダーごと渡す
     const { headers } = event;
     const response = await auth.api.updateOrganization({
       body: {
         organizationId,
-        data: sanitizedData,
+        data,
       },
       headers,
     });
+    console.log('Organization update response:', response);
+
     return response;
   } catch (e: unknown) {
     if (e instanceof Error) {

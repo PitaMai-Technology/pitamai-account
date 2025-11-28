@@ -69,6 +69,8 @@ const adminItems = [
   ],
 ];
 const { canAccessAdmin } = useOrgRole();
+
+// dev only
 </script>
 
 <template>
@@ -93,7 +95,7 @@ const { canAccessAdmin } = useOrgRole();
       </template>
 
       <template #apps>
-        <h1>あ</h1>
+        <h1>App test</h1>
       </template>
     </UTabs>
   </div>

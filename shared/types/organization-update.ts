@@ -11,7 +11,6 @@ export const organizationUpdateSchema = z.object({
       name: z.string().max(32, '名前は32文字以内で入力してください').optional(),
       slug: z.string().min(1).optional(),
       logo: z.string().min(1).optional(),
-      metadata: z.record(z.string(), z.unknown()).nullable().optional(),
     })
     .refine(obj => Object.values(obj).some(v => v !== undefined), {
       message: '少なくとも1つのフィールドを更新してください',

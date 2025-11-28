@@ -13,10 +13,20 @@ definePageMeta({
 
 const toast = useToast();
 
+function hideFormButKeepData() {
+  // 組織選択を解除してフォームを非表示にするが、state.data はクリアしない
+  state.organizationId = undefined;
+}
+
 // オーナー権限のある組織一覧をサーバーから取得（削除ページと同じエンドポイントを利用）
-const { data: ownerOrganizations, status } = await useFetch(
-  '/api/pitamai/owner-list'
-);
+// 再取得で同じキャッシュエントリが更新されるように `key` を指定する
+const {
+  data: ownerOrganizations,
+  status,
+  refresh: reloadOwnerOrganizations,
+} = await useFetch('/api/pitamai/owner-list', {
+  key: '/api/pitamai/owner-list',
+});
 
 const state = reactive<Partial<OrganizationUpdateForm>>({
   organizationId: undefined,
@@ -24,11 +34,8 @@ const state = reactive<Partial<OrganizationUpdateForm>>({
     name: undefined,
     slug: undefined,
     logo: undefined,
-    metadata: undefined,
   },
 });
-
-const metadataText = ref<string>(''); // metadata の JSON 編集用テキスト
 const loading = ref(false);
 
 // 共通確認モーダル
@@ -51,24 +58,15 @@ watch(
         name: undefined,
         slug: undefined,
         logo: undefined,
-        metadata: undefined,
       };
-      metadataText.value = '';
       return;
     }
     // 編集時は現在の値を表示（ユーザーは変更した値のみ送信可能）
     state.data = {
       name: org.name,
       slug: org.slug,
-      logo: (org.logo ?? undefined) as string | undefined,
-      metadata: (org.metadata ?? undefined) as
-        | Record<string, unknown>
-        | undefined
-        | null,
+      logo: org.logo ?? undefined,
     };
-    metadataText.value = org.metadata
-      ? JSON.stringify(org.metadata, null, 2)
-      : '';
   },
   { immediate: true }
 );
@@ -86,33 +84,11 @@ async function onSubmit(event?: FormSubmitEvent<OrganizationUpdateForm>) {
     return;
   }
 
-  // metadata の JSON を検証してオブジェクト化
-  let parsedMetadata: Record<string, unknown> | null | undefined = undefined;
-  if (metadataText.value.trim() !== '') {
-    try {
-      parsedMetadata = JSON.parse(metadataText.value);
-    } catch {
-      toast.add({
-        title: '入力エラー',
-        description: 'metadata は有効な JSON 形式で入力してください',
-        color: 'error',
-      });
-      return;
-    }
-  } else {
-    parsedMetadata = undefined;
-  }
-
   // data オブジェクト（必要なキーのみ）
   const payloadData: Partial<OrganizationUpdateForm['data']> = {
     name: state.data?.name,
     slug: state.data?.slug,
     logo: state.data?.logo,
-    // null は送らず undefined に正規化する
-    metadata:
-      parsedMetadata === undefined || parsedMetadata === null
-        ? undefined
-        : parsedMetadata,
   };
 
   // バリデーション
@@ -156,8 +132,9 @@ async function onSubmit(event?: FormSubmitEvent<OrganizationUpdateForm>) {
       color: 'success',
     });
 
-    // 更新後、オーナー組織一覧を再取得してフォームを更新
+    // 更新後、オーナー組織一覧を再取得してフォームを非表示にする（データは保持）
     await refreshOwnerOrganizations();
+    hideFormButKeepData();
   } catch (err: unknown) {
     console.error('organization.update unexpected error:', err);
     toast.add({
@@ -171,10 +148,8 @@ async function onSubmit(event?: FormSubmitEvent<OrganizationUpdateForm>) {
 }
 
 async function refreshOwnerOrganizations() {
-  await useFetch('/api/pitamai/owner-list', {
-    method: 'GET',
-    key: '/api/pitamai/owner-list',
-  });
+  // オーナー組織一覧を再取得して `ownerOrganizations` ref を更新するために useFetch の refresh 関数を使う
+  await reloadOwnerOrganizations();
 }
 
 function resetForm() {
@@ -182,24 +157,15 @@ function resetForm() {
     state.data = {
       name: selectedOrg.value.name,
       slug: selectedOrg.value.slug,
-      logo: (selectedOrg.value.logo ?? undefined) as string | undefined,
-      metadata: (selectedOrg.value.metadata ?? undefined) as
-        | Record<string, unknown>
-        | undefined
-        | null,
+      logo: selectedOrg.value.logo ?? undefined,
     };
-    metadataText.value = selectedOrg.value.metadata
-      ? JSON.stringify(selectedOrg.value.metadata, null, 2)
-      : '';
   } else {
     state.organizationId = undefined;
     state.data = {
       name: undefined,
       slug: undefined,
       logo: undefined,
-      metadata: undefined,
     };
-    metadataText.value = '';
   }
 }
 </script>
@@ -208,17 +174,31 @@ function resetForm() {
   <div>
     <h1 class="text-2xl font-semibold mb-4">組織情報の更新</h1>
     <UPageCard class="mx-auto w-full space-y-6">
-      <UForm :schema="organizationUpdateSchema" :state="state" class="space-y-4" @submit="onSubmit">
+      <UForm
+        :schema="organizationUpdateSchema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
         <UFormField label="組織を選択" name="organizationId" required>
           <div v-if="status === 'pending'" class="flex items-center gap-2">
             <TheLoader />
           </div>
-          <div v-else-if="!ownerOrganizations || ownerOrganizations.length === 0" class="text-sm text-gray-500">
+          <div
+            v-else-if="!ownerOrganizations || ownerOrganizations.length === 0"
+            class="text-sm text-gray-500"
+          >
             更新可能な組織がありません（オーナー権限が必要です）
           </div>
           <div v-else class="w-full min-w-0 overflow-hidden">
-            <USelect v-model="state.organizationId" :items="ownerOrganizations" label-key="name" value-key="id"
-              class="w-full max-w-full truncate" placeholder="-- 組織を選択 --" />
+            <USelect
+              v-model="state.organizationId"
+              :items="ownerOrganizations"
+              label-key="name"
+              value-key="id"
+              class="w-full max-w-full truncate"
+              placeholder="-- 組織を選択 --"
+            />
           </div>
         </UFormField>
 
@@ -232,26 +212,40 @@ function resetForm() {
           </UFormField>
 
           <UFormField label="ロゴURL" name="data.logo">
-            <UInput v-model="state.data!.logo" class="w-full" placeholder="https://..." />
-          </UFormField>
-
-          <UFormField label="metadata (JSON)" name="data.metadata">
-            <UTextarea v-model="metadataText" class="w-full" placeholder='例: {"customerId":"1234"}' :rows="6" />
-            <p class="text-xs text-gray-500 mt-1">空欄なら metadata は変更されません。JSON
-              形式で入力してください。</p>
+            <UInput
+              v-model="state.data!.logo"
+              class="w-full"
+              placeholder="https://..."
+            />
           </UFormField>
         </template>
 
         <div class="flex gap-2 justify-end">
-          <UButton type="button" variant="outline" :disabled="loading" @click="resetForm">編集前にリセット</UButton>
-          <UButton type="submit" color="primary" :loading="loading" :disabled="!state.organizationId">
+          <UButton
+            type="button"
+            variant="outline"
+            :disabled="loading"
+            @click="resetForm"
+            >編集前にリセット</UButton
+          >
+          <UButton
+            type="submit"
+            color="primary"
+            :loading="loading"
+            :disabled="!state.organizationId"
+          >
             更新する
           </UButton>
         </div>
       </UForm>
     </UPageCard>
 
-    <LazyTheConfirmModal :open="confirmOpen" title="確認" message="この組織情報を更新しますか？" @confirm="() => resolveConfirm(true)"
-      @cancel="() => resolveConfirm(false)" />
+    <LazyTheConfirmModal
+      :open="confirmOpen"
+      title="確認"
+      message="この組織情報を更新しますか？"
+      @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)"
+    />
   </div>
 </template>

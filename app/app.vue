@@ -2,12 +2,12 @@
 
 <template>
   <div>
-    <NuxtLayout>
-      <UApp>
+    <UApp>
+      <NuxtLayout>
         <NuxtLoadingIndicator :throttle="1" color="#8bc170" />
         <NuxtRouteAnnouncer />
         <NuxtPage />
-      </UApp>
-    </NuxtLayout>
+      </NuxtLayout>
+    </UApp>
   </div>
 </template>
