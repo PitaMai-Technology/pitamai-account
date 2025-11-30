@@ -47,12 +47,6 @@ async function onSubmitProfile(event?: FormSubmitEvent<UserUpdate>) {
   event?.preventDefault?.();
   if (loading.value) return;
 
-  const confirmedProfile = await confirmDialog();
-  if (!confirmedProfile) {
-    loading.value = false;
-    return;
-  }
-
   // data オブジェクト（必要なキーのみ）
   const payloadData: Partial<Record<string, string>> = {
     name:
@@ -115,7 +109,7 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
   if (loading.value) return;
 
   const payload = {
-    newEmail: emailState.newEmail ?? '',
+    newEmail: (emailState.newEmail ?? '').trim(),
   };
   const parsed = userChangeEmailSettingsSchema.safeParse(payload);
   if (!parsed.success) {
@@ -164,12 +158,7 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
     <AppBackgroundCard>
       <h1 class="text-xl font-semibold">アカウント設定</h1>
       <div class="mt-4 space-y-4">
-        <UForm
-          :schema="userUpdateSchema"
-          :state="profileState"
-          class="space-y-4"
-          @submit="onSubmitProfile"
-        >
+        <UForm :schema="userUpdateSchema" :state="profileState" class="space-y-4" @submit="onSubmitProfile">
           <UFormField label="名前" name="data.name">
             <UInput v-model="profileState.data!.name" />
           </UFormField>
@@ -179,48 +168,25 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
           </UFormField>
 
           <div class="flex gap-2">
-            <UButton type="submit" color="primary" :loading="loading"
-              >更新</UButton
-            >
+            <UButton type="submit" color="primary" :loading="loading">更新</UButton>
           </div>
         </UForm>
 
         <hr />
-        <h2 class="text-xl font-semibold"
-          >アカウントの再設定(メールアドレス)</h2
-        >
-        <UForm
-          :schema="userChangeEmailSchema"
-          :state="emailState"
-          class="space-y-4"
-          @submit="onSubmitEmail"
-        >
+        <h2 class="text-xl font-semibold">アカウントの再設定(メールアドレス)</h2>
+        <UForm :schema="userChangeEmailSettingsSchema" :state="emailState" class="space-y-4" @submit="onSubmitEmail">
           <UFormField label="新しいメールアドレス" name="newEmail" required>
-            <UInput
-              v-model="emailState.newEmail"
-              placeholder="new@example.com"
-            />
+            <UInput v-model="emailState.newEmail" placeholder="new@example.com" />
           </UFormField>
           <div class="flex gap-2">
-            <UButton
-              type="submit"
-              color="primary"
-              :loading="loading"
-              @click="onSubmitEmail"
-              >メールアドレスを更新</UButton
-            >
+            <UButton type="submit" color="primary" :loading="loading">メールアドレスを更新</UButton>
           </div>
         </UForm>
       </div>
     </AppBackgroundCard>
 
-    <LazyTheConfirmModal
-      :open="confirmOpen"
-      title="確認"
-      message="この操作を実行してよいですか？"
-      @confirm="() => resolveConfirm(true)"
-      @cancel="() => resolveConfirm(false)"
-    />
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" message="この操作を実行してよいですか？" @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)" />
   </div>
 </template>
 
