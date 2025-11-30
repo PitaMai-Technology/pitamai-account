@@ -70,12 +70,12 @@ const adminItems = [
           to: '/apps/admin/account-add',
         },
         {
-          label: 'ユーザー情報更新',
+          label: 'アカウントの情報更新',
           icon: 'i-lucide-edit-2',
           to: '/apps/admin/user-update',
         },
         {
-          label: 'ユーザー: メール変更',
+          label: 'アカウントのメール変更',
           icon: 'i-lucide-mail',
           to: '/apps/admin/user-change-email',
         },
