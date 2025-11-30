@@ -2,7 +2,6 @@ import { createError } from 'h3';
 import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
-  // APIエンドポイントのOrganizationのみを対象とする
   if (
     !event.path.startsWith('/api/pitamai/') ||
     event.path.startsWith('/api/auth/organization')

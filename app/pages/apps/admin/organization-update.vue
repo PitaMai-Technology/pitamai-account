@@ -24,8 +24,8 @@ const {
   data: ownerOrganizations,
   status,
   refresh: reloadOwnerOrganizations,
-} = await useFetch('/api/pitamai/owner-list', {
-  key: '/api/pitamai/owner-list',
+} = await useFetch('/api/pitamai/admin-list', {
+  key: '/api/pitamai/admin-list',
 });
 
 const state = reactive<Partial<OrganizationUpdateForm>>({
@@ -174,31 +174,17 @@ function resetForm() {
   <div>
     <h1 class="text-2xl font-semibold mb-4">組織情報の更新</h1>
     <UPageCard class="mx-auto w-full space-y-6">
-      <UForm
-        :schema="organizationUpdateSchema"
-        :state="state"
-        class="space-y-4"
-        @submit="onSubmit"
-      >
+      <UForm :schema="organizationUpdateSchema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="組織を選択" name="organizationId" required>
           <div v-if="status === 'pending'" class="flex items-center gap-2">
             <TheLoader />
           </div>
-          <div
-            v-else-if="!ownerOrganizations || ownerOrganizations.length === 0"
-            class="text-sm text-gray-500"
-          >
+          <div v-else-if="!ownerOrganizations || ownerOrganizations.length === 0" class="text-sm text-gray-500">
             更新可能な組織がありません（オーナー権限が必要です）
           </div>
           <div v-else class="w-full min-w-0 overflow-hidden">
-            <USelect
-              v-model="state.organizationId"
-              :items="ownerOrganizations"
-              label-key="name"
-              value-key="id"
-              class="w-full max-w-full truncate"
-              placeholder="-- 組織を選択 --"
-            />
+            <USelect v-model="state.organizationId" :items="ownerOrganizations" label-key="name" value-key="id"
+              class="w-full max-w-full truncate" placeholder="-- 組織を選択 --" />
           </div>
         </UFormField>
 
@@ -212,40 +198,20 @@ function resetForm() {
           </UFormField>
 
           <UFormField label="ロゴURL" name="data.logo">
-            <UInput
-              v-model="state.data!.logo"
-              class="w-full"
-              placeholder="https://..."
-            />
+            <UInput v-model="state.data!.logo" class="w-full" placeholder="https://..." />
           </UFormField>
         </template>
 
         <div class="flex gap-2 justify-end">
-          <UButton
-            type="button"
-            variant="outline"
-            :disabled="loading"
-            @click="resetForm"
-            >編集前にリセット</UButton
-          >
-          <UButton
-            type="submit"
-            color="primary"
-            :loading="loading"
-            :disabled="!state.organizationId"
-          >
+          <UButton type="button" variant="outline" :disabled="loading" @click="resetForm">編集前にリセット</UButton>
+          <UButton type="submit" color="primary" :loading="loading" :disabled="!state.organizationId">
             更新する
           </UButton>
         </div>
       </UForm>
     </UPageCard>
 
-    <LazyTheConfirmModal
-      :open="confirmOpen"
-      title="確認"
-      message="この組織情報を更新しますか？"
-      @confirm="() => resolveConfirm(true)"
-      @cancel="() => resolveConfirm(false)"
-    />
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" message="この組織情報を更新しますか？" @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

@@ -16,7 +16,13 @@ definePageMeta({
 
 const toast = useToast();
 const activeOrganization = authClient.useActiveOrganization();
-const organizations = authClient.useListOrganizations();
+// 管理者以上 (admin, owner) のみをサーバー側でフィルタした組織一覧を取得
+const { data: adminOrganizations, status: adminOrganizationsStatus } = await useFetch(
+  '/api/pitamai/admin-list',
+  {
+    key: '/api/pitamai/admin-list',
+  }
+);
 const activeMember = authClient.useActiveMember();
 
 // shared/types/member.ts から自動インポートされる
@@ -82,16 +88,18 @@ const canSearch = computed(() => !loading.value && state.organizationId);
 
 // 選択された組織の表示名を取得
 const selectedOrganizationName = computed(() => {
-  if (!state.organizationId || !organizations.value.data) return '';
-  const org = organizations.value.data.find(
-    item => item.id === state.organizationId
-  );
+  if (!state.organizationId || !adminOrganizations.value) return '';
+  const org = adminOrganizations.value.find(item => item.id === state.organizationId);
   return org ? `${org.name} (${org.slug})` : '';
 });
 
 async function fetchMembers() {
   loading.value = true;
   try {
+    // 以前の結果を即座にクリアして古いデータが表示されるのを防止
+    members.value = [];
+    total.value = undefined;
+
     if (!state.organizationId) {
       toast.add({
         title: 'エラー',
@@ -270,7 +278,9 @@ const columns: TableColumn<Member>[] = [
             title: isSelf ? '自分自身は削除できません' : '削除',
             'aria-disabled': String(loading.value || isSelf),
           },
-          '削除'
+          {
+            default: () => '削除',
+          }
         ),
       ]);
     },
@@ -384,50 +394,27 @@ async function onChangeMemberRole(member: Member, newRole: string) {
   <div>
     <AppBackgroundCard class="mx-auto w-full space-y-6">
       <div>
-        <h1 class="text-2xl font-semibold"
-          >オーガナイゼーション メンバー検索</h1
-        >
+        <h1 class="text-2xl font-semibold">オーガナイゼーション メンバー検索</h1>
         <p class="mt-2 text-sm text-gray-600">メンバーを検索します。</p>
       </div>
 
-      <UForm
-        :schema="ListMembersForm"
-        :state="state"
-        class="grid grid-cols-1 md:grid-cols-3 gap-4"
-        @submit="onSubmit"
-      >
+      <UForm :schema="ListMembersForm" :state="state" class="grid grid-cols-1 md:grid-cols-3 gap-4" @submit="onSubmit">
         <UFormField label="Organization" name="organizationId">
           <div>
-            <div v-if="organizations.isPending" class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-loader-circle"
-                class="h-4 w-4 animate-spin text-primary"
-              />
+            <div v-if="adminOrganizationsStatus === 'pending'" class="flex items-center gap-2">
+              <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin text-primary" />
               <span class="text-sm text-gray-500">読み込み中...</span>
             </div>
-            <div
-              v-else-if="!organizations.data || organizations.data.length === 0"
-              class="text-sm text-gray-500"
-            >
+            <div v-else-if="!adminOrganizations || adminOrganizations.length === 0" class="text-sm text-gray-500">
               所属している組織がありません
             </div>
             <div v-else>
-              <USelect
-                v-model="state.organizationId"
-                :items="
-                  organizations.data.map(org => ({
-                    label: `${org.name} (${org.slug})`,
-                    value: org.id,
-                  }))
-                "
-                placeholder="-- 組織を選択 --"
-                clearable
-                class="w-full"
-              />
-              <span
-                v-if="selectedOrganizationName"
-                class="text-xs text-gray-500"
-              >
+              <USelect v-model="state.organizationId" :items="adminOrganizations.map(org => ({
+                label: `${org.name} (${org.slug})`,
+                value: org.id,
+              }))
+                " placeholder="-- 組織を選択 --" clearable class="w-full" />
+              <span v-if="selectedOrganizationName" class="text-xs text-gray-500">
                 選択中: {{ selectedOrganizationName }}
               </span>
             </div>
@@ -435,12 +422,7 @@ async function onChangeMemberRole(member: Member, newRole: string) {
         </UFormField>
 
         <UFormField label="Limit" name="limit">
-          <UInput
-            v-model.number="state.limit"
-            type="number"
-            min="1"
-            max="100"
-          />
+          <UInput v-model.number="state.limit" type="number" min="1" max="100" />
         </UFormField>
 
         <UFormField label="Offset" name="offset">
@@ -448,67 +430,36 @@ async function onChangeMemberRole(member: Member, newRole: string) {
         </UFormField>
 
         <UFormField label="Sort By" name="sortBy">
-          <USelect
-            v-model="state.sortBy"
-            :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
-            placeholder="-- 選択 --"
-            clearable
-          />
+          <USelect v-model="state.sortBy" :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
+            placeholder="-- 選択 --" clearable />
         </UFormField>
 
         <UFormField label="Sort Direction" name="sortDirection">
-          <USelect
-            v-model="state.sortDirection"
-            :items="[
-              { label: '昇順', value: 'asc' },
-              { label: '降順', value: 'desc' },
-            ]"
-          />
+          <USelect v-model="state.sortDirection" :items="[
+            { label: '昇順', value: 'asc' },
+            { label: '降順', value: 'desc' },
+          ]" />
         </UFormField>
 
         <UFormField label="Filter Field" name="filterField">
-          <USelect
-            v-model="state.filterField"
-            :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
-            placeholder="-- 選択 --"
-            clearable
-          />
+          <USelect v-model="state.filterField" :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
+            placeholder="-- 選択 --" clearable />
         </UFormField>
 
         <UFormField label="Filter Operator" name="filterOperator">
-          <USelect
-            v-model="state.filterOperator"
-            :items="
-              operatorOptions.map(o => ({ label: o.label, value: o.value }))
-            "
-            placeholder="-- 選択 --"
-            clearable
-          />
+          <USelect v-model="state.filterOperator" :items="operatorOptions.map(o => ({ label: o.label, value: o.value }))
+            " placeholder="-- 選択 --" clearable />
         </UFormField>
 
-        <UFormField
-          label="Filter Value"
-          name="filterValue"
-          class="md:col-span-3"
-        >
-          <UInput
-            v-model="state.filterValue"
-            placeholder="値（複数はカンマ区切り）"
-          />
+        <UFormField label="Filter Value" name="filterValue" class="md:col-span-3">
+          <UInput v-model="state.filterValue" placeholder="値（複数はカンマ区切り）" />
         </UFormField>
 
         <div class="md:col-span-3 flex gap-2 justify-end">
-          <UButton
-            type="submit"
-            color="primary"
-            :loading="loading"
-            :disabled="!canSearch"
-          >
+          <UButton type="submit" color="primary" :loading="loading" :disabled="!canSearch">
             {{ loading ? '検索中...' : '検索' }}
           </UButton>
-          <UButton variant="ghost" :disabled="loading" @click="resetForm"
-            >リセット</UButton
-          >
+          <UButton variant="ghost" :disabled="loading" @click="resetForm">リセット</UButton>
         </div>
       </UForm>
 
@@ -517,95 +468,51 @@ async function onChangeMemberRole(member: Member, newRole: string) {
       </div>
 
       <!-- グローバルテーブル検索（UX向上のためテーブル上部に配置） -->
-      <div
-        v-if="members.length"
-        class="mt-4 mb-2 flex items-center gap-2 justify-between"
-      >
-        <UInput
-          v-model="tableFilter"
-          placeholder="テーブル全体を検索..."
-          class="flex-1 max-w-md"
-        />
-        <UButton
-          variant="ghost"
-          :disabled="!tableFilter && columnFilters.length === 0"
-          label="すべてのフィルターをクリア"
-          @click="clearTableFilters"
-        />
+      <div v-if="members.length" class="mt-4 mb-2 flex items-center gap-2 justify-between">
+        <UInput v-model="tableFilter" placeholder="テーブル全体を検索..." class="flex-1 max-w-md" />
+        <UButton variant="ghost" :disabled="!tableFilter && columnFilters.length === 0" label="すべてのフィルターをクリア"
+          @click="clearTableFilters" />
       </div>
 
       <div v-if="members.length" class="overflow-auto mt-2">
-        <UTable
-          ref="membersTable"
-          v-model:global-filter="tableFilter"
-          v-model:column-filters="columnFilters"
-          :data="members"
-          :columns="columns"
-          :loading="loading"
-          empty="メンバーが見つかりません。"
-          class="table-fixed"
-          :ui="{ td: 'break-words' }"
-        >
+        <UTable :key="state.organizationId" ref="membersTable" v-model:global-filter="tableFilter"
+          v-model:column-filters="columnFilters" :data="members" :columns="columns" :loading="loading"
+          empty="メンバーが見つかりません。" class="table-fixed" :ui="{ td: 'break-words' }">
           <!-- カラムフィルタ用のヘッダースロット -->
           <template #email-header="{ column }">
-            <UInput
-              :model-value="(column.getFilterValue() as string) || ''"
-              placeholder="メールでフィルタ"
-              class="w-full max-w-xs"
-              @update:model-value="
+            <UInput :model-value="(column.getFilterValue() as string) || ''" placeholder="メールでフィルタ"
+              class="w-full max-w-xs" @update:model-value="
                 val => column.setFilterValue(val || undefined)
-              "
-            />
+              " />
           </template>
           <template #name-header="{ column }">
-            <UInput
-              :model-value="(column.getFilterValue() as string) || ''"
-              placeholder="名前でフィルタ"
-              class="w-full max-w-xs"
-              @update:model-value="
+            <UInput :model-value="(column.getFilterValue() as string) || ''" placeholder="名前でフィルタ"
+              class="w-full max-w-xs" @update:model-value="
                 val => column.setFilterValue(val || undefined)
-              "
-            />
+              " />
           </template>
           <template #role-header="{ column }">
-            <USelect
-              :model-value="(column.getFilterValue() as string) || ''"
-              :items="[
-                { label: 'member', value: 'member' },
-                { label: 'admin', value: 'admin' },
-                { label: 'owner', value: 'owner' },
-              ]"
-              placeholder="ロールでフィルタ"
-              clearable
-              class="w-full max-w-xs"
-              @update:model-value="
-                val => column.setFilterValue(val || undefined)
-              "
-            />
+            <USelect :model-value="(column.getFilterValue() as string) || ''" :items="[
+              { label: 'member', value: 'member' },
+              { label: 'admin', value: 'admin' },
+              { label: 'owner', value: 'owner' },
+            ]" placeholder="ロールでフィルタ" clearable class="w-full max-w-xs" @update:model-value="
+              val => column.setFilterValue(val || undefined)
+            " />
           </template>
           <template #createdAt-header="{ column }">
-            <UInput
-              :model-value="(column.getFilterValue() as string) || ''"
-              placeholder="参加日でフィルタ (YYYY-MM-DD)"
-              class="w-full max-w-xs"
-              @update:model-value="
+            <UInput :model-value="(column.getFilterValue() as string) || ''" placeholder="参加日でフィルタ (YYYY-MM-DD)"
+              class="w-full max-w-xs" @update:model-value="
                 val => column.setFilterValue(val || undefined)
-              "
-            />
+              " />
           </template>
         </UTable>
       </div>
 
-      <div v-else-if="!loading" class="text-sm text-gray-600"
-        >メンバーが見つかりません。</div
-      >
+      <div v-else-if="!loading" class="text-sm text-gray-600">メンバーが見つかりません。</div>
     </AppBackgroundCard>
 
     <!-- 削除確認モーダル -->
-    <TheConfirmModal
-      v-model:open="confirmOpen"
-      :message="confirmMessage"
-      @confirm="onConfirmRemove"
-    />
+    <TheConfirmModal v-model:open="confirmOpen" :message="confirmMessage" @confirm="onConfirmRemove" />
   </div>
 </template>
