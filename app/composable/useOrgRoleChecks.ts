@@ -1,4 +1,5 @@
 import { authClient } from '~/composable/auth-client';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 
 // ```
 // やりたい動作は「ロール判定が終わる前に `canAccessAdmin` が一瞬 `false` になるせいで、管理者でも F5 直後に `/apps/dashboard` へ飛ばされる」でした。今の修正で、ロール取得が完了してから初めてガードが走るので、admin が更新しても管理画面に留まります。
@@ -17,7 +18,7 @@ import { authClient } from '~/composable/auth-client';
 type OrgRole = 'member' | 'admin' | 'owner';
 
 export function useOrgRole() {
-  const activeOrganization = authClient.useActiveOrganization();
+  const activeOrganization = useActiveOrg();
   const roleRef = ref<OrgRole | null>(null);
   const isRoleResolved = ref(false);
 
@@ -51,7 +52,7 @@ export function useOrgRole() {
   const fetchActiveMemberRole = async () => {
     isRoleResolved.value = false;
     try {
-      const response = await authClient.organization.getActiveMemberRole({});
+      const response = await authClient.organization.getActiveMember();
       roleRef.value = resolveRoleFromResponse(response);
     } catch {
       roleRef.value = null;

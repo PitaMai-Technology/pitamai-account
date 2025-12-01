@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client';
 import { useOrg } from '~/composable/useOrg';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 
 definePageMeta({
   layout: 'the-app',
@@ -10,7 +11,7 @@ const route = useRoute();
 const organizationId = computed(() => route.params.id as string);
 
 const organizations = authClient.useListOrganizations();
-const activeOrganization = authClient.useActiveOrganization();
+const activeOrganization = useActiveOrg();
 const { switchOrganization } = useOrg();
 
 // 組織の切り替えと検証

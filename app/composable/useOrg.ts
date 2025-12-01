@@ -1,8 +1,10 @@
 import { authClient } from '~/composable/auth-client';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 
 export const useOrg = () => {
   const toast = useToast();
   const router = useRouter();
+  const activeOrg = useActiveOrg();
 
   const switchOrganization = async (organizationId: string) => {
     if (!organizationId) {
@@ -11,42 +13,30 @@ export const useOrg = () => {
     }
 
     try {
-      // 組織リストを取得
-      const organizationsResponse = await authClient.organization.list();
+      // Better Auth の listOrganizations をそのまま利用して一覧を取得
+      const { data, error } = await authClient.organization.list({});
 
-      // エラーチェック
-      if (organizationsResponse.error) {
-        console.error(
-          'Organizations fetch error:',
-          organizationsResponse.error
-        );
+      if (error) {
+        console.error('Organizations fetch error:', error);
         await router.push('/auth/login');
         return false;
       }
 
-      // data プロパティから組織リストを取得
-      const organizations = organizationsResponse?.data;
-
-      if (!organizations || !Array.isArray(organizations)) {
+      if (!data || !Array.isArray(data)) {
         console.log('No organizations available');
         await router.push('/apps/dashboard');
         return false;
       }
 
-      // 指定されたIDの組織が存在するか確認
-      const targetOrg = organizations.find(org => org.id === organizationId);
+      const targetOrg = data.find(org => org.id === organizationId);
 
       if (!targetOrg) {
         console.log('Organization not found:', organizationId);
-        console.log('Available organizations:', organizations);
+        console.log('Available organizations:', data);
         await router.push('/apps/dashboard');
         return false;
       }
 
-      // アクティブな組織を取得
-      const activeOrg = authClient.useActiveOrganization();
-
-      // 異なる組織の場合は切り替え
       if (activeOrg.value?.data?.id !== organizationId) {
         await authClient.organization.setActive({ organizationId });
       }

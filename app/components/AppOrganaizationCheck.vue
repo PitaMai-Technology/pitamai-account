@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 
 const organizations = authClient.useListOrganizations();
-const activeOrganization = authClient.useActiveOrganization();
+const activeOrganization = useActiveOrg();
 
 const toast = useToast();
 
@@ -38,23 +39,12 @@ async function setActiveOrganization(id: string) {
 
     <h2>所属している組織一覧</h2>
     <div v-if="organizations.isPending">
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="h-8 w-8 animate-spin text-primary"
-      />
+      <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
     </div>
-    <div v-else-if="organizations.data === null"
-      >あなたが所属している組織はありません🥲</div
-    >
+    <div v-else-if="organizations.data === null">あなたが所属している組織はありません🥲</div>
     <div v-else>
-      <USelect
-        :items="[...(organizations.data || [])]"
-        label-key="name"
-        value-key="id"
-        class="w-full"
-        :model-value="activeOrganization.data?.id"
-        @update:model-value="setActiveOrganization"
-      />
+      <USelect :items="[...(organizations.data || [])]" label-key="name" value-key="id" class="w-full"
+        :model-value="activeOrganization.data?.id" @update:model-value="setActiveOrganization" />
     </div>
     <p v-if="activeOrganization.data === null" class="text-sm text-info mt-2">
       現在、組織は選択されていません。 上のリストから組織を選択してください。

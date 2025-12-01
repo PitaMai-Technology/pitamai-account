@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 import type { z } from 'zod';
 
 definePageMeta({
@@ -8,7 +9,7 @@ definePageMeta({
 });
 
 const toast = useToast();
-const activeOrganization = authClient.useActiveOrganization();
+const activeOrganization = useActiveOrg();
 // 管理者以上 (admin, owner) のみをサーバー側でフィルタした組織一覧を取得
 const { data: adminOrganizations, status: adminOrganizationsStatus } = await useFetch(
   '/api/pitamai/admin-list',
@@ -185,7 +186,7 @@ function resetInviteForm() {
               }))
                 " placeholder="-- 組織を選択 --" clearable class="w-full" />
               <span v-if="selectedOrganizationName" class="text-xs text-gray-500">選択中: {{ selectedOrganizationName
-                }}</span>
+              }}</span>
             </template>
           </div>
         </UFormField>

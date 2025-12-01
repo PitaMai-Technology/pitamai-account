@@ -2,6 +2,7 @@
 import { h, resolveComponent } from 'vue';
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 import type { z } from 'zod';
 
 // @tanstack/vue-table の型がプロジェクトにインストールされていない環境向けに
@@ -15,7 +16,7 @@ definePageMeta({
 });
 
 const toast = useToast();
-const activeOrganization = authClient.useActiveOrganization();
+const activeOrganization = useActiveOrg();
 // 管理者以上 (admin, owner) のみをサーバー側でフィルタした組織一覧を取得
 const { data: adminOrganizations, status: adminOrganizationsStatus } = await useFetch(
   '/api/pitamai/admin-list',
