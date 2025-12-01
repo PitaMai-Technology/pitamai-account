@@ -2,6 +2,7 @@ import { readBody, createError } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { randomUUID } from 'node:crypto';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 const preRegisterSchema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
@@ -10,6 +11,8 @@ const preRegisterSchema = z.object({
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['admin', 'owner']);
+
     const body = await readBody(event);
     const result = preRegisterSchema.safeParse(body);
 

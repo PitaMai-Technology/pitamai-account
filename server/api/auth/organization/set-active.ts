@@ -13,6 +13,7 @@ const setActiveOrganizationSchema = z
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['member', 'admin', 'owner']);
     const body = await readBody(event);
     const result = setActiveOrganizationSchema.safeParse(body);
 

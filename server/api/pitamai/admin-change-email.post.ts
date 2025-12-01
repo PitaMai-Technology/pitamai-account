@@ -1,8 +1,8 @@
 // 管理者が任意のユーザーのメールアドレスを即時に更新するエンドポイント（最小実装）
-import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import prisma from '~~/lib/prisma';
 import { userChangeEmailSchema } from '~~/shared/types/user-change-email';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
   try {
@@ -15,21 +15,7 @@ export default defineEventHandler(async event => {
 
     const { userId, newEmail } = parsed.data;
 
-    const headersObj =
-      (event as unknown as { headers?: Record<string, string> }).headers ?? {};
-
-    // 管理者権限チェック
-    try {
-      const roleRes = (await auth.api.getActiveMemberRole({
-        headers: headersObj,
-      })) as { role?: string } | undefined;
-      const role = roleRes?.role;
-      if (!role || (role !== 'admin' && role !== 'owner')) {
-        throw createError({ statusCode: 403, message: '管理者権限が必要です' });
-      }
-    } catch {
-      throw createError({ statusCode: 403, message: '管理者権限が必要です' });
-    }
+    await assertActiveMemberRole(event, ['admin', 'owner']);
 
     const updated = await prisma.user.update({
       where: { id: userId },

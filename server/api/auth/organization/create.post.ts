@@ -1,7 +1,9 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
+  await assertActiveMemberRole(event, ['owner']);
   try {
     const body = await readBody(event);
     const result = organizationCreateSchema.safeParse(body);

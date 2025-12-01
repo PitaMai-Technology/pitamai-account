@@ -1,8 +1,11 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['owner']);
+
     const body = await readBody(event);
     const result = organizationDeleteSchema.safeParse(body);
 
@@ -15,7 +18,6 @@ export default defineEventHandler(async event => {
 
     const { organizationId } = result.data;
 
-    // 認証情報を全ヘッダーごと渡す（better-auth公式推奨）
     const { headers } = event;
     const data = await auth.api.deleteOrganization({
       body: {

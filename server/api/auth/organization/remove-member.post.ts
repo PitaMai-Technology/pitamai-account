@@ -1,6 +1,7 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { RemoveMemberSchema } from '~~/shared/types/member-remove';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 type MemberRecord = { id: string };
 
@@ -28,6 +29,8 @@ const extractMembers = (res: unknown): MemberRecord[] => {
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['owner']);
+
     const body = await readBody(event);
     console.debug('remove-member request body:', body);
 
@@ -47,7 +50,7 @@ export default defineEventHandler(async event => {
       ...(organizationId ? { organizationId } : {}),
     };
 
-    // Prevent self-deletion on the server: resolve session user id/email
+    // サーバーでの自己削除を防ぐ：セッションのユーザーID/メールを解決
     console.debug('remove-member payload to auth.api:', payload);
     try {
       const session = await auth.api.getSession({ headers: headersObj });
@@ -63,10 +66,10 @@ export default defineEventHandler(async event => {
         });
       }
     } catch {
-      // ignore session retrieval errors and proceed (auth.api calls will later fail if unauthorized)
+      // セッション取得エラーを無視して続行（認証されていない場合、auth.api呼び出しは後で失敗する）
     }
 
-    // small helper to call removeMember
+    // removeMemberを呼び出す小さなヘルパー
     const tryRemove = async (p: {
       memberIdOrEmail: string;
       organizationId?: string;
@@ -80,7 +83,7 @@ export default defineEventHandler(async event => {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('auth.api.removeMember failed:', msg);
 
-      // Try fallback only for email-not-found cases
+      // メールが見つからない場合のみフォールバックを試す
       if (
         organizationId &&
         idToSend.includes('@') &&
@@ -101,7 +104,7 @@ export default defineEventHandler(async event => {
           const found = members[0];
           if (found) {
             console.debug(
-              'Found member by email, retrying remove with memberId:',
+              'メールでメンバーが見つかった、memberIdで削除を再試行：',
               found.id
             );
             return await tryRemove({
@@ -111,7 +114,7 @@ export default defineEventHandler(async event => {
           }
         } catch (fallbackErr) {
           console.error(
-            'Fallback remove-member search failed:',
+            'フォールバックのメンバー削除検索に失敗：',
             fallbackErr instanceof Error
               ? fallbackErr.message
               : String(fallbackErr)
@@ -119,7 +122,7 @@ export default defineEventHandler(async event => {
         }
       }
 
-      // rethrow original error if fallback didn't succeed
+      // フォールバックが成功しなかった場合、元のエラーを再スロー
       throw err;
     }
   } catch (e: unknown) {

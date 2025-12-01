@@ -1,9 +1,12 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { UpdateMemberRoleSchema } from '~~/shared/types/member-update-role';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['admin', 'owner']);
+
     const body = await readBody(event);
     const result = UpdateMemberRoleSchema.safeParse(body);
 

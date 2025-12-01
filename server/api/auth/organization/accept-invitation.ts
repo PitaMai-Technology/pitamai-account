@@ -1,8 +1,11 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError, sendRedirect } from 'h3';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['member', 'admin', 'owner']);
+
     const body = await readBody(event);
     // shared/types/auth.ts から自動インポートされる
     const result = acceptInvitationSchema.safeParse(body);

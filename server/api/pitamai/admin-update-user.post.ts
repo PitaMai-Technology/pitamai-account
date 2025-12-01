@@ -1,9 +1,7 @@
-// 管理者が任意のユーザー情報を更新できるサーバーエンドポイント
-// 目的: サーバー側で権限チェックを行い、Prisma を使ってユーザー情報を更新する
-import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import prisma from '~~/lib/prisma';
 import { userUpdateSchema } from '~~/shared/types/user-update';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
   try {
@@ -15,25 +13,7 @@ export default defineEventHandler(async event => {
     }
 
     const { userId, data } = parsed.data;
-
-    const headersObj =
-      (event as unknown as { headers?: Record<string, string> }).headers ?? {};
-
-    // 管理者権限チェック
-    try {
-      const roleRes = (await auth.api.getActiveMemberRole({
-        headers: headersObj,
-      })) as { role?: string } | undefined;
-      const role = roleRes?.role;
-      if (!role || (role !== 'admin' && role !== 'owner')) {
-        throw createError({ statusCode: 403, message: '管理者権限が必要です' });
-      }
-    } catch {
-      throw createError({
-        statusCode: 403,
-        message: '管理者権限が必要です',
-      });
-    }
+    await assertActiveMemberRole(event, ['admin', 'owner']);
 
     // Prisma を使ってユーザー情報を更新（更新可能なフィールドのみコピー）
     const updateData: Record<string, unknown> = {};

@@ -4,6 +4,7 @@ import prisma from '~~/lib/prisma';
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['admin', 'owner']);
     const body = await readBody(event);
     const result = InviteMemberForm.safeParse(body);
 

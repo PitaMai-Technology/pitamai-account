@@ -4,6 +4,7 @@ import { createError, getQuery } from 'h3';
 
 export default defineEventHandler(async event => {
   try {
+    await assertActiveMemberRole(event, ['admin', 'owner']);
     const query = getQuery(event);
     // shared/types/member.ts から自動インポートされる
     const result = ListMembers.safeParse(query);
