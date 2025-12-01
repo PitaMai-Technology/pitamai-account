@@ -82,6 +82,8 @@
 - 実装ファイル: `server/api/auth/get-session.ts`
 - 認可: リクエストのヘッダから session 情報を確認して返す
 
+> Note: `server/middleware/auth.ts` already protects `/api/pitamai/*` with authentication (401). Additional role checks are implemented on admin endpoints.
+
 ---
 
 ## 組織関連 (server/api/auth/organization)
@@ -165,6 +167,49 @@
 
 レスポンス: 所属する `owner` 権限の組織オブジェクト配列（id, name, slug など）を返します。
 
+### GET /api/pitamai/admin-list
+
+- 概要: リクエストしたユーザーが `admin` または `owner` 権限を持つ組織の一覧を取得します（管理者以上）。
+- 実装: `server/api/pitamai/admin-list.get.ts`
+- 認可: 認証されたユーザー（`auth` ミドルウェアによる保護）。サーバー側ではセッションによるユーザー判定後に member の role を `admin | owner` でフィルタしています。
+- レスポンス: 所属する `admin` または `owner` 権限の組織オブジェクト配列（id, name, slug など）。
+
+### POST /api/pitamai/admin-update-user
+
+- 概要: 管理者 (admin/owner) が任意のユーザー情報を更新する（名前・画像・メール等）。
+- 実装: `server/api/pitamai/admin-update-user.post.ts`
+- 認可: `admin` 以上。サーバー側で `auth.api.getActiveMemberRole()` を呼び出して role を取得後に `admin | owner` を満たすかを確認し、満たなければ 403 を返します。
+- リクエスト例 (JSON):
+
+```json
+{
+  "userId": "user_abc123",
+  "data": {
+    "name": "New Name",
+    "email": "new@example.com",
+    "image": "https://..."
+  }
+}
+```
+
+- レスポンス: 成功時に更新ユーザーのオブジェクトと `success: true` を返します。
+
+### POST /api/pitamai/admin-change-email
+
+- 概要: 管理者 (admin/owner) が別ユーザーのメールアドレスを即時で更新するエンドポイント（主に管理者操作用）。
+- 実装: `server/api/pitamai/admin-change-email.post.ts`
+- 認可: `admin` 以上。サーバー側で `auth.api.getActiveMemberRole()` を用いて role を確認します。
+- リクエスト例 (JSON):
+
+```json
+{
+  "userId": "user_abc123",
+  "newEmail": "changed@example.com"
+}
+```
+
+- レスポンス: 成功時に更新された `user` オブジェクトを返します。
+
 ---
 
 ## 管理 API / ユーティリティ
@@ -179,6 +224,12 @@
 - 権限定義: `server/utils/permissions.ts` にて Prisma / Better Auth の AccessControl を定義（`member` / `admin` / `owner`）
 - クライアントで権限判定を行う場合は `authClient.organization.checkRolePermission()` を使用して同期的に判定できます
 - ルートガードは `app/middleware/only-admin.global.ts` で `/apps/admin/**` を守ります
+
+## 追加の認可ルール（実装上の注意）
+
+- サーバー側保護は必須: UI で操作が非表示でも、必ずサーバー側（API）のエンドポイントで権限チェックを行ってください。既にいくつかのエンドポイントでは `auth.api.getActiveMemberRole()` で role を検証しています（例: `admin-update-user.post.ts`, `admin-change-email.post.ts`）。
+- 組織固有の操作では、常に `organizationId` を検証し、その組織での member record を確認してからアクションを許可してください。`auth.api.getActiveMemberRole()` は現在の activeOrganization の role を返すため、`organizationId` が引数で渡される場合は prisma 等で対象組織の member.role を確認する必要があります。
+- 共通ヘルパー: ここまでの方針に沿って `server/utils/authorization.ts` のように共通ヘルパーを作ることをおすすめします（`requireRole(headers, role, organizationId?)` など）。ヘルパーは role 確認・403 返却・監査ログを担うと良いです。
 
 ---
 
