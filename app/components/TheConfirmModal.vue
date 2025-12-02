@@ -38,11 +38,11 @@ function onCancel() {
       {{ message }}
     </template>
     <template #footer>
-      <div class="flex gap-2 justify-end">
+      <div class="flex items-baseline gap-2 justify-end">
         <UButton color="neutral" variant="outline" @click="onCancel">
           キャンセル
         </UButton>
-        <UButton color="primary" @click="onConfirm">
+        <UButton color="primary" size="sm" @click="onConfirm">
           はい
         </UButton>
       </div>

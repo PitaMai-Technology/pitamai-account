@@ -70,7 +70,7 @@ async function onSubmit(event?: FormSubmitEvent<UserUpdate>) {
         <UFormField label="対象ユーザー ID" name="userId" required>
           <UInput v-model="state.userId" placeholder="user-id" />
           <p class="text-xs text-info mt-1">
-            <NuxtLink to="/apps/admin/account">全体アカウント一覧で確認できます。</NuxtLink>
+            <NuxtLink to="/apps/admin/account">全体アカウントの一覧で確認できます。</NuxtLink>
           </p>
         </UFormField>
 
