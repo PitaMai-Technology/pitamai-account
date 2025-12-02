@@ -38,8 +38,7 @@ export const auth = betterAuth({
         throw err instanceof Error ? err : new Error(String(err));
       }
     },
-    // ここはtrueにすることを推奨します
-    sendOnSignUp: false,
+    sendOnSignUp: true,
     sendOnSignIn: true,
   },
   plugins: [
@@ -55,7 +54,7 @@ export const auth = betterAuth({
       },
     }),
     magicLink({
-      disableSignUp: false,
+      disableSignUp: true,
       sendMagicLink: async ({ email, url }) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('🔗 Magic Link (Development Mode)');
