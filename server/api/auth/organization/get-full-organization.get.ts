@@ -3,7 +3,7 @@ import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
   // owner / admin だけが組織のフル情報を取得できる
-  await assertActiveMemberRole(event, ['admin', 'owner']);
+  await assertActiveMemberRole(event, ['admins', 'owner']);
 
   const { headers } = event;
 

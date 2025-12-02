@@ -1,7 +1,7 @@
 import { readBody, createError } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
-import { randomUUID } from 'node:crypto';
+import { generateId } from 'better-auth';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 const preRegisterSchema = z.object({
@@ -11,7 +11,7 @@ const preRegisterSchema = z.object({
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['admin', 'owner']);
+    await assertActiveMemberRole(event, ['admins', 'owner']);
 
     const body = await readBody(event);
     const result = preRegisterSchema.safeParse(body);
@@ -41,7 +41,7 @@ export default defineEventHandler(async event => {
 
     const user = await prisma.user.create({
       data: {
-        id: randomUUID(),
+        id: generateId(),
         email,
         name: name ?? email,
       },

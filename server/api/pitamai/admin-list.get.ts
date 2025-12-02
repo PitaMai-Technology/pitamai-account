@@ -10,7 +10,7 @@ export default defineEventHandler(async event => {
     const memberships = await prisma.member.findMany({
       where: {
         userId: session?.user.id,
-        role: { in: ['admin', 'owner'] },
+        role: { in: ['admins', 'owner'] },
       },
       include: {
         organization: true,

@@ -10,7 +10,7 @@ export const RemoveMemberSchema = z
     memberId: z.string().min(1, 'memberId is required').optional(),
   })
   .refine(data => !!(data.memberIdOrEmail || data.memberId), {
-    message: 'memberIdOrEmail or memberId is required',
+    message: 'memberIdOrEmail または memberId は必須です',
   });
 
 export type RemoveMember = z.infer<typeof RemoveMemberSchema>;

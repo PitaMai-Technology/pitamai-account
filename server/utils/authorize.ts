@@ -1,7 +1,7 @@
 import { createError, type H3Event } from 'h3';
 import { auth } from '~~/server/utils/auth';
 
-type OrgRole = 'member' | 'admin' | 'owner';
+export type OrgRole = 'member' | 'admins' | 'owner';
 
 type PermissionMap = Record<string, string[]>;
 

@@ -3,7 +3,7 @@ import { authClient } from '~/composable/auth-client';
 import { useOrgRole } from '~/composable/useOrgRoleChecks';
 
 const session = authClient.useSession();
-const { canAccessAdmin, isRoleResolved } = useOrgRole();
+const { role, canAccessAdmin, isRoleResolved } = useOrgRole();
 
 const toast = useToast();
 const hasRedirected = ref(false);
@@ -45,9 +45,10 @@ if (import.meta.client) {
       </template>
       <div class="max-w-7xl m-auto">
         <UMain class="p-5 pt-10 max-w-6xl m-auto">
-          <h1 class="text-2xl font-bold"
-            >{{ session.data?.user.email }} さん。ようこそ！</h1
-          >
+          <h1 class="text-2xl font-bold">{{ session.data?.user.email }} さん。ようこそ！</h1>
+          <p class="text-gray-600 mt-2">
+            あなたの役割: <strong>{{ role || '未所属' }}</strong>
+          </p>
           <USeparator type="solid" class="my-4" />
           <slot />
         </UMain>
@@ -55,12 +56,8 @@ if (import.meta.client) {
     </UPage>
 
     <!-- セッションが保留中の場合のオーバーレイローダー -->
-    <div
-      v-if="session.isPending"
-      class="fixed inset-0 z-50 grid place-items-center bg-white/70"
-      aria-busy="true"
-      aria-live="polite"
-    >
+    <div v-if="session.isPending" class="fixed inset-0 z-50 grid place-items-center bg-white/70" aria-busy="true"
+      aria-live="polite">
       <div class="text-center">
         <AppThinkingLoading />
         <h1 class="text-4xl mt-8 font-bold">読み込み中...</h1>

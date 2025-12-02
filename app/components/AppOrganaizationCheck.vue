@@ -41,13 +41,19 @@ async function setActiveOrganization(id: string) {
     <div v-if="organizations.isPending">
       <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
     </div>
-    <div v-else-if="organizations.data === null">あなたが所属している組織はありません🥲</div>
     <div v-else>
-      <USelect :items="[...(organizations.data || [])]" label-key="name" value-key="id" class="w-full"
-        :model-value="activeOrganization.data?.id" @update:model-value="setActiveOrganization" />
+      <USelect :items="[...(organizations.data)]" label-key="name" value-key="id" class="w-full"
+        :model-value="activeOrganization.data?.id" @update:model-value="setActiveOrganization"
+        placeholder="組織を選択してください" />
     </div>
-    <p v-if="activeOrganization.data === null" class="text-sm text-info mt-2">
-      現在、組織は選択されていません。 上のリストから組織を選択してください。
-    </p>
+    <template v-if="activeOrganization.data === null">
+      <p class="text-sm text-info mt-2">
+        現在、組織は選択されていません。 上のリストから組織を選択してください。</p>
+      <template v-if="organizations.data?.length === 0">
+        <p class="text-sm text-gray-500 mt-4">
+          また、組織に所属していない場合は、既存の組織に招待される必要があります。
+        </p>
+      </template>
+    </template>
   </div>
 </template>

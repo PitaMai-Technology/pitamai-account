@@ -72,14 +72,12 @@ async function onSubmit(event?: FormSubmitEvent<UserChangeEmail>) {
     <AppBackgroundCard>
       <h1 class="text-xl font-semibold">管理者: ユーザーのメール変更</h1>
       <div class="mt-4 space-y-4">
-        <UForm
-          :schema="userChangeEmailSchema"
-          :state="state"
-          class="space-y-4"
-          @submit="onSubmit"
-        >
+        <UForm :schema="userChangeEmailSchema" :state="state" class="space-y-4" @submit="onSubmit">
           <UFormField label="対象ユーザー ID" name="userId" required>
             <UInput v-model="state.userId" placeholder="user-id" />
+            <p class="text-xs text-info mt-1">
+              <NuxtLink to="/apps/admin/member">ユーザー一覧で確認できます。</NuxtLink>
+            </p>
           </UFormField>
 
           <UFormField label="新しいメール" name="newEmail" required>
@@ -87,20 +85,13 @@ async function onSubmit(event?: FormSubmitEvent<UserChangeEmail>) {
           </UFormField>
 
           <div class="flex gap-2">
-            <UButton type="submit" color="primary" :loading="loading"
-              >メール変更</UButton
-            >
+            <UButton type="submit" color="primary" :loading="loading">メール変更</UButton>
           </div>
         </UForm>
       </div>
 
-      <LazyTheConfirmModal
-        :open="confirmOpen"
-        title="確認"
-        message="このユーザーのメールアドレスを変更してよいですか？"
-        @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)"
-      />
+      <LazyTheConfirmModal :open="confirmOpen" title="確認" message="このユーザーのメールアドレスを変更してよいですか？"
+        @confirm="() => resolveConfirm(true)" @cancel="() => resolveConfirm(false)" />
     </AppBackgroundCard>
   </div>
 </template>

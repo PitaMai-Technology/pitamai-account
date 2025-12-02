@@ -9,13 +9,13 @@ export default defineEventHandler(async event => {
     const body = await readBody(event);
     const parsed = userChangeEmailSchema.safeParse(body);
     if (!parsed.success) {
-      console.error('Validation failed', parsed.error.format());
+      console.error('Validation failed', parsed.error.message);
       throw createError({ statusCode: 422, message: 'Validation Error' });
     }
 
     const { userId, newEmail } = parsed.data;
 
-    await assertActiveMemberRole(event, ['admin', 'owner']);
+    await assertActiveMemberRole(event, ['admins', 'owner']);
 
     const updated = await prisma.user.update({
       where: { id: userId },

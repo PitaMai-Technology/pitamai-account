@@ -2,20 +2,29 @@ import { createAuthClient } from 'better-auth/vue';
 import {
   magicLinkClient,
   organizationClient,
+  adminClient,
 } from 'better-auth/client/plugins';
-import { ac, owner, admin, member } from '~~/server/utils/permissions';
+import { ac, owner, admins, member } from '~~/server/utils/permissions';
 
-// const config = useRuntimeConfig()
+// const config = useRuntimeConfig();
 
 export const authClient = createAuthClient({
-  baseURL: 'http://localhost:3000',
+  baseURL: process.env.BETTER_AUTH_URL,
   plugins: [
     magicLinkClient(),
+    adminClient({
+      ac,
+      roles: {
+        owner,
+        admins,
+        member,
+      },
+    }),
     organizationClient({
       ac,
       roles: {
         owner,
-        admin,
+        admins,
         member,
       },
     }),

@@ -8,8 +8,7 @@ import type { z } from 'zod';
 // @tanstack/vue-table の型がプロジェクトにインストールされていない環境向けに
 // 必要最低限の型エイリアスをローカル定義します。
 // ColumnFiltersState は TanStack の型では配列で、{ id, value } の形を取ることが多いです。
-// ここでは value を必須にして UTable の期待型に合わせます。
-type ColumnFiltersState = Array<{ id: string; value: unknown }>;
+// 今回はカラムフィルタを廃止するため、この型は使いません。
 
 definePageMeta({
   layout: 'the-app',
@@ -33,11 +32,6 @@ const state = reactive<Partial<Schema>>({
   organizationId: undefined,
   limit: 20,
   offset: 0,
-  sortBy: undefined,
-  sortDirection: 'asc',
-  filterField: undefined,
-  filterOperator: undefined,
-  filterValue: undefined,
 });
 
 // activeOrganization がロードされたら state.organizationId を補完する
@@ -65,25 +59,6 @@ interface Member {
 const members = ref<Member[]>([]);
 const total = ref<number | undefined>(undefined);
 const tableFilter = ref('');
-// カラムごとのクライアント側フィルタリング用（TanStack ColumnFiltersState）
-const columnFilters = ref<ColumnFiltersState>([]);
-
-const operatorOptions = [
-  { label: '等しい (eq)', value: 'eq' },
-  { label: '等しくない (ne)', value: 'ne' },
-  { label: 'より大きい (gt)', value: 'gt' },
-  { label: '以上 (gte)', value: 'gte' },
-  { label: 'より小さい (lt)', value: 'lt' },
-  { label: '以下 (lte)', value: 'lte' },
-  { label: '含む (contains)', value: 'contains' },
-];
-
-const fieldOptions = [
-  { label: 'メール', value: 'email' },
-  { label: '名前', value: 'name' },
-  { label: 'ロール', value: 'role' },
-  { label: '作成日', value: 'createdAt' },
-];
 
 const canSearch = computed(() => !loading.value && state.organizationId);
 
@@ -93,6 +68,14 @@ const selectedOrganizationName = computed(() => {
   const org = adminOrganizations.value.find(item => item.id === state.organizationId);
   return org ? `${org.name} (${org.slug})` : '';
 });
+
+// map adminOrganizations into select items to avoid complex inline expressions in templates
+const organizationItems = computed(() =>
+  adminOrganizations.value?.map((org) => ({ label: `${org.name} (${org.slug})`, value: org.id })) ?? []
+);
+
+// UTable ui config as a separate const to avoid inline object in template
+const tableUi = { td: 'break-words' } as const;
 
 async function fetchMembers() {
   loading.value = true;
@@ -115,11 +98,6 @@ async function fetchMembers() {
       organizationId: state.organizationId,
       limit: Number(state.limit ?? 20),
       offset: Number(state.offset ?? 0),
-      sortBy: state.sortBy,
-      sortDirection: state.sortDirection,
-      filterField: state.filterField,
-      filterOperator: state.filterOperator,
-      filterValue: state.filterValue,
     };
 
     const { data, error } = await authClient.organization.listMembers({
@@ -194,22 +172,17 @@ function resetForm() {
   state.organizationId = activeOrganization.value?.data?.id;
   state.limit = 20;
   state.offset = 0;
-  state.sortBy = undefined;
-  state.sortDirection = 'asc';
-  state.filterField = undefined;
-  state.filterOperator = undefined;
-  state.filterValue = undefined;
   members.value = [];
   total.value = undefined;
-  // フォームリセット時はテーブルフィルターもクリアする
+  // フォームリセット時はテーブルフィルターもクリア
   tableFilter.value = '';
-  columnFilters.value = [];
 }
 
 // テーブルのフィルター（グローバル + カラム）をクリアするヘルパー
-function clearTableFilters(): void {
+// clearTableFilters は不要になったが残しておく（将来的な拡張用）
+// clearTableFilters removed — keep a helper to reset global search if needed
+function _clearTableFilters(): void {
   tableFilter.value = '';
-  columnFilters.value = [];
 }
 
 const columns: TableColumn<Member>[] = [
@@ -254,12 +227,13 @@ const columns: TableColumn<Member>[] = [
       const UButton = resolveComponent('UButton');
       return h('div', { class: 'flex items-center gap-2' }, [
         h(USelect, {
+          disabled: loading.value || isSelf,
           modelValue: member.role,
           'onUpdate:modelValue': (v: string) =>
             onChangeMemberRole(member, String(v)),
           items: [
             { label: 'member', value: 'member' },
-            { label: 'admin', value: 'admin' },
+            { label: 'admins', value: 'admins' },
             { label: 'owner', value: 'owner' },
           ],
           clearable: false,
@@ -399,8 +373,9 @@ async function onChangeMemberRole(member: Member, newRole: string) {
         <p class="mt-2 text-sm text-gray-600">メンバーを検索します。</p>
       </div>
 
-      <UForm :schema="ListMembersForm" :state="state" class="grid grid-cols-1 md:grid-cols-3 gap-4" @submit="onSubmit">
-        <UFormField label="Organization" name="organizationId">
+      <UForm :schema="ListMembersForm" :state="state" class="grid grid-cols-1 md:grid-cols-2 gap-4"
+        @submit.prevent="onSubmit">
+        <UFormField label="Organization" name="organizationId" class="hidden">
           <div>
             <div v-if="adminOrganizationsStatus === 'pending'" class="flex items-center gap-2">
               <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin text-primary" />
@@ -410,11 +385,8 @@ async function onChangeMemberRole(member: Member, newRole: string) {
               所属している組織がありません
             </div>
             <div v-else>
-              <USelect v-model="state.organizationId" :items="adminOrganizations.map(org => ({
-                label: `${org.name} (${org.slug})`,
-                value: org.id,
-              }))
-                " placeholder="-- 組織を選択 --" clearable class="w-full" />
+              <USelect v-model="state.organizationId" :items="organizationItems" placeholder="-- 組織を選択 --" clearable
+                class="w-full" />
               <span v-if="selectedOrganizationName" class="text-xs text-gray-500">
                 選択中: {{ selectedOrganizationName }}
               </span>
@@ -430,33 +402,9 @@ async function onChangeMemberRole(member: Member, newRole: string) {
           <UInput v-model.number="state.offset" type="number" min="0" />
         </UFormField>
 
-        <UFormField label="Sort By" name="sortBy">
-          <USelect v-model="state.sortBy" :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
-            placeholder="-- 選択 --" clearable />
-        </UFormField>
+        <!-- other filters and sorting removed to keep UI simple (limit/offset only) -->
 
-        <UFormField label="Sort Direction" name="sortDirection">
-          <USelect v-model="state.sortDirection" :items="[
-            { label: '昇順', value: 'asc' },
-            { label: '降順', value: 'desc' },
-          ]" />
-        </UFormField>
-
-        <UFormField label="Filter Field" name="filterField">
-          <USelect v-model="state.filterField" :items="fieldOptions.map(f => ({ label: f.label, value: f.value }))"
-            placeholder="-- 選択 --" clearable />
-        </UFormField>
-
-        <UFormField label="Filter Operator" name="filterOperator">
-          <USelect v-model="state.filterOperator" :items="operatorOptions.map(o => ({ label: o.label, value: o.value }))
-            " placeholder="-- 選択 --" clearable />
-        </UFormField>
-
-        <UFormField label="Filter Value" name="filterValue" class="md:col-span-3">
-          <UInput v-model="state.filterValue" placeholder="値（複数はカンマ区切り）" />
-        </UFormField>
-
-        <div class="md:col-span-3 flex gap-2 justify-end">
+        <div class="md:col-span-2 flex gap-2 justify-end">
           <UButton type="submit" color="primary" :loading="loading" :disabled="!canSearch">
             {{ loading ? '検索中...' : '検索' }}
           </UButton>
@@ -468,45 +416,17 @@ async function onChangeMemberRole(member: Member, newRole: string) {
         <p>結果: {{ total }} 件</p>
       </div>
 
-      <!-- グローバルテーブル検索（UX向上のためテーブル上部に配置） -->
       <div v-if="members.length" class="mt-4 mb-2 flex items-center gap-2 justify-between">
         <UInput v-model="tableFilter" placeholder="テーブル全体を検索..." class="flex-1 max-w-md" />
-        <UButton variant="ghost" :disabled="!tableFilter && columnFilters.length === 0" label="すべてのフィルターをクリア"
-          @click="clearTableFilters" />
+        <UButton variant="ghost" :disabled="!tableFilter" label="検索クリア" @click="_clearTableFilters" />
       </div>
 
+      <!-- グローバルテーブル検索は廃止 -->
+
       <div v-if="members.length" class="overflow-auto mt-2">
-        <UTable :key="state.organizationId" ref="membersTable" v-model:global-filter="tableFilter"
-          v-model:column-filters="columnFilters" :data="members" :columns="columns" :loading="loading"
-          empty="メンバーが見つかりません。" class="table-fixed" :ui="{ td: 'break-words' }">
-          <!-- カラムフィルタ用のヘッダースロット -->
-          <template #email-header="{ column }">
-            <UInput :model-value="(column.getFilterValue() as string) || ''" placeholder="メールでフィルタ"
-              class="w-full max-w-xs" @update:model-value="
-                val => column.setFilterValue(val || undefined)
-              " />
-          </template>
-          <template #name-header="{ column }">
-            <UInput :model-value="(column.getFilterValue() as string) || ''" placeholder="名前でフィルタ"
-              class="w-full max-w-xs" @update:model-value="
-                val => column.setFilterValue(val || undefined)
-              " />
-          </template>
-          <template #role-header="{ column }">
-            <USelect :model-value="(column.getFilterValue() as string) || ''" :items="[
-              { label: 'member', value: 'member' },
-              { label: 'admin', value: 'admin' },
-              { label: 'owner', value: 'owner' },
-            ]" placeholder="ロールでフィルタ" clearable class="w-full max-w-xs" @update:model-value="
-              val => column.setFilterValue(val || undefined)
-            " />
-          </template>
-          <template #createdAt-header="{ column }">
-            <UInput :model-value="(column.getFilterValue() as string) || ''" placeholder="参加日でフィルタ (YYYY-MM-DD)"
-              class="w-full max-w-xs" @update:model-value="
-                val => column.setFilterValue(val || undefined)
-              " />
-          </template>
+        <UTable :key="state.organizationId" ref="membersTable" v-model:global-filter="tableFilter" :data="members"
+          :columns="columns" :loading="loading" empty="メンバーが見つかりません。" class="table-fixed" :ui="tableUi">
+          <!-- column filters have been removed for simplicity -->
         </UTable>
       </div>
 

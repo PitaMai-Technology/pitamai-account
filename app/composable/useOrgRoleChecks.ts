@@ -1,5 +1,6 @@
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
+import type { OrgRole } from '~~/server/utils/authorize';
 
 // ```
 // やりたい動作は「ロール判定が終わる前に `canAccessAdmin` が一瞬 `false` になるせいで、管理者でも F5 直後に `/apps/dashboard` へ飛ばされる」でした。今の修正で、ロール取得が完了してから初めてガードが走るので、admin が更新しても管理画面に留まります。
@@ -14,8 +15,6 @@ import { useActiveOrg } from '~/composable/useActiveOrg';
 //   - `resolved` が `true` になるまでリダイレクト処理を実行しないようにし、権限が戻ったときは `hasRedirected` をリセット。
 
 // これで管理者権限を持ったままブラウザ更新してもダッシュボードへ飛ばされず、組織切り替えで本当に権限を失った時だけトースト＋リダイレクトが起きます。
-
-type OrgRole = 'member' | 'admin' | 'owner';
 
 export function useOrgRole() {
   const activeOrganization = useActiveOrg();

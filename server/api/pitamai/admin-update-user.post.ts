@@ -13,7 +13,7 @@ export default defineEventHandler(async event => {
     }
 
     const { userId, data } = parsed.data;
-    await assertActiveMemberRole(event, ['admin', 'owner']);
+    await assertActiveMemberRole(event, ['admins', 'owner']);
 
     // Prisma を使ってユーザー情報を更新（更新可能なフィールドのみコピー）
     const updateData: Record<string, unknown> = {};

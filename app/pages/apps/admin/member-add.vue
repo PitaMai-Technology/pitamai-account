@@ -51,7 +51,7 @@ watchEffect(() => {
 
 const roleOptions = [
   { label: 'メンバー', value: 'member' },
-  { label: '管理者', value: 'admin' },
+  { label: '管理者', value: 'admins' },
   { label: 'オーナー', value: 'owner' },
 ];
 
@@ -186,7 +186,7 @@ function resetInviteForm() {
               }))
                 " placeholder="-- 組織を選択 --" clearable class="w-full" />
               <span v-if="selectedOrganizationName" class="text-xs text-gray-500">選択中: {{ selectedOrganizationName
-              }}</span>
+                }}</span>
             </template>
           </div>
         </UFormField>

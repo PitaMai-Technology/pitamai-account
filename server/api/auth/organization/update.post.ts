@@ -5,7 +5,7 @@ import { assertActiveMemberRole } from '~~/server/utils/authorize';
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['admin', 'owner']);
+    await assertActiveMemberRole(event, ['admins', 'owner']);
 
     const body = await readBody(event);
     const result = organizationUpdateSchema.safeParse(body);

@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth';
-import { organization, magicLink } from 'better-auth/plugins';
+import { organization, magicLink, admin } from 'better-auth/plugins';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { ac, owner, admin, member } from '~~/server/utils/permissions';
+import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import { PrismaClient } from '@prisma/client';
 import { sendEmail } from './email';
 
@@ -38,12 +38,24 @@ export const auth = betterAuth({
         throw err instanceof Error ? err : new Error(String(err));
       }
     },
-    sendOnSignUp: true,
+    // ここはtrueにすることを推奨します
+    sendOnSignUp: false,
     sendOnSignIn: true,
   },
   plugins: [
+    admin({
+      defaultRole: 'member',
+      adminRoles: ['admins', 'owner'],
+      adminUserIds: ['bIpvmmpJl3uMpCyU8RDypEGaeqijRzCk'],
+      ac,
+      roles: {
+        owner,
+        admins,
+        member,
+      },
+    }),
     magicLink({
-      disableSignUp: true,
+      disableSignUp: false,
       sendMagicLink: async ({ email, url }) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('🔗 Magic Link (Development Mode)');
@@ -101,7 +113,7 @@ export const auth = betterAuth({
       ac,
       roles: {
         owner,
-        admin,
+        admins,
         member,
       },
     }),
