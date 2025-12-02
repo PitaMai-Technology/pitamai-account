@@ -13,6 +13,7 @@ const toast = useToast();
 const schema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
   name: z.string(),
+  role: z.enum(['member', 'admins', 'owner']).optional(),
 });
 
 type Schema = z.output<typeof schema>;
@@ -20,6 +21,7 @@ type Schema = z.output<typeof schema>;
 const state = reactive<Partial<Schema>>({
   email: '',
   name: '',
+  role: 'member',
 });
 
 const loading = ref(false);
@@ -54,6 +56,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       body: {
         email: event.data.email,
         name: event.data.name || undefined,
+        role: event.data.role || undefined,
       },
     });
 
@@ -95,6 +98,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
     state.email = '';
     state.name = '';
+    state.role = 'member';
   } catch (e: unknown) {
     console.error('account pre-register error:', e);
     if (e instanceof Error) {
@@ -133,6 +137,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
         <UFormField label="名前（任意）" name="name">
           <UInput v-model="state.name" placeholder="山田 太郎" autocomplete="name" />
+        </UFormField>
+
+        <UFormField label="ユーザー全体のロール" name="role">
+          <USelect v-model="state.role" :items="[
+            { label: 'member (標準)', value: 'member' },
+            { label: 'admins', value: 'admins' },
+            { label: 'owner', value: 'owner' },
+          ]" placeholder="ロールを選択" />
+          <p class="mt-1 text-xs text-gray-500">
+            未選択または member の場合は標準権限として登録されます。
+          </p>
         </UFormField>
 
         <div class="pt-2 flex justify-end">

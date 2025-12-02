@@ -30,10 +30,8 @@ export function useOrgRole() {
 
     if ('role' in maybeData) {
       const value = (maybeData as { role?: unknown }).role;
-      if (
-        typeof value === 'string' &&
-        ['member', 'admin', 'owner'].includes(value)
-      ) {
+      const orgRoleList: OrgRole[] = ['member', 'admins', 'owner'];
+      if (typeof value === 'string' && orgRoleList.includes(value as OrgRole)) {
         return value as OrgRole;
       }
     }

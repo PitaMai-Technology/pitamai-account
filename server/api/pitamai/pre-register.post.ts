@@ -7,6 +7,7 @@ import { assertActiveMemberRole } from '~~/server/utils/authorize';
 const preRegisterSchema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
   name: z.string().min(1).optional(),
+  role: z.enum(['member', 'admins', 'owner']).optional(),
 });
 
 export default defineEventHandler(async event => {
@@ -23,7 +24,7 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const { email, name } = result.data;
+    const { email, name, role } = result.data;
 
     const existing = await prisma.user.findUnique({
       where: { email },
@@ -44,6 +45,8 @@ export default defineEventHandler(async event => {
         id: generateId(),
         email,
         name: name ?? email,
+        // ユーザー全体のロールを事前付与（デフォルトは member）
+        role: role ?? 'member',
       },
     });
 

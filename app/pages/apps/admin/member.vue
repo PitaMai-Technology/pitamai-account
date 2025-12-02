@@ -375,7 +375,7 @@ async function onChangeMemberRole(member: Member, newRole: string) {
 
       <UForm :schema="ListMembersForm" :state="state" class="grid grid-cols-1 md:grid-cols-2 gap-4"
         @submit.prevent="onSubmit">
-        <UFormField label="Organization" name="organizationId" class="hidden">
+        <UFormField label="Organization" name="organizationId">
           <div>
             <div v-if="adminOrganizationsStatus === 'pending'" class="flex items-center gap-2">
               <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin text-primary" />

@@ -48,12 +48,6 @@ const adminItems = [
           icon: 'i-lucide-trash',
           to: '/apps/admin/organization-delete',
         },
-      ],
-    },
-    {
-      label: 'アカウント管理',
-      icon: 'i-lucide-user-round-cog',
-      children: [
         {
           label: 'メンバー管理',
           icon: 'i-lucide-users',
@@ -63,6 +57,17 @@ const adminItems = [
           label: 'メンバー招待',
           icon: 'i-lucide-mail-plus',
           to: '/apps/admin/member-add',
+        },
+      ],
+    },
+    {
+      label: '全体のアカウント管理',
+      icon: 'i-lucide-user-round-cog',
+      children: [
+        {
+          label: 'アカウント一覧',
+          icon: 'i-lucide-list',
+          to: '/apps/admin/account',
         },
         {
           label: 'アカウント追加',

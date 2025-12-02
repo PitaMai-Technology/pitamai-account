@@ -76,16 +76,23 @@ const columns: TableColumn<AdminUser>[] = [
       const UButton = resolveComponent('UButton');
       const isSelf = session.value?.user?.id === user.id;
 
+      const roleItems: { label: string; value: OrgRole }[] = [
+        { label: 'member', value: 'member' },
+        { label: 'admins', value: 'admins' },
+        { label: 'owner', value: 'owner' },
+      ];
+
+      // 自分自身の行では、member を選択肢から除外
+      const selectableRoleItems = isSelf
+        ? roleItems.filter(item => item.value !== 'member')
+        : roleItems;
+
       return h('div', { class: 'flex items-center gap-2' }, [
         h(USelect, {
-          disabled: loading.value || isSelf,
+          disabled: loading.value || isSelf && user.role === 'owner', // ここは任意
           modelValue: user.role ?? 'ロールがありません。',
-          'onUpdate:modelValue': (v: string) => onChangeUserRole(user, v as OrgRole),
-          items: [
-            { label: 'member', value: 'member' },
-            { label: 'admins', value: 'admins' },
-            { label: 'owner', value: 'owner' },
-          ],
+          'onUpdate:modelValue': (v: OrgRole) => onChangeUserRole(user, v),
+          items: selectableRoleItems,
           clearable: false,
           class: 'w-36',
         }),
