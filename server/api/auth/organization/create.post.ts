@@ -1,6 +1,7 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
   await assertActiveMemberRole(event, ['owner']);
@@ -26,10 +27,11 @@ export default defineEventHandler(async event => {
     return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('Organization creation error:', e);
+      logger.error(e, 'Organization creation error');
       throw createError({
         statusCode: 400,
         message: '組織の作成に失敗しました',
+        cause: e,
       });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });

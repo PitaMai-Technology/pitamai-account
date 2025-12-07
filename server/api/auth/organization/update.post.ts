@@ -2,6 +2,7 @@ import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { organizationUpdateSchema } from '~~/shared/types/organization-update';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
   try {
@@ -28,15 +29,16 @@ export default defineEventHandler(async event => {
       },
       headers,
     });
-    console.log('Organization update response:', response);
+    logger.debug({ response }, 'Organization update response');
 
     return response;
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('Organization update error:', e);
+      logger.error(e, 'Organization update error');
       throw createError({
         statusCode: 400,
         message: '組織の更新に失敗しました',
+        cause: e,
       });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { generateId } from 'better-auth';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { logger } from '~~/server/utils/logger';
 
 const preRegisterSchema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
@@ -57,10 +58,11 @@ export default defineEventHandler(async event => {
     };
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('Pre-register user error:', e);
+      logger.error(e, 'Pre-register user error');
       throw createError({
         statusCode: 400,
         message: '事前登録に失敗しました',
+        cause: e,
       });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });

@@ -3,13 +3,14 @@ import { readBody, createError } from 'h3';
 import prisma from '~~/lib/prisma';
 import { userChangeEmailSchema } from '~~/shared/types/user-change-email';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
   try {
     const body = await readBody(event);
     const parsed = userChangeEmailSchema.safeParse(body);
     if (!parsed.success) {
-      console.error('Validation failed', parsed.error.message);
+      logger.warn({ error: parsed.error.message }, 'Validation failed');
       throw createError({ statusCode: 422, message: 'Validation Error' });
     }
 
@@ -24,10 +25,11 @@ export default defineEventHandler(async event => {
     return { success: true, user: updated };
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('admin-change-email error:', e.message);
+      logger.error(e, 'admin-change-email error');
       throw createError({
         statusCode: 400,
         message: 'メール変更に失敗しました',
+        cause: e,
       });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });

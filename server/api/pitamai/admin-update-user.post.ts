@@ -2,13 +2,14 @@ import { readBody, createError } from 'h3';
 import prisma from '~~/lib/prisma';
 import { userUpdateSchema } from '~~/shared/types/user-update';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
   try {
     const body = await readBody(event);
     const parsed = userUpdateSchema.safeParse(body);
     if (!parsed.success) {
-      console.error('Validation failed');
+      logger.warn('Validation failed');
       throw createError({ statusCode: 422, message: 'Validation Error' });
     }
 
@@ -28,10 +29,11 @@ export default defineEventHandler(async event => {
     return { success: true, user: updated };
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('admin-update-user error:', e.message);
+      logger.error(e, 'admin-update-user error');
       throw createError({
         statusCode: 400,
         message: 'ユーザー更新に失敗しました',
+        cause: e,
       });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });

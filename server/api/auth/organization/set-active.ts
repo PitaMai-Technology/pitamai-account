@@ -1,6 +1,7 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import * as z from 'zod';
+import { logger } from '~~/server/utils/logger';
 
 const setActiveOrganizationSchema = z
   .object({
@@ -34,7 +35,7 @@ export default defineEventHandler(async event => {
 
     return data;
   } catch (e: unknown) {
-    console.error('Set active organization error:', e);
+    logger.error(e, 'Set active organization error');
     if (e instanceof Error) {
       throw createError({
         statusCode: 400,

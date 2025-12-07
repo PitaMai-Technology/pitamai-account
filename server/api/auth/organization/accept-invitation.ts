@@ -1,5 +1,6 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError, sendRedirect } from 'h3';
+import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
   try {
@@ -28,20 +29,13 @@ export default defineEventHandler(async event => {
     await sendRedirect(event, '/apps/dashboard', 303);
     return data;
   } catch (e: unknown) {
-    console.error('Sign-in(login) error raw:', e);
+    logger.error(e, 'Sign-in(login) by accept-invitation failed');
 
     if (e instanceof Error) {
-      console.error(
-        'Sign-in(login) by accept-invitation error message:',
-        e.message
-      );
-      console.error(
-        'Sign-in(login) by accept-invitation error stack:',
-        e.stack
-      );
       throw createError({
         statusCode: 400,
         message: '招待の承認に失敗しました',
+        cause: e,
       });
     }
 

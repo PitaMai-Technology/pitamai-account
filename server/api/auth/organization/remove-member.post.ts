@@ -2,6 +2,7 @@ import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { RemoveMemberSchema } from '~~/shared/types/member-remove';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { logger } from '~~/server/utils/logger';
 
 type MemberRecord = { id: string };
 
@@ -81,7 +82,7 @@ export default defineEventHandler(async event => {
       return await tryRemove(payload);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn('auth.api.removeMember failed:', msg);
+      logger.warn({ error: msg }, 'auth.api.removeMember failed');
 
       // メールが見つからない場合のみフォールバックを試す
       if (
@@ -103,9 +104,9 @@ export default defineEventHandler(async event => {
           const members = extractMembers(listRes);
           const found = members[0];
           if (found) {
-            console.debug(
-              'メールでメンバーが見つかった、memberIdで削除を再試行：',
-              found.id
+            logger.debug(
+              { memberId: found.id },
+              'メールでメンバーが見つかった、memberIdで削除を再試行'
             );
             return await tryRemove({
               memberIdOrEmail: found.id,
@@ -113,12 +114,7 @@ export default defineEventHandler(async event => {
             });
           }
         } catch (fallbackErr) {
-          console.error(
-            'フォールバックのメンバー削除検索に失敗：',
-            fallbackErr instanceof Error
-              ? fallbackErr.message
-              : String(fallbackErr)
-          );
+          logger.error(fallbackErr, 'フォールバックのメンバー削除検索に失敗');
         }
       }
 
@@ -127,10 +123,11 @@ export default defineEventHandler(async event => {
     }
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error('Remove member error:', e.message);
+      logger.error(e, 'Remove member error');
       throw createError({
         statusCode: 400,
         message: 'メンバーの削除に失敗しました',
+        cause: e,
       });
     }
     throw createError({ statusCode: 500, message: 'Internal Server Error' });
