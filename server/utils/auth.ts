@@ -4,6 +4,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import { PrismaClient } from '@prisma/client';
 import { sendEmail } from './email';
+import { createError } from 'h3';
 
 const prisma = new PrismaClient();
 
@@ -56,6 +57,18 @@ export const auth = betterAuth({
     magicLink({
       disableSignUp: true,
       sendMagicLink: async ({ email, url }) => {
+        const existingUser = await prisma.user.findUnique({
+          where: { email },
+        });
+        if (!existingUser) {
+          console.log(`❌ User not found for email: ${email}`);
+          // ※セキュリティ上の理由（列挙攻撃防止）でサイレント・フェイラーにする場合はここを return のみに変更してください
+          throw createError({
+            statusCode: 400,
+            message: 'このメールアドレスは登録されていません。',
+          });
+        }
+
         if (process.env.NODE_ENV === 'development') {
           console.log('🔗 Magic Link (Development Mode)');
           console.log(`To: ${email}`);
