@@ -20,13 +20,6 @@ const fields: AuthFormField[] = [
     required: true,
     autocomplete: 'email',
   },
-  {
-    name: 'name',
-    type: 'text',
-    label: '名前(任意)',
-    placeholder: 'your-name',
-    required: false,
-  },
 ];
 
 // shared/types/auth.ts から自動インポートされる
@@ -37,10 +30,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   try {
     const { error } = await authClient.signIn.magicLink({
       email: event.data.email,
-      name: event.data.name,
       callbackURL: '/apps/dashboard',
       newUserCallbackURL: '/apps/dashboard?welcome=true',
-      errorCallbackURL: '/error?',
+      errorCallbackURL: '/error',
     });
 
     if (error) {
