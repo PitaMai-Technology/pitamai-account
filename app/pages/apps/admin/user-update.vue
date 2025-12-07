@@ -20,9 +20,14 @@ const loading = ref(false);
 // 共通確認モーダル composable
 const {
   open: confirmOpen,
+  message: confirmMessage,
   confirm: confirmDialog,
   resolve: resolveConfirm,
+  registerPageLeaveGuard,
 } = useConfirmDialog();
+
+// ページ離脱ガードを有効化（離脱時専用メッセージ）
+registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 const toast = useToast();
 
@@ -34,7 +39,7 @@ async function onSubmit(event?: FormSubmitEvent<UserUpdate>) {
   const payload = event?.data ?? state;
 
   // 確認ダイアログ
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmDialog('選択したユーザー情報を更新しますか？');
   if (!confirmed) return;
 
   loading.value = true;
@@ -88,8 +93,8 @@ async function onSubmit(event?: FormSubmitEvent<UserUpdate>) {
       </UForm>
     </div>
 
-    <LazyTheConfirmModal :open="confirmOpen" title="確認" message="選択したユーザー情報を更新しますか？"
-      @confirm="() => resolveConfirm(true)" @cancel="() => resolveConfirm(false)" />
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)" />
   </AppBackgroundCard>
 </template>
 

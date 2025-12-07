@@ -16,6 +16,11 @@ interface GetSessionResponse {
   session?: { user?: { id?: string } | null } | null;
   user?: UserInfo | null;
 }
+
+type ApiResult<T> =
+  | { data: T; error: null }
+  | { data: null; error: { code?: string; message?: string } };
+
 const { data: session } = await useFetch<GetSessionResponse>(
   '/api/auth/get-session',
   { key: 'session' }
@@ -38,9 +43,14 @@ const loading = ref(false);
 // 共通確認モーダル
 const {
   open: confirmOpen,
+  message: confirmMessage,
   confirm: confirmDialog,
   resolve: resolveConfirm,
+  registerPageLeaveGuard,
 } = useConfirmDialog();
+
+// ページ離脱ガードを有効化（離脱時専用メッセージ）
+registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 // プロフィール更新ハンドラ
 async function onSubmitProfile(event?: FormSubmitEvent<UserUpdate>) {
@@ -72,13 +82,13 @@ async function onSubmitProfile(event?: FormSubmitEvent<UserUpdate>) {
     return;
   }
 
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmDialog('プロフィールを更新してよろしいですか？');
   if (!confirmed) return;
 
   loading.value = true;
   try {
-    const res = await authClient.updateUser(parsed.data.data);
-    if ((res as any)?.error) {
+    const res: ApiResult<{ status: boolean }> = await authClient.updateUser(parsed.data.data);
+    if (res.error) {
       toast.add({
         title: 'エラー',
         description: res.error?.message ?? '更新に失敗しました',
@@ -118,16 +128,16 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
     return;
   }
 
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmDialog('メールアドレスを更新してよろしいですか？');
   if (!confirmed) return;
 
   loading.value = true;
   try {
-    const res = await authClient.changeEmail({
+    const res: ApiResult<{ status: boolean }> = await authClient.changeEmail({
       newEmail: parsed.data.newEmail,
       callbackURL: '/apps/dashboard',
     });
-    if ((res as any)?.error) {
+    if (res.error) {
       toast.add({
         title: 'エラー',
         description: res.error?.message ?? 'メール変更に失敗しました',
@@ -185,7 +195,7 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
       </div>
     </AppBackgroundCard>
 
-    <LazyTheConfirmModal :open="confirmOpen" title="確認" message="この操作を実行してよいですか？" @confirm="() => resolveConfirm(true)"
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
       @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

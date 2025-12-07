@@ -41,9 +41,14 @@ const loading = ref(false);
 // 共通確認モーダル
 const {
   open: confirmOpen,
+  message: confirmMessage,
   confirm: confirmDialog,
   resolve: resolveConfirm,
+  registerPageLeaveGuard,
 } = useConfirmDialog();
+
+// ページ離脱ガードを有効化（離脱時専用メッセージ）
+registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 const selectedOrg = computed(() => {
   return ownerOrganizations.value?.find(org => org.id === state.organizationId);
@@ -107,7 +112,7 @@ async function onSubmit(event?: FormSubmitEvent<OrganizationUpdateForm>) {
   }
 
   // 確認ダイアログ
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmDialog('この組織情報を更新しますか？');
   if (!confirmed) return;
 
   loading.value = true;
@@ -211,7 +216,7 @@ function resetForm() {
       </UForm>
     </UPageCard>
 
-    <LazyTheConfirmModal :open="confirmOpen" title="確認" message="この組織情報を更新しますか？" @confirm="() => resolveConfirm(true)"
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
       @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

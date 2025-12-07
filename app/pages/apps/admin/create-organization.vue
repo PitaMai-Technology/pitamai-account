@@ -21,16 +21,21 @@ const loading = ref(false);
 // 共通確認モーダル composable
 const {
   open: confirmOpen,
+  message: confirmMessage,
   confirm: confirmDialog,
   resolve: resolveConfirm,
+  registerPageLeaveGuard,
 } = useConfirmDialog();
+
+// ページ離脱ガードを有効化（離脱時専用メッセージ）
+registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 const toast = useToast();
 async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
   if (loading.value) return; // 二重送信防止
   loading.value = true;
 
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmDialog('本当に組織を作成しますか？');
   if (!confirmed) {
     loading.value = false;
     return;
@@ -94,8 +99,8 @@ async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
         </div>
       </UForm>
 
-      <LazyTheConfirmModal :open="confirmOpen" title="確認" message="本当に組織を作成しますか？" @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)" />
+      <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage"
+        @confirm="() => resolveConfirm(true)" @cancel="() => resolveConfirm(false)" />
     </UPageCard>
   </div>
 </template>

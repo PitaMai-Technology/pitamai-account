@@ -3,6 +3,17 @@ import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
 import type { z } from 'zod';
+import { useConfirmDialog } from '~/composable/useConfirmDialog';
+const {
+  open: confirmOpen,
+  message: confirmMessage,
+  confirm: confirmDialog,
+  resolve: resolveConfirm,
+  registerPageLeaveGuard,
+} = useConfirmDialog();
+
+// ページ離脱ガードを有効化（離脱時専用メッセージ）
+registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 definePageMeta({
   layout: 'the-app',
@@ -79,6 +90,12 @@ async function onInviteSubmit(event?: FormSubmitEvent<InviteSchema>) {
   }
 
   inviteLoading.value = true;
+
+  const confirmed = await confirmDialog('本当に組織へ招待しますか？');
+  if (!confirmed) {
+    inviteLoading.value = false;
+    return;
+  }
   try {
     if (!inviteState.organizationId) {
       toast.add({
@@ -89,7 +106,7 @@ async function onInviteSubmit(event?: FormSubmitEvent<InviteSchema>) {
       return;
     }
 
-    const { data, error } = await authClient.organization.inviteMember({
+    const { error } = await authClient.organization.inviteMember({
       email: inviteState.email!,
       role: inviteState.role!,
       organizationId: inviteState.organizationId,
@@ -105,8 +122,6 @@ async function onInviteSubmit(event?: FormSubmitEvent<InviteSchema>) {
       });
       return;
     }
-
-    console.debug('Client: inviteMember response data:', data);
 
     toast.add({
       title: '成功',
@@ -208,11 +223,13 @@ function resetInviteForm() {
         <div class="md:col-span-2 flex gap-2 justify-end">
           <UButton type="submit" color="primary" :loading="inviteLoading"
             :disabled="inviteLoading || !inviteState.organizationId">
-            {{ inviteLoading ? '送信中...' : '招待を送信' }}
+            招待を送信
           </UButton>
           <UButton variant="ghost" :disabled="inviteLoading" @click="resetInviteForm">リセット</UButton>
         </div>
       </UForm>
     </UPageCard>
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

@@ -29,16 +29,21 @@ const loading = ref(false);
 // 共通確認モーダル composable
 const {
   open: confirmOpen,
+  message: confirmMessage,
   confirm: confirmDialog,
   resolve: resolveConfirm,
+  registerPageLeaveGuard,
 } = useConfirmDialog();
+
+// ページ離脱ガードを有効化（離脱時専用メッセージ）
+registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
   loading.value = true;
 
   // モーダルで確認
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmDialog('本当にメールを送信しますか？');
   if (!confirmed) {
     loading.value = false;
     return;
@@ -158,8 +163,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </UForm>
 
       <!-- 確認モーダル -->
-      <LazyTheConfirmModal :open="confirmOpen" title="確認" message="本当にメールを送信しますか？" @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)" />
+      <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage"
+        @confirm="() => resolveConfirm(true)" @cancel="() => resolveConfirm(false)" />
     </UPageCard>
   </div>
 </template>

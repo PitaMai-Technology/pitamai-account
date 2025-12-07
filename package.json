@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare",
     "generate:better-auth": "pnpx @better-auth/cli generate --config server/utils/auth.ts",
     "migration:better-auth": "pnpx @better-auth/cli migrate --config server/utils/auth.ts",
+    "migration:prisma": "pnpm exec prisma migrate dev --schema ./prisma",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -34,7 +35,11 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.10.1",
     "@types/nodemailer": "^7.0.4",
+    "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.7.1",
     "prisma": "^6.19.0"
+  },
+  "prisma": {
+    "schema": "./prisma"
   }
 }

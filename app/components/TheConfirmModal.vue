@@ -42,7 +42,7 @@ function onCancel() {
         <UButton color="neutral" variant="outline" @click="onCancel">
           キャンセル
         </UButton>
-        <UButton color="primary" size="sm" @click="onConfirm">
+        <UButton color="primary" size="xs" @click="onConfirm">
           はい
         </UButton>
       </div>

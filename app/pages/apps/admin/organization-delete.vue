@@ -28,9 +28,14 @@ const loading = ref(false);
 // 共通確認モーダル composable
 const {
   open: confirmOpen,
+  message: confirmMessage,
   confirm: confirmDialog,
   resolve: resolveConfirm,
+  registerPageLeaveGuard,
 } = useConfirmDialog();
+
+// ページ離脱ガードを有効化
+registerPageLeaveGuard();
 
 // 選択した組織を取得
 const selectedOrg = computed(() => {
@@ -83,7 +88,7 @@ async function onSubmit(_: FormSubmitEvent<OrganizationDeleteForm>) {
 
   loading.value = true;
 
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmDialog('本当にこの組織を削除しますか？この操作は取り消せません。');
   if (!confirmed) {
     loading.value = false;
     return;
@@ -165,7 +170,7 @@ async function onSubmit(_: FormSubmitEvent<OrganizationDeleteForm>) {
       </UForm>
     </UPageCard>
 
-    <LazyTheConfirmModal :open="confirmOpen" title="危険！組織の削除" message="本当にこの組織を削除しますか？この操作は取り消せません。"
-      @confirm="() => resolveConfirm(true)" @cancel="() => resolveConfirm(false)" />
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)" />
   </div>
 </template>
