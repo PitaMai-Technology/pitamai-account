@@ -2,8 +2,9 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  modules: ['@nuxt/eslint', '@nuxt/ui'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', '@sentry/nuxt/module'],
   css: ['~/assets/main.css'],
+
   nitro: {
     externals: {
       inline: [],
@@ -28,5 +29,14 @@ export default defineNuxtConfig({
     public: {
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     },
+  },
+
+  sentry: {
+    org: 'pitamai-technology',
+    project: 'maimai-hub',
+  },
+
+  sourcemap: {
+    client: 'hidden',
   },
 });

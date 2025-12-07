@@ -45,14 +45,14 @@ const organizations = authClient.useListOrganizations();
                 <span class="font-medium">メール:</span>
                 <span class="text-gray-600">{{
                   sessionRef.data.user.email
-                  }}</span>
+                }}</span>
               </div>
               <div v-if="sessionRef.data.user.name" class="flex items-center space-x-2">
                 <UIcon name="i-lucide-user" class="text-gray-400" />
                 <span class="font-medium">名前:</span>
                 <span class="text-gray-600">{{
                   sessionRef.data.user.name
-                  }}</span>
+                }}</span>
               </div>
               <div class="flex items-center space-x-2">
                 <UIcon name="i-lucide-calendar" class="text-gray-400" />

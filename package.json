@@ -18,12 +18,13 @@
     "@nuxt/eslint": "^1.11.0",
     "@nuxt/ui": "^4.2.1",
     "@prisma/client": "^6.19.0",
-    "@sentry/nuxt": "^10.29.0",
+    "@sentry/nuxt": "10",
     "@sentry/vite-plugin": "^4.6.1",
     "argon2": "^0.44.0",
     "better-auth": "^1.4.4",
     "better-sqlite3": "^12.4.6",
     "eslint": "^9.39.1",
+    "import-in-the-middle": "^2.0.0",
     "nodemailer": "^7.0.11",
     "nuxt": "^4.2.1",
     "pino": "^10.1.0",
@@ -45,5 +46,10 @@
   },
   "prisma": {
     "schema": "./prisma"
+  },
+  "pnpm": {
+    "overrides": {
+      "@vercel/nft": "^0.27.4"
+    }
   }
 }
