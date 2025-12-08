@@ -5,6 +5,8 @@ import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import { PrismaClient } from '@prisma/client';
 import { sendEmail } from './email';
 import { createError } from 'h3';
+import { createAuthMiddleware } from 'better-auth/api';
+import { recordAuditLog } from '~~/server/utils/audit';
 
 const prisma = new PrismaClient();
 
@@ -42,11 +44,28 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     sendOnSignIn: true,
   },
+  hooks: {
+    after: createAuthMiddleware(async ctx => {
+      const newSession = ctx.context.newSession;
+      if (!newSession) return;
+
+      try {
+        await recordAuditLog({
+          userId: newSession.user.id,
+          action: 'ACCOUNT_SIGN_IN_MAGIC_LINK_SUCCESS',
+          details: {
+            provider: 'magic-link',
+            path: ctx.path,
+          },
+        });
+      } catch {}
+    }),
+  },
   plugins: [
     admin({
       defaultRole: 'member',
       adminRoles: ['admins', 'owner'],
-      adminUserIds: ['bIpvmmpJl3uMpCyU8RDypEGaeqijRzCk'],
+      // adminUserIds: ['bIpvmmpJl3uMpCyU8RDypEGaeqijRzCk'],
       ac,
       roles: {
         owner,

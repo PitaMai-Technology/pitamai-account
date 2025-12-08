@@ -58,6 +58,11 @@ const adminItems = [
           icon: 'i-lucide-mail-plus',
           to: '/apps/admin/member-add',
         },
+        {
+          label: '監査ログ',
+          icon: 'i-lucide-file-search',
+          to: '/apps/admin/audit',
+        },
       ],
     },
     {

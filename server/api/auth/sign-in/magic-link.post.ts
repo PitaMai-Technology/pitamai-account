@@ -26,7 +26,7 @@ export default defineEventHandler(async event => {
 
     // 監査ログ記録
     await logAuditWithSession(event, {
-      action: 'ACCOUNT_SIGN_IN_MAGIC_LINK',
+      action: 'ACCOUNT_SIGN_IN_MAGIC_LINK_SUCCESS',
       details: {
         email: validated.email,
         status: data.status,

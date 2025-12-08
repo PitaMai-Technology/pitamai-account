@@ -22,7 +22,7 @@ type Schema = AuditListQuery;
 
 const state = reactive<Schema>({
   organizationId: undefined,
-  limit: 20,
+  limit: 30,
   offset: 0,
 });
 
