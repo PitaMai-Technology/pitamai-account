@@ -41,7 +41,14 @@ export default defineEventHandler(async event => {
     }
 
     const { organizationId, memberIdOrEmail, memberId } = parsed.data;
-    // normalize headers as a plain record to avoid any casts in calls to auth.api
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'MEMBER_REMOVE',
+      targetId: memberIdOrEmail ?? memberId,
+      organizationId: organizationId,
+    });
+
     const headersObj =
       (event as unknown as { headers?: Record<string, string> }).headers ?? {};
 

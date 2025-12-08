@@ -4,7 +4,6 @@ import prisma from '~~/lib/prisma';
 import { generateId } from 'better-auth';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
-import { logAuditWithSession } from '~~/server/utils/audit';
 
 const preRegisterSchema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
@@ -56,10 +55,6 @@ export default defineEventHandler(async event => {
     await logAuditWithSession(event, {
       action: 'USER_PRE_REGISTER_SUCCESS',
       targetId: user.id,
-      details: {
-        email: user.email,
-        role: user.role ?? 'unknown(ロールなし)',
-      },
     });
 
     return {
@@ -68,6 +63,9 @@ export default defineEventHandler(async event => {
       created: true,
     };
   } catch (e: unknown) {
+    await logAuditWithSession(event, {
+      action: 'USER_PRE_REGISTER_FAILURE',
+    });
     if (e instanceof Error) {
       logger.error(e, 'Pre-register user error');
       throw createError({

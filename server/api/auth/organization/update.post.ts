@@ -31,6 +31,14 @@ export default defineEventHandler(async event => {
     });
     logger.debug({ response }, 'Organization update response');
 
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'ORGANIZATION_UPDATE',
+      targetId: organizationId, // 更新された組織ID
+      organizationId: organizationId,
+      details: data,
+    });
+
     return response;
   } catch (e: unknown) {
     if (e instanceof Error) {

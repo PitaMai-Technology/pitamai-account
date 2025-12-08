@@ -5,7 +5,7 @@ import { logger } from '~~/server/utils/logger';
 export default defineEventHandler(async event => {
   try {
     const body = await readBody(event);
-    // shared/types/auth.ts から自動インポートされる
+
     const result = magicLinkSignInSchema.safeParse(body);
 
     if (!result.success) {
@@ -22,6 +22,15 @@ export default defineEventHandler(async event => {
     const data = await auth.api.signInMagicLink({
       body: validated,
       headers,
+    });
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'ACCOUNT_SIGN_IN_MAGIC_LINK',
+      details: {
+        email: validated.email,
+        status: data.status,
+      },
     });
 
     return data;

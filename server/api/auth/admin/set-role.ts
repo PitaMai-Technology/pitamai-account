@@ -29,6 +29,15 @@ export default defineEventHandler(async event => {
       headers: event.headers,
     });
 
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'ADMIN_ACCOUNT_ROLE_SET',
+      targetId: body.userId,
+      details: {
+        newRole: body.role,
+      },
+    });
+
     return data ?? { success: true };
   } catch (e: unknown) {
     if (e instanceof Error) {

@@ -24,6 +24,18 @@ export default defineEventHandler(async event => {
       body: validated,
       headers,
     });
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'ORGANIZATION_CREATE',
+      targetId: data?.id, // 作成された組織ID
+      organizationId: data?.id,
+      details: {
+        name: validated.name,
+        slug: validated.slug,
+      },
+    });
+
     return data;
   } catch (e: unknown) {
     if (e instanceof Error) {

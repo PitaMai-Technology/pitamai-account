@@ -19,6 +19,13 @@ export default defineEventHandler(async event => {
 
     const { organizationId } = result.data;
 
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'ORGANIZATION_DELETE',
+      targetId: organizationId, // 削除された組織ID
+      organizationId: organizationId,
+    });
+
     const { headers } = event;
     const data = await auth.api.deleteOrganization({
       body: {

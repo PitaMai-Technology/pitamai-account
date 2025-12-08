@@ -7,7 +7,6 @@ export default defineEventHandler(async event => {
     // await assertActiveMemberRole(event, ['member', 'admin', 'owner']);
 
     const body = await readBody(event);
-    // shared/types/auth.ts から自動インポートされる
     const result = acceptInvitationSchema.safeParse(body);
 
     if (!result.success) {
@@ -25,8 +24,18 @@ export default defineEventHandler(async event => {
       body: validated,
       headers,
     });
-    // 成功したら ダッシュボード にリダイレクト（POST → GET は 303 を使用）
+    // 成功したらダッシュボードにリダイレクト（POST → GETのため"HTTP: 303"を使用）
     await sendRedirect(event, '/apps/dashboard', 303);
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'MEMBER_ACCEPT_INVITATION',
+      targetId: data?.member?.id, // 招待を承認したメンバーID
+      details: {
+        invitation: data?.invitation,
+      },
+    });
+
     return data;
   } catch (e: unknown) {
     logger.error(e, 'Sign-in(login) by accept-invitation failed');

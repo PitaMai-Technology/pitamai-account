@@ -2,6 +2,7 @@ import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { UpdateMemberRoleSchema } from '~~/shared/types/member-update-role';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { logAuditWithSession } from '~~/server/utils/audit';
 import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
@@ -17,6 +18,16 @@ export default defineEventHandler(async event => {
 
     const { organizationId, memberId, role } = result.data;
     const { headers } = event;
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'MEMBER_ROLE_UPDATE',
+      targetId: memberId, // ロールが更新されたメンバーID
+      organizationId: organizationId,
+      details: {
+        newRole: role,
+      },
+    });
 
     return await auth.api.updateMemberRole({
       body: {

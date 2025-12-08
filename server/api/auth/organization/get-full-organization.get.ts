@@ -12,5 +12,11 @@ export default defineEventHandler(async event => {
     headers,
   });
 
+  // 監査ログ記録
+  await logAuditWithSession(event, {
+    action: 'ORGANIZATION_GET_FULL',
+    targetId: organization?.id,
+  });
+
   return organization;
 });

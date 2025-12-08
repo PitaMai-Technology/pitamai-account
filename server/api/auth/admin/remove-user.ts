@@ -14,7 +14,7 @@ export default defineEventHandler(async event => {
 
     // 監査ログ記録
     await logAuditWithSession(event, {
-      action: 'ADMIN_REMOVE_USER_REQUEST',
+      action: 'ADMIN_ACCOUNT_REMOVE',
       targetId: body.userId,
       details: {
         source: 'auth/admin/remove-user',

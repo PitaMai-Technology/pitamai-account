@@ -26,6 +26,12 @@ export default defineEventHandler(async event => {
       where: { id: userId },
       data: updateData,
     });
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'USER_UPDATE_SUCCESS',
+      targetId: updated.id,
+    });
     return { success: true, user: updated };
   } catch (e: unknown) {
     if (e instanceof Error) {

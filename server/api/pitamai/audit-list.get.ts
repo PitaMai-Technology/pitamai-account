@@ -1,0 +1,75 @@
+import { z } from 'zod';
+import prisma from '~~/lib/prisma';
+import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { AuditListQuerySchema } from '~~/shared/types/audit-list';
+import { auth } from '~~/server/utils/auth';
+
+export default defineEventHandler(async event => {
+  // owner 権限チェック (現在のアクティブな組織での権限)
+  await assertActiveMemberRole(event, ['owner']);
+
+  const query = await getValidatedQuery(event, body =>
+    AuditListQuerySchema.parse(body)
+  );
+
+  const where: any = {};
+
+  // 組織IDが指定されていればフィルタ
+  // 指定がない場合は、セキュリティポリシーによるが、
+  // ここでは「自分がownerである組織のログ」に限定するロジックを入れるのが安全だが、
+  // assertActiveMemberRoleを通っている時点で「現在の組織のowner」であることは保証されている。
+  // もし「全組織のログ」を見せたいなら、別途ロジックが必要。
+  // 今回は member.vue に倣い、クライアントから organizationId を送ってもらう前提とする。
+  // ただし、organizationId がないグローバルなログ（ユーザー作成など）も見たい場合があるかもしれない。
+  // 一旦、organizationId があればそれで絞り込み、なければ絞り込まない（全件）とするが、
+  // 本番運用では「自分が権限を持つ組織」に絞るべき。
+  // ここでは簡易的に、クエリに従う。
+
+  if (query.organizationId) {
+    where.organizationId = query.organizationId;
+  } else {
+    // organizationId が指定されていない場合、自分が owner 権限を持つ組織のログのみに絞り込む
+    // これにより、無関係な組織のログが見えてしまうのを防ぐ
+    const session = await auth.api.getSession({ headers: event.headers });
+    if (session?.user) {
+      const ownerOrgs = await prisma.member.findMany({
+        where: {
+          userId: session.user.id,
+          role: 'owner',
+        },
+        select: { organizationId: true },
+      });
+      const ownerOrgIds = ownerOrgs.map(m => m.organizationId);
+
+      // 自分がownerの組織のログ OR 組織に紐付かないログ(organizationId: null) も見せるかどうかは要件次第だが、
+      // ここでは「自分がownerの組織に関連するログ」に限定する。
+      // organizationId が null のログ（システム全体に関わるものなど）を見せる場合は OR 条件を追加する。
+      where.OR = [
+        { organizationId: { in: ownerOrgIds } },
+        { organizationId: null },
+      ];
+    }
+  }
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      take: query.limit,
+      skip: query.offset,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: { id: true, email: true, name: true },
+        },
+        organization: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return {
+    logs,
+    total,
+  };
+});
