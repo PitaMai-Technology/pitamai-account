@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { TableColumn, FormSubmitEvent } from '@nuxt/ui';
-import { useActiveOrg } from '~/composable/useActiveOrg';
 import { AuditListQuerySchema, type AuditListQuery } from '~~/shared/types/audit-list';
 
 definePageMeta({
@@ -8,7 +7,6 @@ definePageMeta({
 });
 
 const toast = useToast();
-const activeOrganization = useActiveOrg();
 
 // オーナー権限を持つ組織一覧を取得
 const { data: ownerOrganizations } = await useFetch('/api/pitamai/owner-list', {
@@ -32,6 +30,34 @@ const loading = ref(false);
 const logs = ref<any[]>([]);
 const total = ref<number | undefined>(undefined);
 const tableFilter = ref('');
+
+// 日付レンジフィルタ用（start/end を Date で保持）
+const dateFilter = reactive<{ start?: Date; end?: Date }>({});
+
+// UCalendar 用のモデル（CalendarDate 相当の構造を受け取り、Date に変換して保持）
+const calendarRange = shallowRef<any>({ start: undefined, end: undefined });
+
+watch(
+  calendarRange,
+  value => {
+    if (value?.start) {
+      dateFilter.start = value.start.toDate?.('UTC') ?? new Date(value.start);
+    } else {
+      dateFilter.start = undefined;
+    }
+
+    if (value?.end) {
+      dateFilter.end = value.end.toDate?.('UTC') ?? new Date(value.end);
+    } else {
+      dateFilter.end = undefined;
+    }
+
+    // 日付レンジが変わったら 1 ページ目に戻して再取得
+    state.offset = 0;
+    fetchLogs();
+  },
+  { deep: true }
+);
 
 // ページネーション用の計算プロパティ
 const currentPage = computed({
@@ -70,7 +96,23 @@ async function fetchLogs() {
     });
 
     if (data) {
-      logs.value = data.logs;
+      let fetched = data.logs as any[];
+
+      // クライアント側で日付レンジフィルタを適用
+      if (dateFilter.start || dateFilter.end) {
+        fetched = fetched.filter(log => {
+          const createdAt = new Date(log.createdAt);
+          if (dateFilter.start && createdAt < dateFilter.start) return false;
+          if (dateFilter.end) {
+            const end = new Date(dateFilter.end);
+            end.setHours(23, 59, 59, 999);
+            if (createdAt > end) return false;
+          }
+          return true;
+        });
+      }
+
+      logs.value = fetched;
       total.value = data.total;
     }
   } catch (e: any) {
@@ -173,12 +215,45 @@ const columns: TableColumn<any>[] = [
         </UButton>
       </UForm>
 
-      <!-- テーブル -->
+      <USeparator />
+
       <div v-if="logs.length" class="mt-4 mb-2 flex items-center gap-2 justify-between">
         <UInput v-model="tableFilter" placeholder="テーブル全体を検索..." class="flex-1 max-w-md" />
-        <UButton variant="ghost" :disabled="!tableFilter" label="検索クリア" @click.prevent="tableFilter = ''" />
+        <UButton variant="ghost" :disabled="!tableFilter && !dateFilter.start && !dateFilter.end" label="検索クリア"
+          @click.prevent="() => {
+            tableFilter = '';
+            dateFilter.start = undefined;
+            dateFilter.end = undefined;
+            calendarRange.value = { start: undefined, end: undefined };
+            state.offset = 0;
+            fetchLogs();
+          }" />
       </div>
+      <!-- 日付検索 -->
+      <UFormField label="日付範囲" name="dateRange" class="min-w-[260px] mt-6">
+        <UPopover>
+          <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
+            <template v-if="dateFilter.start">
+              <template v-if="dateFilter.end">
+                {{ dateFilter.start.toLocaleDateString('ja-JP') }} -
+                {{ dateFilter.end.toLocaleDateString('ja-JP') }}
+              </template>
+              <template v-else>
+                {{ dateFilter.start.toLocaleDateString('ja-JP') }}
+              </template>
+            </template>
+            <template v-else>
+              日付で絞り込み
+            </template>
+          </UButton>
 
+          <template #content>
+            <UCalendar v-model="calendarRange" range class="p-2" :number-of-months="2">
+              <!-- ここではデフォルトの day 表示を使用 -->
+            </UCalendar>
+          </template>
+        </UPopover>
+      </UFormField>
       <div class="overflow-hidden">
         <UTable :key="logs.length" v-model:global-filter="tableFilter" :data="logs" :columns="columns"
           :loading="loading" class="w-full" />
