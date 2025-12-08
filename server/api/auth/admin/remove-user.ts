@@ -1,4 +1,5 @@
 import { readBody, createError } from 'h3';
+import { logAuditWithSession } from '~~/server/utils/audit';
 import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
@@ -10,6 +11,15 @@ export default defineEventHandler(async event => {
     if (!body?.userId) {
       throw createError({ statusCode: 422, message: 'userId is required' });
     }
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'ADMIN_REMOVE_USER_REQUEST',
+      targetId: body.userId,
+      details: {
+        source: 'auth/admin/remove-user',
+      },
+    });
 
     // better-auth の admin API をサーバー側から呼び出し
     const data = await auth.api.removeUser({

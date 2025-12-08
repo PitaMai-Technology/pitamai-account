@@ -1,0 +1,19 @@
+model AuditLog {
+  id             String   @id @default(cuid())
+  userId         String? // 操作したユーザー (システム操作の場合はnullも許容)
+  organizationId String? // 関連する組織
+  action         String // 操作内容 (例: "MEMBER_INVITE", "ORG_UPDATE")
+  targetId       String? // 操作対象のID (例: 招待されたユーザーID)
+  details        Json? // 詳細情報 (変更前後の値など)
+  ipAddress      String? // セキュリティ監査用
+  userAgent      String? // セキュリティ監査用
+  createdAt      DateTime @default(now())
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@map("audit_log")
+}

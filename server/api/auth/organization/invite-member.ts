@@ -2,6 +2,7 @@ import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import prisma from '~~/lib/prisma';
 import { logger } from '~~/server/utils/logger';
+import { logAuditWithSession } from '~~/server/utils/audit';
 
 export default defineEventHandler(async event => {
   try {
@@ -36,6 +37,18 @@ export default defineEventHandler(async event => {
       body: validated,
       headers,
     });
+
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'MEMBER_INVITE',
+      targetId: user.id, // 招待されたユーザーID
+      organizationId: validated.organizationId,
+      details: {
+        email: validated.email,
+        role: validated.role,
+      },
+    });
+
     return data;
   } catch (e: unknown) {
     if (e instanceof Error) {

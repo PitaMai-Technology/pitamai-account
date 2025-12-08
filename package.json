@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare",
     "generate:better-auth": "pnpx @better-auth/cli generate --config server/utils/auth.ts",
     "migration:better-auth": "pnpx @better-auth/cli migrate --config server/utils/auth.ts",
+    "generate:prisma": "pnpm exec prisma generate --schema ./prisma",
     "migration:prisma": "pnpm exec prisma migrate dev --schema ./prisma",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

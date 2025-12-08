@@ -1,9 +1,9 @@
-import * as Sentry from "@sentry/nuxt";
+import * as Sentry from '@sentry/nuxt';
 
 Sentry.init({
   // If set up, you can use your runtime config here
   // dsn: useRuntimeConfig().public.sentry.dsn,
-  dsn: "https://66796fc2b6fbe5ba23849da69973bff8@o4509352326791168.ingest.us.sentry.io/4510496093503488",
+  dsn: 'https://66796fc2b6fbe5ba23849da69973bff8@o4509352326791168.ingest.us.sentry.io/4510496093503488',
 
   // We recommend adjusting this value in production, or using tracesSampler
   // for finer control
@@ -12,11 +12,11 @@ Sentry.init({
   // This sets the sample rate to be 10%. You may want this to be 100% while
   // in development and sample at a lower rate in production
   replaysSessionSampleRate: 0.1,
-  
+
   // If the entire session is not sampled, use the below sample rate to sample
   // sessions when an error occurs.
   replaysOnErrorSampleRate: 1.0,
-  
+
   // If you don't want to use Session Replay, just remove the line below:
   integrations: [Sentry.replayIntegration()],
 
