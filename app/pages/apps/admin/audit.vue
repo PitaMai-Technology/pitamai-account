@@ -102,12 +102,17 @@ async function fetchLogs() {
       if (dateFilter.start || dateFilter.end) {
         fetched = fetched.filter(log => {
           const createdAt = new Date(log.createdAt);
+
           if (dateFilter.start && createdAt < dateFilter.start) return false;
-          if (dateFilter.end) {
-            const end = new Date(dateFilter.end);
+
+          // 終了日の判定: end があれば end、なければ start (単一日指定) を基準にする
+          const endDateBase = dateFilter.end || dateFilter.start;
+          if (endDateBase) {
+            const end = new Date(endDateBase);
             end.setHours(23, 59, 59, 999);
             if (createdAt > end) return false;
           }
+
           return true;
         });
       }
@@ -219,7 +224,7 @@ const columns: TableColumn<any>[] = [
 
       <div v-if="logs.length" class="mt-4 mb-2 flex items-center gap-2 justify-between">
         <UInput v-model="tableFilter" placeholder="テーブル全体を検索..." class="flex-1 max-w-md" />
-        <UButton variant="ghost" :disabled="!tableFilter && !dateFilter.start && !dateFilter.end" label="検索クリア"
+        <UButton variant="ghost" :disabled="!tableFilter && !dateFilter.start && !dateFilter.end" label="絞り込みクリア"
           @click.prevent="() => {
             tableFilter = '';
             dateFilter.start = undefined;
