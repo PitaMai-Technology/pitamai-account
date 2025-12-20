@@ -45,11 +45,6 @@ if (import.meta.client) {
       </template>
       <div class="max-w-7xl m-auto">
         <UMain class="p-5 pt-10 max-w-6xl m-auto">
-          <h1 class="text-2xl font-bold">{{ session.data?.user.email }} さん。ようこそ！</h1>
-          <p class="text-gray-600 mt-2">
-            あなたの役割: <strong>{{ role || '未所属' }}</strong>
-          </p>
-          <USeparator type="solid" class="my-4" />
           <slot />
         </UMain>
       </div>

@@ -2,7 +2,6 @@ import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
 
 export const useOrg = () => {
-  const toast = useToast();
   const router = useRouter();
   const activeOrg = useActiveOrg();
 
@@ -37,15 +36,10 @@ export const useOrg = () => {
         return false;
       }
 
-      if (activeOrg.value?.data?.id !== organizationId) {
+      // すでにアクティブな組織が選択されている場合は切り替えない
+      if (!activeOrg.value.data?.id) {
         await authClient.organization.setActive({ organizationId });
       }
-
-      toast.add({
-        title: '現在の組織を自動的に切り替えました',
-        description: `この組織に変更：${targetOrg.name}`,
-        color: 'info',
-      });
 
       return true;
     } catch (error) {

@@ -1,17 +1,19 @@
 <script setup lang="ts">
+import { authClient } from '~/composable/auth-client';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 import { useOrgRole } from '~/composable/useOrgRoleChecks';
 
 const tabs = [
-  {
-    label: '設定',
-    icon: 'i-lucide-user',
-    slot: 'settings',
-  },
   {
     label: 'アプリ',
     icon: 'i-lucide-app-window',
     slot: 'apps',
   },
+  {
+    label: '設定',
+    icon: 'i-lucide-user',
+    slot: 'settings',
+  }
 ];
 
 const items = ref([
@@ -93,9 +95,26 @@ const adminItems = [
     },
   ],
 ];
-const { canAccessAdmin } = useOrgRole();
+const { role, canAccessAdmin } = useOrgRole();
 
-// dev only
+const activeOrg = useActiveOrg();
+
+const appsItems = computed(() => {
+  const orgId = activeOrg.value.data?.id;
+
+  return [
+    [
+      {
+        label: 'Wiki',
+        icon: 'i-lucide-book-open',
+        to: orgId ? `/apps/organization/wiki/${orgId}` : undefined,
+        disabled: !orgId,
+      },
+    ],
+  ];
+});
+
+const session = authClient.useSession();
 </script>
 
 <template>
@@ -106,10 +125,18 @@ const { canAccessAdmin } = useOrgRole();
         ナビゲーションを更新
       </UButton> -->
       <div class="my-4">
-        <AppOrganaizationCheck />
+        <h1 class="text-gray-600">{{ session.data?.user.email }} </h1>
+        <p class="text-gray-600">
+          あなたの役割: <strong>{{ role || '未所属' }}</strong>
+        </p>
+        <AppOrganaizationCheck class="mt-4" />
       </div>
     </div>
     <UTabs :items="tabs" class="gap-5" variant="link" color="info">
+      <template #apps>
+        <UNavigationMenu :items="appsItems" orientation="vertical" />
+      </template>
+
       <template #settings>
         <UNavigationMenu :items="items" orientation="vertical" />
 
@@ -117,10 +144,6 @@ const { canAccessAdmin } = useOrgRole();
           <USeparator class="my-4" label="管理者のみ" />
           <UNavigationMenu :items="adminItems" orientation="vertical" />
         </template>
-      </template>
-
-      <template #apps>
-        <h1>App test</h1>
       </template>
     </UTabs>
   </div>

@@ -27,12 +27,6 @@ export default defineEventHandler(async event => {
 
     const validated = result.data;
 
-    // 監査ログ記録
-    await logAuditWithSession(event, {
-      action: 'ORGANIZATION_SET_ACTIVE',
-      targetId: validated.organizationId ?? validated.organizationSlug,
-    });
-
     // 認証情報をヘッダーごと渡す
     const data = await auth.api.setActiveOrganization({
       body: validated,

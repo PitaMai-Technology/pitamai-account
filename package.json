@@ -17,13 +17,13 @@
   },
   "dependencies": {
     "@nuxt/eslint": "^1.12.1",
-    "@nuxt/ui": "^4.2.1",
+    "@nuxt/ui": "^4.3.0",
     "@prisma/client": "^6.19.1",
-    "@sentry/nuxt": "^10.30.0",
+    "@sentry/nuxt": "^10.31.0",
     "@sentry/vite-plugin": "^4.6.1",
-    "better-auth": "^1.4.6",
+    "better-auth": "^1.4.7",
     "better-sqlite3": "^12.5.0",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "import-in-the-middle": "^2.0.0",
     "nodemailer": "^7.0.11",
     "nuxt": "^4.2.2",
@@ -33,11 +33,12 @@
     "uuid": "^13.0.0",
     "vue": "^3.5.25",
     "vue-router": "^4.6.4",
-    "zod": "^4.1.13"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@nuxt/icon": "^2.1.1",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^24.10.3",
+    "@types/node": "^24.10.4",
     "@types/nodemailer": "^7.0.4",
     "eslint-config-prettier": "^10.1.8",
     "pino-pretty": "^13.1.3",
