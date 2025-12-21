@@ -3,11 +3,13 @@ import type { EditorSuggestionMenuItem, EditorToolbarItem } from '@nuxt/ui'
 
 type EditorUi = {
   base?: string
+  content?: string
 }
 
 const defaultEditorUi: EditorUi = {
   // 本文エリアの余白はここで統一
   base: 'py-6',
+  content: 'min-h-50 p-4 cursor-text',
 }
 
 const props = withDefaults(
@@ -57,7 +59,7 @@ const appendToBody = import.meta.client ? () => document.body : undefined
 </script>
 
 <template>
-  <UEditor v-slot="{ editor }" v-model="model" content-type="markdown" :placeholder="props.placeholder" :ui="editorUi"
+  <UEditor v-slot="{ editor }" v-model="model" content-type="html" :placeholder="props.placeholder" :ui="editorUi"
     :class="props.editorClass">
     <UEditorToolbar :editor="editor" :items="props.toolbarItems" :class="props.toolbarClass">
       <template #link>

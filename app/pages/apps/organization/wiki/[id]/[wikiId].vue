@@ -19,7 +19,7 @@ const organizations = authClient.useListOrganizations()
 const activeOrganization = useActiveOrg()
 
 const title = ref('')
-const content = ref('ここに入力。')
+const content = ref('\n')
 
 const {
   data: wikiData,

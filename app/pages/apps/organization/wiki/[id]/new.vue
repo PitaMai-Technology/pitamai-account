@@ -17,8 +17,7 @@ const organizations = authClient.useListOrganizations()
 const activeOrganization = useActiveOrg()
 
 const title = ref('')
-// TipTapが空文字だと初期化に失敗するケースがあるため、空段落として改行を入れる
-const content = ref('ここに入力')
+const content = ref('\n')
 
 const saving = ref(false)
 
