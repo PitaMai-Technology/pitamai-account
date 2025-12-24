@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <UPageAside class="aside bg-white">
+  <UPageAside class="aside bg-white min-w-70">
     <AppAsideNavgation />
   </UPageAside>
 </template>
