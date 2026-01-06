@@ -30,7 +30,11 @@ export const recordAuditLog = async (params: AuditLogParams) => { ... }
 - `event` が渡されていれば `ipAddress`, `userAgent` を自動で取得。
 - `prisma.auditLog.create(...)` で DB に保存。
 - Sentry に `addBreadcrumb({ category: 'audit', ... })` を追加。
-- `logger.info({ audit: true, ... }, 'Audit Log: ACTION')` を出力。
+- Cloud Logging で扱いやすいよう、`logger` には以下のような **構造化ログ** を出力します。
+  - `event: 'audit'`
+  - `audit: { userId, organizationId, action, targetId, details }`
+  - `httpRequest: { requestMethod, requestUrl, userAgent, remoteIp }`（`event` が渡された場合のみ）
+  - `requestId`, `traceId`（存在すれば）
 - 失敗時は `logger.error` と `Sentry.captureException` を呼び出すが、**メイン処理は止めない**。
 
 #### 想定用途
@@ -98,6 +102,12 @@ await logAuditWithSession(event, {
 - `targetId`（= 新規ユーザー ID）
 - `details`（email/role）
 - `ipAddress`, `userAgent`
+
+に加えて、Cloud Logging 側で検索しやすいように:
+
+- `event: 'audit'`
+- `requestId`, `traceId`（ヘッダーがあれば）
+- `httpRequest`（method/url/ip/userAgent）
 
 がすべて `AuditLog` + Sentry + logger に保存されます。
 
