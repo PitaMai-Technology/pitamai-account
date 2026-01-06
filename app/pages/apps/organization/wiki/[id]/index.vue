@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { authClient } from '~/composable/auth-client'
 import { useActiveOrg } from '~/composable/useActiveOrg'
+import { useWikiList } from '~/composable/useWikiList'
 
 definePageMeta({
   layout: 'the-app',
@@ -24,41 +25,11 @@ const currentOrganization = computed(() => {
   return organizations.value?.data?.find(org => org.id === organizationId.value) ?? null
 })
 
-type WikiListItem = {
-  id: string
-  title: string
-  slug: string
-  contentType: string
-  createdAt: string
-  updatedAt: string
-}
-
 const {
   data: wikiData,
   pending: wikiPending,
-  refresh: refreshWiki,
   error: wikiError,
-} = await useAsyncData(() => $fetch<{ wikis: WikiListItem[] }>('/api/wiki'), {
-  immediate: false,
-})
-
-watch(
-  () => isReady.value,
-  async (ready) => {
-    if (!ready) return
-    await refreshWiki()
-  },
-  { immediate: true }
-)
-
-watch(
-  () => activeOrganizationId.value,
-  async (id, prev) => {
-    if (!id) return
-    if (id === prev) return
-    await refreshWiki()
-  }
-)
+} = useWikiList()
 
 watch(
   () => wikiError.value,
@@ -105,7 +76,6 @@ function goNew() {
             <div class="flex items-center justify-between gap-4">
               <div class="min-w-0">
                 <div class="font-medium truncate">{{ w.title }}</div>
-                <div class="text-xs text-muted truncate">/{{ w.slug }}</div>
               </div>
               <div class="text-xs text-muted whitespace-nowrap">
                 {{ new Date(w.updatedAt).toLocaleString() }}

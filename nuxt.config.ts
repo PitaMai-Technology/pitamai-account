@@ -39,4 +39,8 @@ export default defineNuxtConfig({
   sourcemap: {
     client: 'hidden',
   },
+
+  colorMode: {
+    preference: 'light',
+  },
 });

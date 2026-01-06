@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EditorSuggestionMenuItem, EditorToolbarItem } from '@nuxt/ui'
+import { ref } from 'vue'
 
 type EditorUi = {
   base?: string
@@ -9,7 +10,7 @@ type EditorUi = {
 const defaultEditorUi: EditorUi = {
   // 本文エリアの余白はここで統一
   base: 'py-6',
-  content: 'min-h-50 p-4 cursor-text',
+  content: 'min-h-100 cursor-text',
 }
 
 const props = withDefaults(
@@ -26,13 +27,20 @@ const props = withDefaults(
   {
     placeholder: 'ここにWikiを書いてください...',
     editorClass: 'w-full min-h-74',
-    toolbarClass: 'border-b border-muted py-2 overflow-x-auto',
+    toolbarClass: 'border-t border-muted py-2 overflow-x-auto',
     showDragHandle: true,
     showSuggestionMenu: true,
   }
 )
 
 const model = defineModel<string>({ required: true })
+
+// editor インスタンスを保持して外からツールバーに渡す
+const editorRef = ref<any>(null)
+const setEditor = (editor: any) => {
+  editorRef.value = editor
+  return true
+}
 
 const defaultSuggestionItems: EditorSuggestionMenuItem[][] = [[
   { type: 'label', label: 'テキスト' },
@@ -61,13 +69,17 @@ const appendToBody = import.meta.client ? () => document.body : undefined
 <template>
   <UEditor v-slot="{ editor }" v-model="model" content-type="html" :placeholder="props.placeholder" :ui="editorUi"
     :class="props.editorClass">
-    <UEditorToolbar :editor="editor" :items="props.toolbarItems" :class="props.toolbarClass">
-      <template #link>
-        <AppEditorLinkPopover :editor="editor" />
-      </template>
-    </UEditorToolbar>
     <UEditorDragHandle v-show="props.showDragHandle" :editor="editor" />
     <UEditorSuggestionMenu v-show="props.showSuggestionMenu" :editor="editor" :items="suggestionItems"
       :append-to="appendToBody" />
+    <!-- editor をキャプチャして外部で使用 -->
+    <template v-if="setEditor(editor)"></template>
   </UEditor>
+
+  <!-- ツールバーをエディター下部に配置 -->
+  <UEditorToolbar v-if="editorRef" :editor="editorRef" :items="props.toolbarItems" :class="props.toolbarClass">
+    <template #link>
+      <AppEditorLinkPopover :editor="editorRef" />
+    </template>
+  </UEditorToolbar>
 </template>

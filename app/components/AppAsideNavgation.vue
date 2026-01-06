@@ -2,6 +2,7 @@
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
 import { useOrgRole } from '~/composable/useOrgRoleChecks';
+import { useWikiTreeNavigation } from '~/composable/useWikiTreeNavigation';
 
 const tabs = [
   {
@@ -99,20 +100,14 @@ const { role, canAccessAdmin } = useOrgRole();
 
 const activeOrg = useActiveOrg();
 
-const appsItems = computed(() => {
-  const orgId = activeOrg.value.data?.id;
-
-  return [
-    [
-      {
-        label: 'Wiki',
-        icon: 'i-lucide-book-open',
-        to: orgId ? `/apps/organization/wiki/${orgId}` : undefined,
-        disabled: !orgId,
-      },
-    ],
-  ];
-});
+const {
+  wikiTreeItems,
+  wikiTreePending,
+  activeOrganizationId,
+  wikiTreeValue,
+  getWikiTreeKey,
+  onWikiTreeSelect,
+} = useWikiTreeNavigation();
 
 const session = authClient.useSession();
 </script>
@@ -134,7 +129,17 @@ const session = authClient.useSession();
     </div>
     <UTabs :items="tabs" class="gap-5" variant="link" color="info">
       <template #apps>
-        <UNavigationMenu :items="appsItems" orientation="vertical" />
+
+        <div v-if="!activeOrganizationId" class="text-sm text-muted">
+          組織を選択してください。
+        </div>
+
+        <div v-else-if="wikiTreePending" class="py-6 flex items-center justify-center">
+          <TheLoader />
+        </div>
+
+        <UTree v-else v-model="wikiTreeValue" size="md" :items="wikiTreeItems" :get-key="getWikiTreeKey"
+          :on-select="onWikiTreeSelect" />
       </template>
 
       <template #settings>

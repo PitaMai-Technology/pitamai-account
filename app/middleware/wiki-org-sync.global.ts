@@ -1,27 +1,19 @@
 import { authClient } from '~/composable/auth-client';
 
-function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<boolean> {
-  if (predicate()) return Promise.resolve(true);
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 5000,
+  intervalMs = 50
+): Promise<boolean> {
+  if (predicate()) return true;
 
-  return new Promise(resolve => {
-    const startedAt = Date.now();
-    const stop = watch(
-      () => predicate(),
-      ok => {
-        if (ok) {
-          stop();
-          resolve(true);
-          return;
-        }
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    await new Promise<void>(resolve => setTimeout(resolve, intervalMs));
+    if (predicate()) return true;
+  }
 
-        if (Date.now() - startedAt > timeoutMs) {
-          stop();
-          resolve(false);
-        }
-      },
-      { immediate: true }
-    );
-  });
+  return false;
 }
 
 export default defineNuxtRouteMiddleware(async to => {
@@ -35,12 +27,12 @@ export default defineNuxtRouteMiddleware(async to => {
 
   const session = authClient.useSession();
 
-  // Wait session hydration
+  // セッションの読み込みが完了するまで待つ
   await waitFor(() => !session.value.isPending);
 
   const activeId = session.value.data?.session?.activeOrganizationId;
 
-  // If active org is set, URL must follow it.
+  // アクティブ組織が設定されている場合、URLはそれに従う必要がある。
   if (activeId && activeId !== urlOrgId) {
     return navigateTo(
       {
@@ -53,7 +45,7 @@ export default defineNuxtRouteMiddleware(async to => {
     );
   }
 
-  // If no active org yet, set it from URL.
+  // アクティブ組織が未設定の場合、URLからアクティブ組織を設定する。
   if (!activeId) {
     const { data, error } = await authClient.organization.list({});
     if (
