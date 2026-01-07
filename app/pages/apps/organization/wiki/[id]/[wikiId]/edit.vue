@@ -24,9 +24,11 @@ const content = ref('\n')
 const {
   data: wikiData,
   pending: wikiPending,
-  refresh: refreshWiki,
 } = await useAsyncData(
-  () => $fetch<{ wiki: { id: string; title: string; content: string } }>(`/api/wiki/${wikiId.value}`),
+  () =>
+    $fetch<{ wiki: { id: string; title: string; content: string } }>(
+      `/api/wiki/${wikiId.value}`
+    ),
   {
     watch: [organizationId, wikiId],
   }
@@ -44,25 +46,28 @@ watch(
 
 const saving = ref(false)
 
-const toolbarItems = [[
-  { kind: 'undo', icon: 'i-lucide-undo', tooltip: { text: '戻る' } },
-  { kind: 'redo', icon: 'i-lucide-redo', tooltip: { text: '進む' } },
-], [
-  { kind: 'mark', mark: 'bold', icon: 'i-lucide-bold', tooltip: { text: '太字' } },
-  { kind: 'mark', mark: 'italic', icon: 'i-lucide-italic', tooltip: { text: '斜体' } },
-  { kind: 'mark', mark: 'underline', icon: 'i-lucide-underline', tooltip: { text: '下線' } },
-  { kind: 'mark', mark: 'strike', icon: 'i-lucide-strikethrough', tooltip: { text: '取り消し線' } },
-  { kind: 'mark', mark: 'code', icon: 'i-lucide-code', tooltip: { text: 'コード' } },
-], [
-  { kind: 'heading', level: 1, icon: 'i-lucide-heading-1', tooltip: { text: 'H1' } },
-  { kind: 'heading', level: 2, icon: 'i-lucide-heading-2', tooltip: { text: 'H2' } },
-  { kind: 'bulletList', icon: 'i-lucide-list', tooltip: { text: '箇条書き' } },
-  { kind: 'orderedList', icon: 'i-lucide-list-ordered', tooltip: { text: '番号付きリスト' } },
-  { kind: 'blockquote', icon: 'i-lucide-text-quote', tooltip: { text: '引用' } },
-  { kind: 'codeBlock', icon: 'i-lucide-square-code', tooltip: { text: 'コードブロック' } },
-], [
-  { slot: 'link' as const, icon: 'i-lucide-link', tooltip: { text: 'リンク' } },
-]] satisfies EditorToolbarItem[][]
+const toolbarItems = [
+  [
+    { kind: 'undo', icon: 'i-lucide-undo', tooltip: { text: '戻る' } },
+    { kind: 'redo', icon: 'i-lucide-redo', tooltip: { text: '進む' } },
+  ],
+  [
+    { kind: 'mark', mark: 'bold', icon: 'i-lucide-bold', tooltip: { text: '太字' } },
+    { kind: 'mark', mark: 'italic', icon: 'i-lucide-italic', tooltip: { text: '斜体' } },
+    { kind: 'mark', mark: 'underline', icon: 'i-lucide-underline', tooltip: { text: '下線' } },
+    { kind: 'mark', mark: 'strike', icon: 'i-lucide-strikethrough', tooltip: { text: '取り消し線' } },
+    { kind: 'mark', mark: 'code', icon: 'i-lucide-code', tooltip: { text: 'コード' } },
+  ],
+  [
+    { kind: 'heading', level: 1, icon: 'i-lucide-heading-1', tooltip: { text: 'H1' } },
+    { kind: 'heading', level: 2, icon: 'i-lucide-heading-2', tooltip: { text: 'H2' } },
+    { kind: 'bulletList', icon: 'i-lucide-list', tooltip: { text: '箇条書き' } },
+    { kind: 'orderedList', icon: 'i-lucide-list-ordered', tooltip: { text: '番号付きリスト' } },
+    { kind: 'blockquote', icon: 'i-lucide-text-quote', tooltip: { text: '引用' } },
+    { kind: 'codeBlock', icon: 'i-lucide-square-code', tooltip: { text: 'コードブロック' } },
+  ],
+  [{ slot: 'link' as const, icon: 'i-lucide-link', tooltip: { text: 'リンク' } }],
+] satisfies EditorToolbarItem[][]
 
 async function save() {
   if (!title.value.trim()) {
@@ -89,11 +94,8 @@ async function save() {
   }
 }
 
-const {
-  open: confirmOpen,
-  confirm: confirmDialog,
-  resolve: resolveConfirm,
-} = useConfirmDialog()
+const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } =
+  useConfirmDialog()
 
 const deleting = ref(false)
 
@@ -126,7 +128,7 @@ async function remove() {
         <h1 class="text-xl font-semibold">Wiki 編集</h1>
         <div class="flex gap-2">
           <UButton color="neutral" icon="i-lucide-arrow-left" variant="ghost"
-            :to="`/apps/organization/wiki/${organizationId}`">戻る</UButton>
+            :to="`/apps/organization/wiki/${organizationId}/${wikiId}`">戻る</UButton>
           <UButton color="primary" icon="i-lucide-save" :loading="saving" @click="save">保存</UButton>
         </div>
       </div>

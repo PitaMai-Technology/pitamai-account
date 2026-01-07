@@ -63,7 +63,7 @@ function goNew() {
 
       <UCard>
         <div v-if="wikiPending" class="py-10 flex items-center justify-center">
-          <TheLoader />
+          <USkeleton class="bg-gray-100 h-64 w-full" />
         </div>
 
         <div v-else-if="(wikiData?.wikis?.length || 0) === 0" class="text-sm text-muted py-6">

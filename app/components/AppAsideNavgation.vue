@@ -130,16 +130,20 @@ const session = authClient.useSession();
     <UTabs :items="tabs" class="gap-5" variant="link" color="info">
       <template #apps>
 
-        <div v-if="!activeOrganizationId" class="text-sm text-muted">
-          組織を選択してください。
-        </div>
+        <template v-if="!activeOrganizationId">
+          <p class="text-sm text-muted">
+            組織を選択してください。
+          </p>
+        </template>
+        <template v-else-if="wikiTreePending">
+          <USkeleton class="bg-gray-100 h-48 w-full" />
+        </template>
 
-        <div v-else-if="wikiTreePending" class="py-6 flex items-center justify-center">
-          <TheLoader />
-        </div>
+        <template v-else>
+          <UTree v-model="wikiTreeValue" size="md" :items="wikiTreeItems" :get-key="getWikiTreeKey"
+            :on-select="onWikiTreeSelect" />
+        </template>
 
-        <UTree v-else v-model="wikiTreeValue" size="md" :items="wikiTreeItems" :get-key="getWikiTreeKey"
-          :on-select="onWikiTreeSelect" />
       </template>
 
       <template #settings>
