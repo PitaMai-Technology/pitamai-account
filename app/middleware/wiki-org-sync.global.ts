@@ -1,5 +1,3 @@
-import { authClient } from '~/composable/auth-client';
-
 async function waitFor(
   predicate: () => boolean,
   timeoutMs = 5000,
@@ -17,13 +15,51 @@ async function waitFor(
 }
 
 export default defineNuxtRouteMiddleware(async to => {
-  // authClient/useSession はクライアント前提
-  if (import.meta.server) return;
-
   if (!to.path.startsWith('/apps/organization/wiki/')) return;
 
   const urlOrgId = to.params.id;
   if (typeof urlOrgId !== 'string' || !urlOrgId) return;
+
+  // SSR直アクセス時に activeOrganizationId が未設定だと /api/wiki が 400 になるため、
+  // サーバー側でもURLの組織IDを active に同期する。
+  if (import.meta.server) {
+    const headers = useRequestHeaders(['cookie']);
+
+    try {
+      const session = await $fetch<{
+        session?: { activeOrganizationId?: string | null };
+        user?: unknown;
+      } | null>('/api/auth/get-session', { headers });
+
+      const activeId = session?.session?.activeOrganizationId ?? null;
+
+      if (activeId && activeId !== urlOrgId) {
+        return navigateTo(
+          {
+            name: to.name as string | undefined,
+            params: { ...to.params, id: activeId },
+            query: to.query,
+            hash: to.hash,
+          },
+          { replace: true }
+        );
+      }
+
+      if (!activeId) {
+        await $fetch('/api/auth/organization/set-active', {
+          method: 'POST',
+          headers,
+          body: { organizationId: urlOrgId },
+        });
+      }
+    } catch {
+      return navigateTo('/apps/dashboard', { replace: true });
+    }
+
+    return;
+  }
+
+  const { authClient } = await import('~/composable/auth-client');
 
   const session = authClient.useSession();
 

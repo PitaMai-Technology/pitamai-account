@@ -65,13 +65,14 @@ export const auth = betterAuth({
     admin({
       defaultRole: 'member',
       adminRoles: ['admins', 'owner'],
-      // adminUserIds: ['bIpvmmpJl3uMpCyU8RDypEGaeqijRzCk'],
       ac,
       roles: {
         owner,
         admins,
         member,
       },
+      bannedUserMessage:
+        'あなたは、管理者によってアカウントが停止(BAN)されています。',
     }),
     magicLink({
       disableSignUp: true,

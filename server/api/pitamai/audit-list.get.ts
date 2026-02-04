@@ -50,6 +50,38 @@ export default defineEventHandler(async event => {
       ];
     }
   }
+
+  // 全体検索: action, targetId, user.email, user.name を対象に検索
+  // NOTE: datasource が sqlite のため、Prisma の QueryMode.insensitive は利用できない
+  const search = query.search?.trim();
+  if (search) {
+    const searchConditions = [
+      { action: { contains: search } },
+      { targetId: { contains: search } },
+      {
+        user: {
+          is: {
+            email: { contains: search },
+          },
+        },
+      },
+      {
+        user: {
+          is: {
+            name: { contains: search },
+          },
+        },
+      },
+    ];
+
+    // 既存の where.OR がある場合は AND で結合
+    if (where.OR) {
+      where.AND = [{ OR: where.OR }, { OR: searchConditions }];
+      delete where.OR;
+    } else {
+      where.OR = searchConditions;
+    }
+  }
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,

@@ -22,6 +22,7 @@ const state = reactive<Schema>({
   organizationId: undefined,
   limit: 30,
   offset: 0,
+  search: undefined,
 });
 
 // 初期化時に現在の組織をセット
@@ -30,6 +31,7 @@ const loading = ref(false);
 const logs = ref<any[]>([]);
 const total = ref<number | undefined>(undefined);
 const tableFilter = ref('');
+const globalSearchInput = ref('');
 
 // 日付レンジフィルタ用（start/end を Date で保持）
 const dateFilter = reactive<{ start?: Date; end?: Date }>({});
@@ -89,6 +91,7 @@ async function fetchLogs() {
       limit: state.limit,
       offset: state.offset,
       organizationId: state.organizationId,
+      search: state.search || undefined,
     };
 
     const data = await $fetch('/api/pitamai/audit-list', {
@@ -137,6 +140,7 @@ async function onSubmit(event?: FormSubmitEvent<Schema>) {
   event?.preventDefault?.();
   if (loading.value) return;
   state.offset = 0; // 検索時は1ページ目に戻す
+  state.search = globalSearchInput.value || undefined;
   tableFilter.value = ''; // 検索時はテーブルフィルタもクリア
   await fetchLogs();
 }
@@ -208,22 +212,38 @@ const columns: TableColumn<any>[] = [
       </div>
 
       <!-- 検索フォーム -->
-      <UForm :schema="AuditListQuerySchema" :state="state" class="space-y-4 mb-8" @submit="onSubmit">
+      <UForm :schema="AuditListQuerySchema" :state="state" class="space-y-4 mb-8 mt-10" @submit="onSubmit">
         <div class="flex flex-wrap gap-4 items-end">
           <UFormField label="組織" name="organizationId" class="min-w-[200px]">
             <USelect v-model="state.organizationId" :items="organizationItems"
               :placeholder="state.organizationId === undefined ? 'すべてのログ' : '組織を選択'" class="w-full" />
           </UFormField>
+          <UFormField label="全体検索" name="search" class="flex-1 min-w-[300px]">
+            <UInput v-model="globalSearchInput" placeholder="アクション、対象ID、ユーザー名、メールアドレスで検索..." class="w-full"
+              @keydown.enter.prevent="onSubmit()" />
+          </UFormField>
         </div>
-        <UButton type="submit" :loading="loading">
-          更新
-        </UButton>
+        <div class="flex gap-2">
+          <UButton type="submit" :loading="loading">
+            検索
+          </UButton>
+          <UButton variant="outline" :disabled="!globalSearchInput && !state.organizationId" @click="() => {
+            globalSearchInput = '';
+            state.search = undefined;
+            state.organizationId = undefined;
+            state.offset = 0;
+            fetchLogs();
+          }">
+            検索条件をクリア
+          </UButton>
+        </div>
       </UForm>
 
       <USeparator />
 
       <div v-if="logs.length" class="mt-4 mb-2 flex items-center gap-2 justify-between">
-        <UInput v-model="tableFilter" placeholder="テーブル全体を検索..." class="flex-1 max-w-md" />
+
+        <UInput v-model="tableFilter" placeholder="今表示されているテーブル内を検索..." class="flex-1 max-w-md" />
         <UButton variant="ghost" :disabled="!tableFilter && !dateFilter.start && !dateFilter.end" label="絞り込みクリア"
           @click.prevent="() => {
             tableFilter = '';

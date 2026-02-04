@@ -15,24 +15,24 @@ const wikiId = computed(() => route.params.wikiId as string)
 const organizations = authClient.useListOrganizations()
 const activeOrganization = useActiveOrg()
 
+type WikiResponse = {
+  wiki: {
+    id: string
+    title: string
+    content: string
+    contentType?: string
+    updatedAt?: string
+  }
+}
+
 const {
   data: wikiData,
   pending: wikiPending,
-} = await useAsyncData(
-  () =>
-    $fetch<{
-      wiki: {
-        id: string
-        title: string
-        content: string
-        contentType?: string
-        updatedAt?: string
-      }
-    }>(`/api/wiki/${wikiId.value}`),
-  {
-    watch: [organizationId, wikiId],
-  }
-)
+  error: wikiError,
+} = await useFetch<WikiResponse>(() => `/api/wiki/${wikiId.value}`, {
+  headers: useRequestHeaders(['cookie']),
+  watch: [organizationId, wikiId],
+})
 
 const wiki = computed(() => wikiData.value?.wiki)
 
@@ -46,6 +46,10 @@ function goEdit() {
     <div v-if="organizations.isPending || activeOrganization.isPending || wikiPending"
       class="flex items-center justify-center py-12">
       <TheLoader />
+    </div>
+
+    <div v-else-if="wikiError" class="py-6">
+      <UAlert color="error" variant="soft" title="Wikiの取得に失敗しました" :description="String(wikiError)" />
     </div>
 
     <div v-else class="space-y-4">

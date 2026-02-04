@@ -65,7 +65,56 @@ const columns: TableColumn<AdminUser>[] = [
   },
   {
     accessorKey: 'banReason',
-    header: 'BAN理由',
+    header: () => h('span', { class: 'whitespace-nowrap' }, 'BAN理由'),
+    cell: ({ row }) => {
+      const reason = row.original.banReason;
+      if (!reason) return '-';
+
+      const maxLen = 32;
+      const isLong = reason.length > maxLen;
+      const display = isLong ? `${reason.slice(0, maxLen)}....` : reason;
+
+      if (!isLong) {
+        return h(
+          'span',
+          {
+            class: 'inline-block w-64 max-w-64 truncate align-middle',
+            title: reason,
+          },
+          display
+        );
+      }
+
+      const UPopover = resolveComponent('UPopover');
+      return h(
+        UPopover,
+        {
+          mode: 'hover',
+          openDelay: 150,
+          closeDelay: 80,
+        },
+        {
+          default: () =>
+            h(
+              'span',
+              {
+                class:
+                  'inline-block w-64 max-w-64 truncate align-middle cursor-help',
+              },
+              display
+            ),
+          content: () =>
+            h(
+              'div',
+              {
+                class:
+                  'max-w-sm p-2 text-sm whitespace-pre-wrap break-words text-gray-700',
+              },
+              reason
+            ),
+        }
+      );
+    },
   },
   {
     accessorKey: 'actions',
@@ -96,6 +145,18 @@ const columns: TableColumn<AdminUser>[] = [
           clearable: false,
           class: 'w-36',
         }),
+        h(
+          UButton,
+          {
+            icon: user.banned ? 'i-lucide-shield-check' : 'i-lucide-ban',
+            color: user.banned ? 'primary' : 'warning',
+            variant: user.banned ? 'outline' : 'solid',
+            disabled: loading.value || isSelf,
+            onClick: () =>
+              user.banned ? confirmUnbanUser(user) : openBanModal(user),
+          },
+          { default: () => (user.banned ? '解除' : 'BAN') }
+        ),
         h(
           UButton,
           {
@@ -213,50 +274,141 @@ watch(
 // 削除用のモーダル状態
 const confirmOpen = ref(false);
 const confirmMessage = ref('');
-let pendingRemoveUser: AdminUser | null = null;
+type ConfirmAction = 'remove' | 'unban';
+const confirmAction = ref<ConfirmAction>('remove');
+let pendingUser: AdminUser | null = null;
+
+// BAN理由入力用モーダル
+const banModalOpen = ref(false);
+const banReasonDraft = ref('管理者によるBAN');
 
 function confirmDeleteUser(user: AdminUser) {
-  pendingRemoveUser = user;
+  pendingUser = user;
+  confirmAction.value = 'remove';
   confirmMessage.value = `${user.email ?? user.id} を完全に削除します。よろしいですか？`;
   confirmOpen.value = true;
 }
 
-async function onConfirmRemove() {
-  if (!pendingRemoveUser) return;
+function openBanModal(user: AdminUser) {
+  pendingUser = user;
+  banReasonDraft.value = '管理者によるBAN';
+  banModalOpen.value = true;
+}
+
+function confirmUnbanUser(user: AdminUser) {
+  pendingUser = user;
+  confirmAction.value = 'unban';
+  confirmMessage.value = `${user.email ?? user.id} のBANを解除します。よろしいですか？`;
+  confirmOpen.value = true;
+}
+
+async function onConfirmAction() {
+  if (!pendingUser) return;
+  const user = pendingUser;
+
   try {
     loading.value = true;
-    const { error } = await authClient.admin.removeUser({
-      userId: pendingRemoveUser.id,
+
+    if (confirmAction.value === 'remove') {
+      const { error } = await authClient.admin.removeUser({
+        userId: user.id,
+      });
+
+      if (error) {
+        console.error('admin.removeUser error:', error);
+        toast.add({
+          title: 'エラー',
+          description: 'ユーザーの削除に失敗しました',
+          color: 'error',
+        });
+        return;
+      }
+
+      toast.add({
+        title: '削除しました',
+        description: 'ユーザーを削除しました',
+        color: 'success',
+      });
+    }
+
+    if (confirmAction.value === 'unban') {
+      const { error } = await authClient.admin.unbanUser({
+        userId: user.id,
+      });
+
+      if (error) {
+        console.error('admin.unbanUser error:', error);
+        toast.add({
+          title: 'エラー',
+          description: 'ユーザーのBAN解除に失敗しました',
+          color: 'error',
+        });
+        return;
+      }
+
+      toast.add({
+        title: '解除しました',
+        description: 'ユーザーのBANを解除しました',
+        color: 'success',
+      });
+    }
+
+    await fetchUsers();
+  } catch (e: unknown) {
+    console.error('admin account confirm action error:', e);
+    toast.add({
+      title: 'エラー',
+      description: '操作に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    loading.value = false;
+    confirmOpen.value = false;
+    pendingUser = null;
+  }
+}
+
+async function submitBan() {
+  if (!pendingUser) return;
+  const user = pendingUser;
+
+  const reason = banReasonDraft.value.trim() || '管理者によるBAN';
+
+  try {
+    loading.value = true;
+
+    const { error } = await authClient.admin.banUser({
+      userId: user.id,
+      banReason: reason,
     });
 
     if (error) {
-      console.error('admin.removeUser error:', error);
+      console.error('admin.banUser error:', error);
       toast.add({
         title: 'エラー',
-        description: 'ユーザーの削除に失敗しました',
+        description: 'ユーザーのBANに失敗しました',
         color: 'error',
       });
       return;
     }
 
     toast.add({
-      title: '削除しました',
-      description: 'ユーザーを削除しました',
+      title: 'BANしました',
+      description: 'ユーザーをBANしました',
       color: 'success',
     });
 
+    banModalOpen.value = false;
     await fetchUsers();
   } catch (e: unknown) {
-    console.error('admin account delete error:', e);
+    console.error('admin account ban error:', e);
     toast.add({
       title: 'エラー',
-      description: 'ユーザーの削除に失敗しました',
+      description: 'ユーザーのBANに失敗しました',
       color: 'error',
     });
   } finally {
     loading.value = false;
-    confirmOpen.value = false;
-    pendingRemoveUser = null;
   }
 }
 
@@ -324,7 +476,21 @@ async function onSubmit(event?: FormSubmitEvent<{ limit?: number; offset?: numbe
         <UTable :key="users.length" v-model:global-filter="tableFilter" :data="users" :columns="columns"
           :loading="loading" empty="ユーザーが見つかりません。" class="table-fixed" :ui="{ td: 'break-words' }" />
       </div>
-      <TheConfirmModal v-model:open="confirmOpen" :message="confirmMessage" @confirm="onConfirmRemove" />
+      <TheConfirmModal v-model:open="confirmOpen" :message="confirmMessage" @confirm="onConfirmAction" />
+
+      <UModal v-model:open="banModalOpen" title="BAN理由" description="空欄の場合は「管理者によるBAN」になります。"
+        :ui="{ footer: 'justify-end' }">
+        <template #body>
+          <UFormField label="理由">
+            <UTextarea v-model="banReasonDraft" :rows="4" class="w-full" placeholder="管理者によるBAN" />
+          </UFormField>
+        </template>
+
+        <template #footer="{ close }">
+          <UButton variant="ghost" :disabled="loading" @click="close()">キャンセル</UButton>
+          <UButton color="warning" :loading="loading" @click="submitBan">BANする</UButton>
+        </template>
+      </UModal>
     </AppBackgroundCard>
   </div>
 </template>

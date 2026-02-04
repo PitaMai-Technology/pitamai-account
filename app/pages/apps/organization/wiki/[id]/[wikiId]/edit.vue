@@ -24,12 +24,11 @@ const content = ref('\n')
 const {
   data: wikiData,
   pending: wikiPending,
-} = await useAsyncData(
-  () =>
-    $fetch<{ wiki: { id: string; title: string; content: string } }>(
-      `/api/wiki/${wikiId.value}`
-    ),
+  error: wikiError,
+} = await useFetch<{ wiki: { id: string; title: string; content: string } }>(
+  () => `/api/wiki/${wikiId.value}`,
   {
+    headers: useRequestHeaders(['cookie']),
     watch: [organizationId, wikiId],
   }
 )
@@ -121,6 +120,10 @@ async function remove() {
     <div v-if="organizations.isPending || activeOrganization.isPending || wikiPending"
       class="flex items-center justify-center py-12">
       <TheLoader />
+    </div>
+
+    <div v-else-if="wikiError" class="py-6">
+      <UAlert color="error" variant="soft" title="Wikiの取得に失敗しました" :description="String(wikiError)" />
     </div>
 
     <div v-else class="space-y-4">
