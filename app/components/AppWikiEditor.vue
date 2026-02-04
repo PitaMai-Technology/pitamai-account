@@ -1,46 +1,18 @@
 <script setup lang="ts">
 import type { EditorSuggestionMenuItem, EditorToolbarItem } from '@nuxt/ui'
-import { ref } from 'vue'
-
-type EditorUi = {
-  base?: string
-  content?: string
-}
-
-const defaultEditorUi: EditorUi = {
-  // 本文エリアの余白はここで統一
-  base: 'py-6',
-  content: 'min-h-100 cursor-text',
-}
 
 const props = withDefaults(
   defineProps<{
     toolbarItems: EditorToolbarItem[][]
     placeholder?: string
-    ui?: EditorUi
-    editorClass?: string
-    toolbarClass?: string
-    showDragHandle?: boolean
-    showSuggestionMenu?: boolean
     suggestionItems?: EditorSuggestionMenuItem[][]
   }>(),
   {
     placeholder: 'ここにWikiを書いてください...',
-    editorClass: 'w-full min-h-74',
-    toolbarClass: 'border-t border-muted py-2 overflow-x-auto',
-    showDragHandle: true,
-    showSuggestionMenu: true,
   }
 )
 
 const model = defineModel<string>({ required: true })
-
-// editor インスタンスを保持して外からツールバーに渡す
-const editorRef = ref<any>(null)
-const setEditor = (editor: any) => {
-  editorRef.value = editor
-  return true
-}
 
 const defaultSuggestionItems: EditorSuggestionMenuItem[][] = [[
   { type: 'label', label: 'テキスト' },
@@ -59,27 +31,23 @@ const defaultSuggestionItems: EditorSuggestionMenuItem[][] = [[
 ]]
 
 const suggestionItems = computed(() => props.suggestionItems ?? defaultSuggestionItems)
-
-const editorUi = computed<EditorUi>(() => props.ui ?? defaultEditorUi)
-
-// overflowでメニューが見切れるのを避けるため、必要に応じて body にメニューを移す
-const appendToBody = import.meta.client ? () => document.body : undefined
 </script>
 
 <template>
-  <UEditor v-slot="{ editor }" v-model="model" content-type="html" :placeholder="props.placeholder" :ui="editorUi"
-    :class="props.editorClass">
-    <UEditorDragHandle v-show="props.showDragHandle" :editor="editor" />
-    <UEditorSuggestionMenu v-show="props.showSuggestionMenu" :editor="editor" :items="suggestionItems"
-      :append-to="appendToBody" />
-    <!-- editor をキャプチャして外部で使用 -->
-    <template v-if="setEditor(editor)"></template>
-  </UEditor>
+  <UEditor v-slot="{ editor }" v-model="model" content-type="markdown" :placeholder="props.placeholder"
+    :ui="{ base: 'py-6', content: 'min-h-100 cursor-text' }" class="w-full min-h-74">
+    <!-- ツールバー: エディタの上部に配置 -->
+    <UEditorToolbar :editor="editor" :items="props.toolbarItems"
+      class="border-b border-muted py-2 px-8 sm:px-16 overflow-x-auto">
+      <template #link>
+        <AppEditorLinkPopover :editor="editor" />
+      </template>
+    </UEditorToolbar>
 
-  <!-- ツールバーをエディター下部に配置 -->
-  <UEditorToolbar v-if="editorRef" :editor="editorRef" :items="props.toolbarItems" :class="props.toolbarClass">
-    <template #link>
-      <AppEditorLinkPopover :editor="editorRef" />
-    </template>
-  </UEditorToolbar>
+    <!-- ドラッグハンドル: ブロックの左側に表示 -->
+    <UEditorDragHandle :editor="editor" />
+
+    <!-- サジェストメニュー: / で起動 -->
+    <UEditorSuggestionMenu :editor="editor" :items="suggestionItems" />
+  </UEditor>
 </template>

@@ -82,6 +82,26 @@ export default defineEventHandler(async event => {
       where.OR = searchConditions;
     }
   }
+
+  // 日付レンジ検索 (createdAt)
+  // 受け取った Date を UTC の日付として扱い、日単位の境界に丸める
+  const startAt = query.startAt ? new Date(query.startAt) : undefined;
+  const endAt = query.endAt ? new Date(query.endAt) : undefined;
+
+  if (startAt || endAt) {
+    const gte = startAt ? new Date(startAt) : undefined;
+    if (gte) gte.setUTCHours(0, 0, 0, 0);
+
+    const lteBase = endAt ?? startAt;
+    const lte = lteBase ? new Date(lteBase) : undefined;
+    if (lte) lte.setUTCHours(23, 59, 59, 999);
+
+    where.createdAt = {
+      ...(gte ? { gte } : {}),
+      ...(lte ? { lte } : {}),
+    };
+  }
+
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,

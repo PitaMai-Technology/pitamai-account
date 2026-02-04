@@ -92,6 +92,8 @@ async function fetchLogs() {
       offset: state.offset,
       organizationId: state.organizationId,
       search: state.search || undefined,
+      startAt: dateFilter.start ? dateFilter.start.toISOString() : undefined,
+      endAt: dateFilter.end ? dateFilter.end.toISOString() : undefined,
     };
 
     const data = await $fetch('/api/pitamai/audit-list', {
@@ -99,28 +101,7 @@ async function fetchLogs() {
     });
 
     if (data) {
-      let fetched = data.logs as any[];
-
-      // クライアント側で日付レンジフィルタを適用
-      if (dateFilter.start || dateFilter.end) {
-        fetched = fetched.filter(log => {
-          const createdAt = new Date(log.createdAt);
-
-          if (dateFilter.start && createdAt < dateFilter.start) return false;
-
-          // 終了日の判定: end があれば end、なければ start (単一日指定) を基準にする
-          const endDateBase = dateFilter.end || dateFilter.start;
-          if (endDateBase) {
-            const end = new Date(endDateBase);
-            end.setHours(23, 59, 59, 999);
-            if (createdAt > end) return false;
-          }
-
-          return true;
-        });
-      }
-
-      logs.value = fetched;
+      logs.value = data.logs as any[];
       total.value = data.total;
     }
   } catch (e: any) {
@@ -214,11 +195,11 @@ const columns: TableColumn<any>[] = [
       <!-- 検索フォーム -->
       <UForm :schema="AuditListQuerySchema" :state="state" class="space-y-4 mb-8 mt-10" @submit="onSubmit">
         <div class="flex flex-wrap gap-4 items-end">
-          <UFormField label="組織" name="organizationId" class="min-w-[200px]">
+          <UFormField label="組織" name="organizationId" class="min-w-50">
             <USelect v-model="state.organizationId" :items="organizationItems"
               :placeholder="state.organizationId === undefined ? 'すべてのログ' : '組織を選択'" class="w-full" />
           </UFormField>
-          <UFormField label="全体検索" name="search" class="flex-1 min-w-[300px]">
+          <UFormField label="全体検索" name="search" class="flex-1 min-w-75">
             <UInput v-model="globalSearchInput" placeholder="アクション、対象ID、ユーザー名、メールアドレスで検索..." class="w-full"
               @keydown.enter.prevent="onSubmit()" />
           </UFormField>
@@ -255,7 +236,7 @@ const columns: TableColumn<any>[] = [
           }" />
       </div>
       <!-- 日付検索 -->
-      <UFormField label="日付範囲" name="dateRange" class="min-w-[260px] mt-6">
+      <UFormField label="日付範囲" name="dateRange" class="min-w-65 mt-6">
         <UPopover>
           <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
             <template v-if="dateFilter.start">

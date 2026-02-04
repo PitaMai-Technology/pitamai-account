@@ -13,7 +13,10 @@ const isActive = computed(() => props.editor.isActive('link'))
 
 function syncFromSelection() {
   const current = props.editor.getAttributes('link')?.href
-  href.value = typeof current === 'string' ? current : ''
+  // アクティブなリンクがある場合のみ上書き、なければ入力中の値を保持
+  if (typeof current === 'string' && current) {
+    href.value = current
+  }
 }
 
 watch(open, (v) => {
@@ -29,6 +32,7 @@ function apply() {
 
   if (!url) {
     props.editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    href.value = '' // 空欄で適用した場合はクリア
     open.value = false
     return
   }
@@ -41,11 +45,13 @@ function apply() {
   }
 
   props.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  // 適用成功時は入力値を保持(次回も使える)
   open.value = false
 }
 
 function remove() {
   props.editor.chain().focus().extendMarkRange('link').unsetLink().run()
+  href.value = '' // リンク解除時はクリア
   open.value = false
 }
 </script>
