@@ -3,8 +3,7 @@ import { authClient } from '~/composable/auth-client';
 import { useOrgRole } from '~/composable/useOrgRoleChecks';
 
 const session = authClient.useSession();
-const { role, canAccessAdmin, isRoleResolved } = useOrgRole();
-
+const { canAccessAdmin, isRoleResolved } = useOrgRole();
 const toast = useToast();
 const hasRedirected = ref(false);
 
@@ -38,17 +37,32 @@ if (import.meta.client) {
 
 <template>
   <div class="relative">
-    <AppHeader />
-    <UPage class="m-auto min-h-screen bg-emerald-50">
-      <template #left>
-        <AppPageAside />
-      </template>
-      <div class="max-w-7xl m-auto">
-        <UMain class="p-5 pt-10 max-w-6xl m-auto">
-          <slot />
-        </UMain>
-      </div>
-    </UPage>
+    <UDashboardGroup storage="local" storage-key="dashboard-layout">
+      <AppPageAside />
+
+      <UDashboardPanel id="standard" class="bg-emerald-50">
+        <template #header>
+          <UDashboardNavbar class="lg:hidden" />
+          <UDashboardToolbar class="hidden lg:flex bg-white py-6">
+            <template #left>
+              <UButton icon="i-lucide-home" to="/apps/dashboard" variant="ghost" color="neutral">
+                ダッシュボード
+              </UButton>
+            </template>
+
+            <template #right>
+              <UButton icon="i-lucide-settings" to="/apps/users/settings" variant="ghost" color="neutral" square />
+            </template>
+          </UDashboardToolbar>
+        </template>
+
+        <template #body>
+          <div>
+            <slot />
+          </div>
+        </template>
+      </UDashboardPanel>
+    </UDashboardGroup>
 
     <!-- セッションが保留中の場合のオーバーレイローダー -->
     <div v-if="session.isPending" class="fixed inset-0 z-50 grid place-items-center bg-white/70" aria-busy="true"

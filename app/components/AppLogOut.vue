@@ -3,6 +3,10 @@
 import { authClient } from '~/composable/auth-client';
 import { useConfirmDialog } from '~/composable/useConfirmDialog';
 
+defineProps<{
+  iconOnly?: boolean;
+}>();
+
 const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
 
 const loading = ref(false);
@@ -44,8 +48,8 @@ const onSignOut = async () => {
 </script>
 
 <template>
-  <UButton icon="i-lucide-log-out" :loading="loading" @click="onSignOut">
-    ログアウト
+  <UButton icon="i-lucide-log-out" :loading="loading" :square="iconOnly" @click="onSignOut">
+    <span v-if="!iconOnly">ログアウト</span>
   </UButton>
 
   <TheConfirmModal :open="confirmOpen" title="確認" message="本当にログアウトしますか？" @confirm="() => resolveConfirm(true)"

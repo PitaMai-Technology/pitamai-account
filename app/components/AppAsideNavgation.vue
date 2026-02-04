@@ -4,6 +4,10 @@ import { useActiveOrg } from '~/composable/useActiveOrg';
 import { useOrgRole } from '~/composable/useOrgRoleChecks';
 import { useWikiTreeNavigation } from '~/composable/useWikiTreeNavigation';
 
+defineProps<{
+  collapsed?: boolean;
+}>();
+
 const tabs = [
   {
     label: 'アプリ',
@@ -114,19 +118,10 @@ const session = authClient.useSession();
 
 <template>
   <div>
-    <div class="hidden xl:block mb-8">
-      <AppLogOut class="mb-8" />
-      <!-- <UButton @click="onFetchNavigation">
-        ナビゲーションを更新
-      </UButton> -->
-      <div class="my-4">
-        <h1 class="text-gray-600">{{ session.data?.user.email }} </h1>
-        <p class="text-gray-600">
-          あなたの役割: <strong>{{ role || '未所属' }}</strong>
-        </p>
-        <AppOrganaizationCheck class="mt-4" />
-      </div>
+    <div class="mb-6">
+      <AppOrganaizationCheck />
     </div>
+
     <UTabs :items="tabs" class="gap-5" variant="link" color="info">
       <template #apps>
 
@@ -147,11 +142,11 @@ const session = authClient.useSession();
       </template>
 
       <template #settings>
-        <UNavigationMenu :items="items" orientation="vertical" />
+        <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
 
         <template v-if="canAccessAdmin">
           <USeparator class="my-4" label="管理者のみ" />
-          <UNavigationMenu :items="adminItems" orientation="vertical" />
+          <UNavigationMenu :collapsed="collapsed" :items="adminItems" orientation="vertical" />
         </template>
       </template>
     </UTabs>
