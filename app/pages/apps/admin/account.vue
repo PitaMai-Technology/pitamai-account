@@ -29,6 +29,15 @@ interface AdminUser {
   banReason?: string | null;
 }
 
+interface AdminUserSession {
+  id: string;
+  createdAt?: string | Date;
+  expiresAt?: string | Date;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  impersonatedBy?: string | null;
+}
+
 const loading = ref(false);
 const users = ref<AdminUser[]>([]);
 const total = ref<number | undefined>(undefined);
@@ -148,6 +157,17 @@ const columns: TableColumn<AdminUser>[] = [
         h(
           UButton,
           {
+            icon: 'i-lucide-monitor',
+            color: 'neutral',
+            variant: 'outline',
+            disabled: loading.value,
+            onClick: () => openSessionsModal(user),
+          },
+          { default: () => 'セッション' }
+        ),
+        h(
+          UButton,
+          {
             icon: user.banned ? 'i-lucide-shield-check' : 'i-lucide-ban',
             color: user.banned ? 'primary' : 'warning',
             variant: user.banned ? 'outline' : 'solid',
@@ -172,6 +192,57 @@ const columns: TableColumn<AdminUser>[] = [
     },
   },
 ];
+
+const sessionColumns: TableColumn<AdminUserSession>[] = [
+  {
+    accessorKey: 'createdAt',
+    header: '作成',
+    cell: ({ row }) => formatDate(row.original.createdAt),
+  },
+  {
+    accessorKey: 'expiresAt',
+    header: '期限',
+    cell: ({ row }) => formatDate(row.original.expiresAt),
+  },
+  {
+    accessorKey: 'ipAddress',
+    header: 'IP',
+    cell: ({ row }) => row.original.ipAddress ?? '-',
+  },
+  {
+    accessorKey: 'impersonatedBy',
+    header: () => h('span', { class: 'whitespace-nowrap' }, '代理'),
+    cell: ({ row }) => row.original.impersonatedBy ?? '-',
+  },
+  {
+    accessorKey: 'userAgent',
+    header: 'UA',
+    cell: ({ row }) => {
+      const ua = row.original.userAgent;
+      if (!ua) return '-';
+
+      const maxLen = 48;
+      const isLong = ua.length > maxLen;
+      const display = isLong ? `${ua.slice(0, maxLen)}…` : ua;
+
+      return h(
+        'span',
+        {
+          class: 'inline-block w-80 max-w-80 truncate align-middle',
+          title: ua,
+        },
+        display
+      );
+    },
+  },
+];
+
+function formatDate(value: unknown) {
+  if (!value) return '-';
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('ja-JP');
+}
 
 async function onChangeUserRole(user: AdminUser, newRole: OrgRole) {
   if (user.role === newRole) return;
@@ -281,6 +352,83 @@ let pendingUser: AdminUser | null = null;
 // BAN理由入力用モーダル
 const banModalOpen = ref(false);
 const banReasonDraft = ref('管理者によるBAN');
+
+// セッション一覧モーダル
+const sessionsModalOpen = ref(false);
+const sessionsLoading = ref(false);
+const sessions = ref<AdminUserSession[]>([]);
+const sessionsTargetUser = ref<AdminUser | null>(null);
+
+// セッション全削除(確認用) - セッション一覧モーダル内にネストして開く
+const revokeSessionsConfirmOpen = ref(false);
+const revokeSessionsLoading = ref(false);
+
+async function fetchUserSessions(userId: string) {
+  sessionsLoading.value = true;
+  try {
+    const data = await $fetch<any>('/api/auth/admin/list-user-sessions', {
+      method: 'POST',
+      body: { userId },
+    });
+
+    const list: unknown = data?.sessions ?? data;
+
+    if (Array.isArray(list)) {
+      sessions.value = list as AdminUserSession[];
+    } else {
+      sessions.value = [];
+    }
+  } catch (e: unknown) {
+    console.error('admin list-user-sessions error:', e);
+    toast.add({
+      title: 'エラー',
+      description: 'セッション一覧の取得に失敗しました',
+      color: 'error',
+    });
+    sessions.value = [];
+  } finally {
+    sessionsLoading.value = false;
+  }
+}
+
+async function openSessionsModal(user: AdminUser) {
+  sessionsTargetUser.value = user;
+  sessionsModalOpen.value = true;
+  await fetchUserSessions(user.id);
+}
+
+async function revokeAllSessionsForTargetUser() {
+  const user = sessionsTargetUser.value;
+  if (!user) return;
+
+  revokeSessionsLoading.value = true;
+  try {
+    await $fetch('/api/auth/admin/revoke-user-sessions', {
+      method: 'POST',
+      body: { userId: user.id },
+    });
+
+    toast.add({
+      title: '削除しました',
+      description: 'ユーザーのセッションをすべて削除しました',
+      color: 'success',
+    });
+
+    await fetchUserSessions(user.id);
+    await fetchUsers();
+
+    revokeSessionsConfirmOpen.value = false;
+  } catch (e: unknown) {
+    console.error('admin revoke-user-sessions error:', e);
+    toast.add({
+      title: 'エラー',
+      description: 'セッションの削除に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    revokeSessionsLoading.value = false;
+  }
+}
 
 function confirmDeleteUser(user: AdminUser) {
   pendingUser = user;
@@ -477,6 +625,55 @@ async function onSubmit(event?: FormSubmitEvent<{ limit?: number; offset?: numbe
           :loading="loading" empty="ユーザーが見つかりません。" class="table-fixed" :ui="{ td: 'break-words' }" />
       </div>
       <TheConfirmModal v-model:open="confirmOpen" :message="confirmMessage" @confirm="onConfirmAction" />
+
+      <UModal v-model:open="sessionsModalOpen" scrollable title="セッション一覧"
+        :description="sessionsTargetUser?.email ?? sessionsTargetUser?.id ?? ''" :ui="{ footer: 'justify-end' }"
+        class="max-w-4xl">
+        <template #body>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm text-gray-600">
+                件数:
+                <span class="font-medium">{{ sessions.length }}</span>
+              </p>
+              <UButton variant="ghost" size="sm" :loading="sessionsLoading" :disabled="!sessionsTargetUser"
+                @click="sessionsTargetUser && fetchUserSessions(sessionsTargetUser.id)">
+                更新
+              </UButton>
+            </div>
+
+            <div v-if="sessionsLoading" class="py-8 flex items-center justify-center">
+              <TheLoader />
+            </div>
+
+            <div v-else class="overflow-x-auto">
+              <UTable :data="sessions" :columns="sessionColumns" empty="セッションが見つかりません。" class="table-fixed"
+                :ui="{ td: 'break-words' }" />
+            </div>
+          </div>
+        </template>
+
+        <template #footer="{ close }">
+          <UButton variant="ghost" :disabled="sessionsLoading" @click="close()">閉じる</UButton>
+          <UButton color="error" :disabled="sessionsLoading || !sessionsTargetUser"
+            @click="revokeSessionsConfirmOpen = true">
+            全セッション削除
+          </UButton>
+
+          <UModal v-model:open="revokeSessionsConfirmOpen" title="確認" :ui="{ footer: 'justify-end' }">
+            <template #body>
+              {{ (sessionsTargetUser?.email ?? sessionsTargetUser?.id ?? '') + ' のセッションをすべて削除します。よろしいですか？' }}
+            </template>
+
+            <template #footer="{ close: closeConfirm }">
+              <UButton variant="ghost" :disabled="revokeSessionsLoading" @click="closeConfirm()">キャンセル</UButton>
+              <UButton color="error" :loading="revokeSessionsLoading" @click="revokeAllSessionsForTargetUser">
+                削除する
+              </UButton>
+            </template>
+          </UModal>
+        </template>
+      </UModal>
 
       <UModal v-model:open="banModalOpen" title="BAN理由" description="空欄の場合は「管理者によるBAN」になります。"
         :ui="{ footer: 'justify-end' }">
