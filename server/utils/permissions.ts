@@ -14,26 +14,26 @@ import {
 const statement = {
   ...orgDefaultStatements,
   ...adminDefaultStatements, // adminプラグインのdefaultStatementsも追加
-  project: ['create', 'share', 'update', 'delete'],
+  project: ['create', 'admin-share', 'owner', 'update', 'audit-log'], // プロジェクト関連の権限を定義
 } as const;
 
 const ac = createAccessControl(statement);
 
 const member = ac.newRole({
   ...memberAc.statements,
-  // member には project: "share" 権限を付与しない
+  // member には project: "admin-share" 権限を付与しない
   project: ['create'],
 });
 const admins = ac.newRole({
   ...adminAc.statements,
   ...adminPluginAc.statements, // adminプラグインの権限も統合
-  // admin 以上だけが project: "share" を持つようにする
-  project: ['create', 'update', 'share'],
+  // admin 以上だけが project: "admin-share" を持つようにする
+  project: ['create', 'update', 'admin-share'],
 });
 const owner = ac.newRole({
   ...ownerAc.statements,
   ...adminPluginAc.statements, // adminプラグインの権限も統合
-  project: ['create', 'update', 'delete', 'share'],
+  project: ['create', 'update', 'admin-share', 'audit-log', 'owner'],
 });
 
 export { ac, member, admins, owner };

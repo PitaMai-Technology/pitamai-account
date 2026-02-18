@@ -4,6 +4,7 @@ import { AuditListQuerySchema, type AuditListQuery } from '~~/shared/types/audit
 
 definePageMeta({
   layout: 'the-app',
+  middleware: ['only-audit-log'],
 });
 
 const toast = useToast();

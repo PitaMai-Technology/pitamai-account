@@ -6,7 +6,9 @@ import type { OrgRole } from '~~/server/utils/authorize';
 
 definePageMeta({
   layout: 'the-app',
+  middleware: ['only-owner'],
 });
+
 
 const toast = useToast();
 
@@ -225,13 +227,45 @@ const sessionColumns: TableColumn<AdminUserSession>[] = [
       const isLong = ua.length > maxLen;
       const display = isLong ? `${ua.slice(0, maxLen)}…` : ua;
 
+      if (!isLong) {
+        return h(
+          'span',
+          {
+            class: 'inline-block w-80 max-w-80 truncate align-middle',
+            title: ua,
+          },
+          display
+        );
+      }
+
+      const UPopover = resolveComponent('UPopover');
       return h(
-        'span',
+        UPopover,
         {
-          class: 'inline-block w-80 max-w-80 truncate align-middle',
-          title: ua,
+          mode: 'hover',
+          openDelay: 150,
+          closeDelay: 80,
         },
-        display
+        {
+          default: () =>
+            h(
+              'span',
+              {
+                class:
+                  'inline-block w-80 max-w-80 truncate align-middle cursor-help',
+              },
+              display
+            ),
+          content: () =>
+            h(
+              'div',
+              {
+                class:
+                  'max-w-sm p-2 text-sm whitespace-pre-wrap break-words text-gray-700',
+              },
+              ua
+            ),
+        }
       );
     },
   },

@@ -43,27 +43,27 @@ const adminItems = [
         {
           label: '組織作成',
           icon: 'i-lucide-plus-circle',
-          to: '/apps/admin/create-organization',
+          to: '/apps/admin/organization/create-organization',
         },
         {
           label: '組織情報更新',
           icon: 'i-lucide-edit',
-          to: '/apps/admin/organization-update',
+          to: '/apps/admin/organization/organization-update',
         },
         {
           label: '組織削除',
           icon: 'i-lucide-trash',
-          to: '/apps/admin/organization-delete',
+          to: '/apps/admin/organization/organization-delete',
         },
         {
           label: 'メンバー管理',
           icon: 'i-lucide-users',
-          to: '/apps/admin/member',
+          to: '/apps/admin/organization/member',
         },
         {
           label: 'メンバー招待',
           icon: 'i-lucide-mail-plus',
-          to: '/apps/admin/member-add',
+          to: '/apps/admin/organization/member-add',
         },
         {
           label: '監査ログ',

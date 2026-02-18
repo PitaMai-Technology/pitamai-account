@@ -20,6 +20,12 @@ export function useOrgRole() {
   const activeOrganization = useActiveOrg();
   const roleRef = ref<OrgRole | null>(null);
   const isRoleResolved = ref(false);
+  const session = authClient.useSession();
+
+  const globalRole = computed(() => {
+    const value = session.value?.data?.user?.role;
+    return typeof value === 'string' ? value : null;
+  });
 
   const resolveRoleFromResponse = (response: unknown): OrgRole | null => {
     if (!response || typeof response !== 'object') return null;
@@ -74,17 +80,28 @@ export function useOrgRole() {
   // サイドナビでは、useOrgRoleChecks の canAccessAdmin を使って「管理者のみ」セクションの表示/非表示を制御する。
 
   const canAccessAdmin = computed(() => {
-    if (!roleRef.value) return false;
-    return authClient.organization.checkRolePermission({
-      permissions: {
-        project: ['share'],
-      },
-      role: roleRef.value,
-    });
+    const canGlobal = globalRole.value
+      ? authClient.admin.checkRolePermission({
+          permissions: { user: ['list'] },
+          role: globalRole.value as 'member' | 'admins' | 'owner',
+        })
+      : false;
+
+    const canOrg = roleRef.value
+      ? authClient.organization.checkRolePermission({
+          permissions: {
+            project: ['admin-share'],
+          },
+          role: roleRef.value,
+        })
+      : false;
+
+    return canGlobal || canOrg;
   });
 
   return {
     role: readonly(roleRef),
+    globalRole: readonly(globalRole),
     canAccessAdmin,
     isRoleResolved: readonly(isRoleResolved),
     fetchActiveMemberRole,

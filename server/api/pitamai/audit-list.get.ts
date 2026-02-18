@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { assertHasAnyPermission } from '~~/server/utils/authorize';
 import { AuditListQuerySchema } from '~~/shared/types/audit-list';
 import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
-  // owner 権限チェック (現在のアクティブな組織での権限)
+  // audit-log 権限、または owner 権限を持つユーザーのみ許可
   await assertActiveMemberRole(event, ['owner']);
 
   const query = await getValidatedQuery(event, body =>
