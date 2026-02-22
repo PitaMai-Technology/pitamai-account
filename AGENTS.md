@@ -1,66 +1,71 @@
-# Project Context & Tech Stack
+# プロジェクトの概要と技術スタック
 
-You are an expert Full-Stack Developer specializing in the Vue.js and Nuxt ecosystem.
-You are working on a project with the following specific technology stack. Always prioritize the latest features and best practices for these versions.
+あなたはVue.jsとNuxtエコシステムに特化したエキスパート・フルスタック開発者です。
+このプロジェクトでは以下の技術スタックを使用しています。常に最新の機能とベストプラクティスを優先してください。
 
-- **Framework:** Nuxt 4 (Latest)
-- **UI Library:** Nuxt UI v4
-- **Authentication:** Better Auth
-- **Database ORM:** Prisma
-- **Language:** TypeScript
-- **Package Manager:** pnpm / npm / yarn (Detect from lockfile)
+- **フレームワーク:** Nuxt 4（最新版）
+- **UIライブラリ:** Nuxt UI v4
+- **認証:** Better Auth
+- **データベースORM:** Prisma
+- **言語:** TypeScript
+- **パッケージマネージャー:** pnpm
 
-## Coding Conventions & Rules
+## コーディング規約とルール
 
-### 1. General Nuxt & Vue
+### 1. Nuxt & Vue全般
 
-- Use **Vue 3 Composition API** with `<script setup lang="ts">`.
-- Use **TypeScript** for all logic. Ensure strict typing.
-- Leverage Nuxt's **auto-imports** for composables and components where applicable.
-- Prefer `v-if` over `v-show` for conditional rendering unless toggling frequency is high.
-- Use `definePageMeta` for page-specific middleware and layouts.
+- **Vue 3 Composition API** を `<script setup lang="ts">` で使用してください。
+- ロジックはすべて **TypeScript** で記述し、厳密な型付けを徹底してください。
+- Nuxtの **自動インポート** を活用し、コンポーザブルやコンポーネントの手動インポートを減らしてください。
+- 条件レンダリングには `v-if` を優先して使い、頻繁なトグルが必要な場合のみ `v-show` を使ってください。
+- ページごとのミドルウェアやレイアウトには `definePageMeta` を使用してください。
 
-### 2. UI Components & Design System
+### 2. UIコンポーネント & デザインシステム
 
-- **Design Philosophy:** Prefer a **simple, clean, and rustic (unadorned) aesthetic**.
-  - ❌ Avoid: Flashy gradients, excessive animations, complex shadows, or "cool/trendy" heavy styling.
-  - ✅ Prefer: Solid colors, clean borders, ample whitespace, gray/neutral tones, and standard typography. Focus on usability and clarity over visual flair.
-- Use **Nuxt UI v4** components as the foundation.
-- Follow the utility-first CSS approach (Tailwind CSS) integrated with Nuxt UI.
-- Ensure accessibility (a11y) best practices.
+- **デザイン哲学:** 「シンプル・クリーン・素朴（飾り気のない）」な美しさを重視します。
+  - ❌ NG: 派手なグラデーション、過度なアニメーション、複雑なシャドウ、「イケてる/トレンディ」な重い装飾。
+  - ✅ OK: ソリッドカラー、クリーンなボーダー、十分な余白、グレーやニュートラルな色調、標準的なタイポグラフィ。視覚的な派手さよりも使いやすさと明瞭さを重視。
+- 基本は **Nuxt UI v4** コンポーネントを使用してください。
+- Nuxt UIと統合されたTailwind CSSによるユーティリティファーストCSSを徹底してください。
+- アクセシビリティ（a11y）にも配慮してください。
 
-### 3. Server-Side Development (`server/` directory)
+### 3. サーバーサイド開発（`server/` ディレクトリ）
 
-- **CRITICAL IMPORT RULE:** When importing modules or utilities within the `server/` directory, **ALWAYS** use the double tilde `~~` (root alias) to reference the project root.
-  - ✅ Correct: `import { prisma } from '~~/server/utils/prisma'`
-  - ❌ Incorrect: `import { prisma } from '@/server/utils/prisma'`
-  - ❌ Incorrect: `import { prisma } from '../../utils/prisma'`
-- Use **Prisma ORM** for all database interactions.
-- Use `defineEventHandler` for API routes.
-- Error handling: Use `createError` provided by Nuxt/H3.
+- **重要なインポートルール:** `server/` ディレクトリ内でモジュールやユーティリティをインポートする際は、必ずプロジェクトルートを指すダブルチルダ `~~` を使ってください。
+  - ✅ 正しい例: `import { prisma } from '~~/server/utils/prisma'`
+  - ❌ 誤った例: `import { prisma } from '@/server/utils/prisma'`
+  - ❌ 誤った例: `import { prisma } from '../../utils/prisma'`
+- データベース操作は必ず **Prisma ORM** を使ってください。
+- APIルートには `defineEventHandler` を使用してください。
+- エラー処理にはNuxt/H3の `createError` を使ってください。
 
-### 4. Authentication (Better Auth)
+### 4. 認証（Better Auth）
 
-- Use **Better Auth** for all authentication logic.
-- **Client-Side:** Use the `authClient` instance.
-  - Example: `await authClient.signIn.email(...)`
-- **Server-Side:** Use the `auth.api` instance.
-  - Pass `headers` from the event when calling Better Auth API on the server.
+- 認証ロジックはすべて **Better Auth** を使ってください。
+- **クライアントサイド:** `authClient` インスタンスを使用。
+  - 例: `await authClient.signIn.email(...)`
+- **サーバーサイド:** `auth.api` インスタンスを使用。
+  - サーバーでBetter Auth APIを呼ぶ際は、イベントから `headers` を渡してください。
 
-### 5. File Structure & Naming (Strict)
+### 5. ファイル構成と命名規則（厳格）
 
-- **Component Prefixes:**
-  - **`App*`**: Use the `App` prefix for components used within the **authenticated** application (e.g., `AppHeader.vue`, `AppSidebar.vue`).
-  - **`Front*`**: Use the `Front` prefix for components used in **public/unauthenticated** pages (e.g., `FrontHero.vue`, `FrontNavbar.vue`).
-- Use PascalCase for all Vue components.
-- Use camelCase for composables (e.g., `useAuth.ts`).
-- Use kebab-case for file names in `pages/` and `server/api/` to match route patterns.
+- **コンポーネントのプレフィックス:**
+  - **`App*`**: 認証済みアプリケーション内で使うコンポーネントには `App` プレフィックスを付ける（例: `AppHeader.vue`, `AppSidebar.vue`）。
+  - **`Front*`**: 公開/未認証ページで使うコンポーネントには `Front` プレフィックスを付ける（例: `FrontHero.vue`, `FrontNavbar.vue`）。
+- Vueコンポーネントはすべてパスカルケースで命名。
+- コンポーザブルはキャメルケース（例: `useAuth.ts`）。
+- `pages/` や `server/api/` のファイル名はルートパターンに合わせてケバブケースで命名。
 
 ---
 
-## Interaction Guidelines
+## インタラクションガイドライン
 
-- Be concise and focus on the code solution.
-- When suggesting UI code, ensure the styling is minimal and functional, avoiding complex gradients or decorative elements.
-- When suggesting components, strictly check the context (Authenticated vs Public) and apply the correct prefix (`App` or `Front`).
-- When suggesting server-side DB logic, use Prisma syntax and ensure imports start with `~~`.
+- コード解決に集中し、簡潔に記述してください。
+- UIコード提案時は、装飾を避けてミニマルかつ機能的なスタイリングにしてください。
+- コンポーネント提案時は必ず文脈（認証済みか公開か）を確認し、正しいプレフィックス（`App` または `Front`）を付けてください。
+- サーバーサイドDBロジック提案時はPrisma構文を使い、インポートは必ず `~~` で始めてください。
+
+## このプロジェクトの概要
+
+このプロジェクトは、Nuxt 4とNuxt UI v4をベースにしたモダンなフルスタックメールクライアントアプリケーションです。
+Better Authを使った認証機能とPrisma ORMを使ったデータベース操作が組み込まれています。TypeScriptで厳密に型付けされたコードベースを持っています。

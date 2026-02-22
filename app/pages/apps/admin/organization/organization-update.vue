@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
+import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
-import { useConfirmDialog } from '~/composable/useConfirmDialog';
+import { usePageLeaveGuard } from '~/composable/usePageLeaveGuard';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 import {
   organizationUpdateSchema,
   type OrganizationUpdateForm,
@@ -39,16 +41,12 @@ const state = reactive<Partial<OrganizationUpdateForm>>({
 const loading = ref(false);
 
 // 共通確認モーダル
-const {
-  open: confirmOpen,
-  message: confirmMessage,
-  confirm: confirmDialog,
-  resolve: resolveConfirm,
-  registerPageLeaveGuard,
-} = useConfirmDialog();
+const confirmStore = useConfirmDialogStore();
+const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
+const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
 // ページ離脱ガードを有効化（離脱時専用メッセージ）
-registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
+usePageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 const selectedOrg = computed(() => {
   return ownerOrganizations.value?.find(org => org.id === state.organizationId);

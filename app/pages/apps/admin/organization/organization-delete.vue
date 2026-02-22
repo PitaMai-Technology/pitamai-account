@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
+import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
-import { useConfirmDialog } from '~/composable/useConfirmDialog';
+import { usePageLeaveGuard } from '~/composable/usePageLeaveGuard';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 import {
   organizationDeleteSchema,
   type OrganizationDeleteForm,
@@ -25,17 +27,13 @@ const state = reactive<Partial<OrganizationDeleteForm>>({
 
 const loading = ref(false);
 
-// 共通確認モーダル composable
-const {
-  open: confirmOpen,
-  message: confirmMessage,
-  confirm: confirmDialog,
-  resolve: resolveConfirm,
-  registerPageLeaveGuard,
-} = useConfirmDialog();
+// 共通確認モーダル
+const confirmStore = useConfirmDialogStore();
+const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
+const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
 // ページ離脱ガードを有効化
-registerPageLeaveGuard();
+usePageLeaveGuard();
 
 // 選択した組織を取得
 const selectedOrg = computed(() => {

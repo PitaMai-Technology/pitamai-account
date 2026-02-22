@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
-import { useConfirmDialog } from '~/composable/useConfirmDialog';
+import { storeToRefs } from 'pinia';
+import { usePageLeaveGuard } from '~/composable/usePageLeaveGuard';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 import { userUpdateSchema, type UserUpdate } from '~~/shared/types/user-update';
 
 definePageMeta({
@@ -17,17 +19,13 @@ const state = reactive<Partial<UserUpdate>>({
 
 const loading = ref(false);
 
-// 共通確認モーダル composable
-const {
-  open: confirmOpen,
-  message: confirmMessage,
-  confirm: confirmDialog,
-  resolve: resolveConfirm,
-  registerPageLeaveGuard,
-} = useConfirmDialog();
+// 共通確認モーダル
+const confirmStore = useConfirmDialogStore();
+const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
+const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
-// ページ離脱ガードを有効化（離脱時専用メッセージ）
-registerPageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
+// ページ離脱ガードを有効化
+usePageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 const toast = useToast();
 

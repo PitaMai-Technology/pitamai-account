@@ -1,13 +1,16 @@
 <script setup lang="ts">
 
+import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
-import { useConfirmDialog } from '~/composable/useConfirmDialog';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
 defineProps<{
   iconOnly?: boolean;
 }>();
 
-const { open: confirmOpen, confirm: confirmDialog, resolve: resolveConfirm } = useConfirmDialog();
+const confirmStore = useConfirmDialogStore();
+const { open: confirmOpen } = storeToRefs(confirmStore);
+const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
 const loading = ref(false);
 const toast = useToast();

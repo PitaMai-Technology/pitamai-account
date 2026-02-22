@@ -2,7 +2,13 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  modules: ['@nuxt/eslint', '@nuxt/ui', '@sentry/nuxt/module', '@nuxtjs/mdc'],
+  modules: [
+    '@nuxt/eslint',
+    '@nuxt/ui',
+    '@sentry/nuxt/module',
+    '@nuxtjs/mdc',
+    '@pinia/nuxt',
+  ],
   css: ['~/assets/main.css'],
 
   nitro: {

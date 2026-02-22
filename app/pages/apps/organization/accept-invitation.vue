@@ -1,6 +1,12 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
-import { useConfirmDialog } from '~/composable/useConfirmDialog';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
+
+const confirmStore = useConfirmDialogStore();
+const { open: confirmOpen } = storeToRefs(confirmStore);
+const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
+
 const toast = useToast();
 
 definePageMeta({
@@ -14,15 +20,6 @@ const invitationId = computed(
 );
 const loading = ref(false);
 const message = ref('');
-const {
-  open: confirmOpen,
-  confirm: confirmDialog,
-  resolve: resolveConfirm,
-} = useConfirmDialog();
-
-/**
- * 組織への招待を承認する関数
- */
 async function acceptInvitation() {
   const confirmed = await confirmDialog();
   if (!confirmed) {

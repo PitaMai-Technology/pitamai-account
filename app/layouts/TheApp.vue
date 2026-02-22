@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
-import { useOrgRole } from '~/composable/useOrgRoleChecks';
+import { useOrgRoleStore } from '~/stores/orgRole';
 
 const session = authClient.useSession();
-const { canAccessAdmin, isRoleResolved } = useOrgRole();
+const { canAccessAdmin, isRoleResolved } = storeToRefs(useOrgRoleStore());
 const toast = useToast();
 const hasRedirected = ref(false);
 

@@ -3,8 +3,7 @@ import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
   if (
-    (!event.path.startsWith('/api/pitamai/') &&
-      !event.path.startsWith('/api/wiki')) ||
+    !event.path.startsWith('/api/pitamai/') ||
     event.path.startsWith('/api/auth/organization')
   ) {
     return;

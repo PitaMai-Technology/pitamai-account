@@ -1,25 +1,10 @@
 <script setup lang="ts">
-import { authClient } from '~/composable/auth-client';
-import { useActiveOrg } from '~/composable/useActiveOrg';
-import { useOrgRole } from '~/composable/useOrgRoleChecks';
-import { useWikiTreeNavigation } from '~/composable/useWikiTreeNavigation';
+import { storeToRefs } from 'pinia';
+import { useOrgRoleStore } from '~/stores/orgRole';
 
 defineProps<{
   collapsed?: boolean;
 }>();
-
-const tabs = [
-  {
-    label: 'アプリ',
-    icon: 'i-lucide-app-window',
-    slot: 'apps',
-  },
-  {
-    label: '設定',
-    icon: 'i-lucide-user',
-    slot: 'settings',
-  }
-];
 
 const items = ref([
   {
@@ -100,20 +85,8 @@ const adminItems = [
     },
   ],
 ];
-const { role, canAccessAdmin } = useOrgRole();
 
-const activeOrg = useActiveOrg();
-
-const {
-  wikiTreeItems,
-  wikiTreePending,
-  activeOrganizationId,
-  wikiTreeValue,
-  getWikiTreeKey,
-  onWikiTreeSelect,
-} = useWikiTreeNavigation();
-
-const session = authClient.useSession();
+const { canAccessAdmin } = storeToRefs(useOrgRoleStore());
 </script>
 
 <template>
@@ -122,33 +95,11 @@ const session = authClient.useSession();
       <AppOrganaizationCheck />
     </div>
 
-    <UTabs :items="tabs" class="gap-5" variant="link" color="info">
-      <template #apps>
+    <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
 
-        <template v-if="!activeOrganizationId">
-          <p class="text-sm text-muted">
-            組織を選択してください。
-          </p>
-        </template>
-        <template v-else-if="wikiTreePending">
-          <USkeleton class="bg-gray-100 h-48 w-full" />
-        </template>
-
-        <template v-else>
-          <UTree v-model="wikiTreeValue" size="md" :items="wikiTreeItems" :get-key="getWikiTreeKey"
-            :on-select="onWikiTreeSelect" />
-        </template>
-
-      </template>
-
-      <template #settings>
-        <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
-
-        <template v-if="canAccessAdmin">
-          <USeparator class="my-4" label="管理者のみ" />
-          <UNavigationMenu :collapsed="collapsed" :items="adminItems" orientation="vertical" />
-        </template>
-      </template>
-    </UTabs>
+    <template v-if="canAccessAdmin">
+      <USeparator class="my-4" label="管理者のみ" />
+      <UNavigationMenu :collapsed="collapsed" :items="adminItems" orientation="vertical" />
+    </template>
   </div>
 </template>
