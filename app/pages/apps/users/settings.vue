@@ -40,6 +40,147 @@ const emailState = reactive<Partial<UserChangeEmailSettings>>({
   newEmail: '',
 });
 
+const mailServerState = reactive({
+  username: '',
+  password: '',
+  imapHost: '',
+  imapPort: 993,
+  imapSecure: true,
+  smtpHost: '',
+  smtpPort: 465,
+  smtpSecure: true,
+});
+const mailServerLoading = ref(false);
+const imapTestLoading = ref(false);
+const smtpTestLoading = ref(false);
+
+async function loadMailServerSetting() {
+  try {
+    const response = await $fetch<{
+      hasSetting: boolean;
+      user: { email: string; name: string };
+      setting: {
+        username: string;
+        imapHost: string;
+        imapPort: number;
+        imapSecure: boolean;
+        smtpHost: string;
+        smtpPort: number;
+        smtpSecure: boolean;
+      } | null;
+    }>('/api/pitamai/mail/settings');
+
+    if (response.setting) {
+      mailServerState.username = response.setting.username;
+      mailServerState.imapHost = response.setting.imapHost;
+      mailServerState.imapPort = response.setting.imapPort;
+      mailServerState.imapSecure = response.setting.imapSecure;
+      mailServerState.smtpHost = response.setting.smtpHost;
+      mailServerState.smtpPort = response.setting.smtpPort;
+      mailServerState.smtpSecure = response.setting.smtpSecure;
+      mailServerState.password = '';
+    } else {
+      mailServerState.username = response.user.email;
+    }
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description:
+        err instanceof Error ? err.message : 'メールサーバー設定の取得に失敗しました',
+      color: 'error',
+    });
+  }
+}
+
+async function onSubmitMailServer() {
+  if (mailServerLoading.value) return;
+
+  const confirmed = await confirmDialog('メールサーバー設定を保存しますか？');
+  if (!confirmed) return;
+
+  mailServerLoading.value = true;
+  try {
+    await $fetch('/api/pitamai/mail/settings', {
+      method: 'POST',
+      body: {
+        username: mailServerState.username,
+        password:
+          mailServerState.password.trim() === ''
+            ? undefined
+            : mailServerState.password,
+        imapHost: mailServerState.imapHost,
+        imapPort: Number(mailServerState.imapPort),
+        imapSecure: mailServerState.imapSecure,
+        smtpHost: mailServerState.smtpHost,
+        smtpPort: Number(mailServerState.smtpPort),
+        smtpSecure: mailServerState.smtpSecure,
+      },
+    });
+
+    mailServerState.password = '';
+    toast.add({
+      title: '成功',
+      description: 'メールサーバー設定を保存しました',
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description:
+        err instanceof Error ? err.message : 'メールサーバー設定の保存に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    mailServerLoading.value = false;
+  }
+}
+
+async function onTestImapConnection() {
+  if (imapTestLoading.value) return;
+
+  imapTestLoading.value = true;
+  try {
+    await $fetch('/api/pitamai/mail/imap-test');
+    toast.add({
+      title: '接続成功',
+      description: 'IMAPサーバーに接続できました',
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: '接続失敗',
+      description:
+        err instanceof Error ? err.message : 'IMAPサーバー接続テストに失敗しました',
+      color: 'error',
+    });
+  } finally {
+    imapTestLoading.value = false;
+  }
+}
+
+async function onTestSmtpConnection() {
+  if (smtpTestLoading.value) return;
+
+  smtpTestLoading.value = true;
+  try {
+    await $fetch('/api/pitamai/mail/smtp-test');
+    toast.add({
+      title: '接続成功',
+      description: 'SMTPサーバーに接続できました',
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: '接続失敗',
+      description:
+        err instanceof Error ? err.message : 'SMTPサーバー接続テストに失敗しました',
+      color: 'error',
+    });
+  } finally {
+    smtpTestLoading.value = false;
+  }
+}
+
 const loading = ref(false);
 
 // 共通確認モーダル
@@ -159,6 +300,10 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
     loading.value = false;
   }
 }
+
+onMounted(async () => {
+  await loadMailServerSetting();
+});
 </script>
 
 <template>
@@ -190,6 +335,54 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
             <UButton type="submit" color="primary" :loading="loading">メールアドレスを更新</UButton>
           </div>
         </UForm>
+
+        <hr />
+        <h2 class="text-xl font-semibold">メールサーバー設定（個人）</h2>
+        <div class="space-y-4">
+          <UFormField label="ユーザー名" name="mail.username" required>
+            <UInput v-model="mailServerState.username" placeholder="user@example.com" />
+          </UFormField>
+
+          <UFormField label="パスワード" name="mail.password">
+            <UInput v-model="mailServerState.password" type="password" placeholder="変更しない場合は空欄" />
+          </UFormField>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField label="IMAP Host" name="mail.imapHost" required>
+              <UInput v-model="mailServerState.imapHost" placeholder="imap.example.com" />
+            </UFormField>
+
+            <UFormField label="IMAP Port" name="mail.imapPort" required>
+              <UInput v-model.number="mailServerState.imapPort" type="number" />
+            </UFormField>
+
+            <UFormField label="SMTP Host" name="mail.smtpHost" required>
+              <UInput v-model="mailServerState.smtpHost" placeholder="smtp.example.com" />
+            </UFormField>
+
+            <UFormField label="SMTP Port" name="mail.smtpPort" required>
+              <UInput v-model.number="mailServerState.smtpPort" type="number" />
+            </UFormField>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UCheckbox v-model="mailServerState.imapSecure" label="IMAP Secure (TLS)" />
+            <UCheckbox v-model="mailServerState.smtpSecure" label="SMTP Secure (TLS)" />
+          </div>
+
+          <div class="flex gap-2">
+            <UButton color="primary" :loading="mailServerLoading" @click="onSubmitMailServer">
+              メールサーバー設定を保存
+            </UButton>
+            <UButton color="neutral" variant="outline" :loading="imapTestLoading" @click="onTestImapConnection">
+              IMAP接続テスト
+            </UButton>
+            <UButton color="neutral" variant="outline" :loading="smtpTestLoading" @click="onTestSmtpConnection">
+              SMTP接続テスト
+            </UButton>
+          </div>
+          <p class="text-xs text-gray-500">接続テストは保存済み設定を使用します。</p>
+        </div>
       </div>
     </AppBackgroundCard>
 

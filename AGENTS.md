@@ -69,3 +69,38 @@
 
 このプロジェクトは、Nuxt 4とNuxt UI v4をベースにしたモダンなフルスタックメールクライアントアプリケーションです。
 Better Authを使った認証機能とPrisma ORMを使ったデータベース操作が組み込まれています。TypeScriptで厳密に型付けされたコードベースを持っています。
+
+自前サーバー型（IMAP/SMTP）メールクライアント仕様
+
+### リアルタイム通知アプローチ
+
+方式: SSE (Server-Sent Events) による通知。
+
+理由: WebSockets よりも軽量で Nuxt (Nitro) のストリーミング応答と親和性が高いため。
+
+### 仕組み: 1. server/api/mail/stream.get.ts でストリームを確立。
+
+2. Nitroサーバーサイドで imapflow の IDLE モードを維持。
+3. 新着メール検知時に eventStream.push() を実行し、クライアントへ通知。
+
+### 使用ライブラリ
+
+IMAP 受信: imapflow (Promise-based, IDLE support)
+
+SMTP 送信: nodemailer
+
+MIME 解析: mailparser
+
+サニタイズ: isomorphic-dompurify (v-htmlの安全な描画)
+
+### データ管理 (Prisma)
+
+MailAccount: ユーザーごとの接続情報（ホスト、ポート、暗号化パスワード）を管理。
+
+MailCache: パフォーマンス向上のため、メッセージのメタデータ（UID, Subject, Date）をキャッシュ。
+
+### セキュリティ要件
+
+メールの表示には AppMailBody コンポーネントを使用し、必ずサーバー/クライアント両側でサニタイズを適用する。
+
+パスワードはデータベース内で対称暗号化（AES-256）を施して保存する。

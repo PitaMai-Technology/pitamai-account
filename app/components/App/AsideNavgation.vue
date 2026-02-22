@@ -13,6 +13,11 @@ const items = ref([
     to: '/apps/dashboard',
   },
   {
+    label: 'メール',
+    icon: 'i-lucide-inbox',
+    to: '/apps/mail',
+  },
+  {
     label: '設定',
     icon: 'i-lucide-user',
     to: '/apps/users/settings',
