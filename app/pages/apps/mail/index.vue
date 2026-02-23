@@ -42,38 +42,31 @@ const {
   currentMail,
   selectedUid,
   isLoading,
+  composeOpen,
+  sending,
+  draftSaving,
+  creatingFolder,
+  folderActionLoading,
+  newFolderName,
+  openingUid,
+  multiSelectedUids,
+  shiftDragBulkEnabled,
+  shiftDragSelectedUids,
+  recipientType,
 } = storeToRefs(mailStore);
+
+const composeState = mailStore.composeState;
 
 const accounts = ref<MailAccountItem[]>([]);
 const hasMailSetting = computed(() => accounts.value.length > 0);
-const composeOpen = ref(false);
-const sending = ref(false);
-const draftSaving = ref(false);
-const creatingFolder = ref(false);
-const folderActionLoading = ref(false);
-const newFolderName = ref('');
 const streamConnected = ref(false);
 const realtimeFolderPath = 'INBOX';
-const openingUid = ref<number | null>(null);
-const multiSelectedUids = ref<number[]>([]);
-const shiftDragBulkEnabled = ref(false);
-const shiftDragSelectedUids = ref<number[]>([]);
 let stream: EventSource | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempt = 0;
 const lastRealtimeToastAt = ref(0);
 const lastKnownTopUid = ref<number | null>(null);
 
-const composeState = reactive({
-  to: '',
-  ccList: [''],
-  bccList: [''],
-  subject: '',
-  text: '',
-  files: [] as File[],
-});
-
-const recipientType = ref<'to' | 'cc' | 'bcc'>('to');
 const recipientTypeOptions = [
   { label: 'To', value: 'to' },
   { label: 'Cc', value: 'cc' },
@@ -867,13 +860,7 @@ async function onSendMail() {
       });
     }
 
-    composeState.to = '';
-    composeState.ccList = [''];
-    composeState.bccList = [''];
-    composeState.subject = '';
-    composeState.text = '';
-    composeState.files = [];
-    recipientType.value = 'to';
+    mailStore.resetComposeState();
     composeOpen.value = false;
   } catch (error) {
     toast.add({
@@ -1054,8 +1041,8 @@ onBeforeUnmount(() => {
           <div class="space-y-2">
             <h2 class="text-sm font-semibold mb-2">フォルダ</h2>
           </div>
-          <UCollapsible class="flex flex-col gap-2 w-48">
-            <UButton class="text-xs p-1" label="フォルダ編集" color="neutral" variant="subtle"
+          <UCollapsible class="flex flex-col gap-2 w-fit">
+            <UButton class="text-xs p-1 w-fit" label="フォルダ編集" color="neutral" variant="subtle"
               trailing-icon="i-lucide-settings" block />
 
             <template #content>

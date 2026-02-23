@@ -33,6 +33,28 @@ export type MailDetail = {
   attachments: MailAttachment[];
 };
 
+export type ComposeRecipientType = 'to' | 'cc' | 'bcc';
+
+export type ComposeState = {
+  to: string;
+  ccList: string[];
+  bccList: string[];
+  subject: string;
+  text: string;
+  files: File[];
+};
+
+function createInitialComposeState(): ComposeState {
+  return {
+    to: '',
+    ccList: [''],
+    bccList: [''],
+    subject: '',
+    text: '',
+    files: [],
+  };
+}
+
 export const useMailStore = defineStore('mail', () => {
   const activeAccountId = ref<string | null>(null);
   const activeFolderPath = ref('INBOX');
@@ -44,6 +66,18 @@ export const useMailStore = defineStore('mail', () => {
   const selectedUid = ref<number | null>(null);
   const isLoading = ref(false);
   const errorMessage = ref<string | null>(null);
+  const composeOpen = ref(false);
+  const sending = ref(false);
+  const draftSaving = ref(false);
+  const creatingFolder = ref(false);
+  const folderActionLoading = ref(false);
+  const newFolderName = ref('');
+  const openingUid = ref<number | null>(null);
+  const multiSelectedUids = ref<number[]>([]);
+  const shiftDragBulkEnabled = ref(false);
+  const shiftDragSelectedUids = ref<number[]>([]);
+  const recipientType = ref<ComposeRecipientType>('to');
+  const composeState = reactive<ComposeState>(createInitialComposeState());
 
   const selectedMail = computed(() => {
     if (selectedUid.value === null) return null;
@@ -90,10 +124,29 @@ export const useMailStore = defineStore('mail', () => {
     currentMail.value = null;
   }
 
+  function clearInteractionState() {
+    openingUid.value = null;
+    multiSelectedUids.value = [];
+    shiftDragBulkEnabled.value = false;
+    shiftDragSelectedUids.value = [];
+  }
+
+  function resetComposeState() {
+    const initial = createInitialComposeState();
+    composeState.to = initial.to;
+    composeState.ccList = initial.ccList;
+    composeState.bccList = initial.bccList;
+    composeState.subject = initial.subject;
+    composeState.text = initial.text;
+    composeState.files = initial.files;
+    recipientType.value = 'to';
+  }
+
   function clearViewState() {
     folders.value = [];
     mailList.value = [];
     clearMailSelection();
+    clearInteractionState();
     errorMessage.value = null;
   }
 
@@ -107,6 +160,18 @@ export const useMailStore = defineStore('mail', () => {
     selectedMail,
     isLoading,
     errorMessage,
+    composeOpen,
+    sending,
+    draftSaving,
+    creatingFolder,
+    folderActionLoading,
+    newFolderName,
+    openingUid,
+    multiSelectedUids,
+    shiftDragBulkEnabled,
+    shiftDragSelectedUids,
+    recipientType,
+    composeState,
     setActiveAccount,
     setActiveFolder,
     setFolders,
@@ -116,6 +181,8 @@ export const useMailStore = defineStore('mail', () => {
     setLoading,
     setError,
     clearMailSelection,
+    clearInteractionState,
+    resetComposeState,
     clearViewState,
   };
 });
