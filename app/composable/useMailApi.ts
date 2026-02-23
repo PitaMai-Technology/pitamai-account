@@ -63,6 +63,9 @@ type MailDetail = {
   date: string | null;
   text: string | null;
   html: string | null;
+  isGpgSigned: boolean;
+  pgpDetachedSignature: string | null;
+  pgpDetachedSignedDataBase64: string | null;
   attachments: Array<{
     filename: string | null;
     contentType: string;
@@ -162,6 +165,8 @@ export function useMailApi() {
     bcc?: string;
     subject: string;
     text: string;
+    sign?: boolean;
+    encrypt?: boolean;
     attachments: SendAttachment[];
   }) =>
     $fetch<{
@@ -170,6 +175,8 @@ export function useMailApi() {
       accepted: string[];
       sentStored: boolean;
       sentMailbox: string | null;
+      isSigned: boolean;
+      isEncrypted: boolean;
     }>('/api/pitamai/mail/send', {
       method: 'POST',
       body: payload,

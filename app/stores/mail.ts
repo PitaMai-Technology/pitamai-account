@@ -31,6 +31,9 @@ export type MailDetail = {
   text: string | null;
   html: string | null;
   attachments: MailAttachment[];
+  isGpgSigned: boolean;
+  pgpDetachedSignature: string | null;
+  pgpDetachedSignedDataBase64: string | null;
 };
 
 export type ComposeRecipientType = 'to' | 'cc' | 'bcc';
@@ -42,6 +45,8 @@ export type ComposeState = {
   subject: string;
   text: string;
   files: File[];
+  sign: boolean;
+  encrypt: boolean;
 };
 
 function createInitialComposeState(): ComposeState {
@@ -52,6 +57,8 @@ function createInitialComposeState(): ComposeState {
     subject: '',
     text: '',
     files: [],
+    sign: false,
+    encrypt: false,
   };
 }
 
@@ -139,6 +146,8 @@ export const useMailStore = defineStore('mail', () => {
     composeState.subject = initial.subject;
     composeState.text = initial.text;
     composeState.files = initial.files;
+    composeState.sign = initial.sign;
+    composeState.encrypt = initial.encrypt;
     recipientType.value = 'to';
   }
 

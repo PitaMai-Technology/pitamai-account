@@ -136,6 +136,8 @@ export function useMailCompose(params: UseMailComposeParams) {
         bcc: bcc || undefined,
         subject: params.composeState.subject,
         text: params.composeState.text,
+        sign: params.composeState.sign,
+        encrypt: params.composeState.encrypt,
         attachments,
       });
 

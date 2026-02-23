@@ -49,7 +49,128 @@ type MessageDetail = {
   text: string | null;
   html: string | null;
   attachments: MessageAttachment[];
+  isGpgSigned: boolean;
+  pgpDetachedSignature: string | null;
+  pgpDetachedSignedDataBase64: string | null;
 };
+
+function extractMultipartSignedParts(source: Buffer): {
+  detachedSignature: string | null;
+  signedDataBase64: string | null;
+} {
+  const sourceText = source.toString('latin1');
+
+  const headerEndCRLF = sourceText.indexOf('\r\n\r\n');
+  const headerEndLF = sourceText.indexOf('\n\n');
+
+  const headerEndIndex =
+    headerEndCRLF >= 0 ? headerEndCRLF : headerEndLF >= 0 ? headerEndLF : -1;
+  const headerSeparatorLength =
+    headerEndCRLF >= 0 ? 4 : headerEndLF >= 0 ? 2 : 0;
+
+  if (headerEndIndex < 0) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  const headersText = sourceText.slice(0, headerEndIndex);
+  const normalizedHeaders = headersText.replace(/\r?\n[ \t]+/g, ' ');
+
+  const contentTypeMatch = normalizedHeaders.match(
+    /content-type:\s*multipart\/signed[^\n]*?/i
+  );
+  if (!contentTypeMatch) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  const boundaryMatch = normalizedHeaders.match(/boundary="?([^";\r\n]+)"?/i);
+  if (!boundaryMatch?.[1]) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  const boundary = boundaryMatch[1];
+  const marker = `--${boundary}`;
+
+  const bodyBuffer = source.subarray(headerEndIndex + headerSeparatorLength);
+  const bodyText = bodyBuffer.toString('latin1');
+
+  let firstMarker = bodyText.indexOf(marker);
+  if (firstMarker < 0) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  let part1Start = firstMarker + marker.length;
+  if (bodyText.startsWith('\r\n', part1Start)) {
+    part1Start += 2;
+  } else if (bodyText.startsWith('\n', part1Start)) {
+    part1Start += 1;
+  }
+
+  let secondMarker = bodyText.indexOf(`\r\n${marker}`, part1Start);
+  let secondMarkerPrefixLength = 2;
+  if (secondMarker < 0) {
+    secondMarker = bodyText.indexOf(`\n${marker}`, part1Start);
+    secondMarkerPrefixLength = 1;
+  }
+
+  if (secondMarker < 0) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  const part1End = secondMarker;
+  const part1Buffer = bodyBuffer.subarray(part1Start, part1End);
+
+  let part2Start = secondMarker + secondMarkerPrefixLength + marker.length;
+  if (bodyText.startsWith('\r\n', part2Start)) {
+    part2Start += 2;
+  } else if (bodyText.startsWith('\n', part2Start)) {
+    part2Start += 1;
+  }
+
+  let thirdMarker = bodyText.indexOf(`\r\n${marker}`, part2Start);
+  let thirdMarkerPrefixLength = 2;
+  if (thirdMarker < 0) {
+    thirdMarker = bodyText.indexOf(`\n${marker}`, part2Start);
+    thirdMarkerPrefixLength = 1;
+  }
+
+  if (thirdMarker < 0) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  const part2End = thirdMarker;
+  const part2Buffer = bodyBuffer.subarray(part2Start, part2End);
+  const part2Text = part2Buffer.toString('latin1');
+
+  const part2HeaderEndCRLF = part2Text.indexOf('\r\n\r\n');
+  const part2HeaderEndLF = part2Text.indexOf('\n\n');
+
+  const part2HeaderEndIndex =
+    part2HeaderEndCRLF >= 0
+      ? part2HeaderEndCRLF
+      : part2HeaderEndLF >= 0
+        ? part2HeaderEndLF
+        : -1;
+  const part2HeaderSeparatorLength =
+    part2HeaderEndCRLF >= 0 ? 4 : part2HeaderEndLF >= 0 ? 2 : 0;
+
+  if (part2HeaderEndIndex < 0) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  const signatureBuffer = part2Buffer.subarray(
+    part2HeaderEndIndex + part2HeaderSeparatorLength
+  );
+  const detachedSignature = signatureBuffer.toString('utf8').trim();
+
+  if (!detachedSignature.includes('-----BEGIN PGP SIGNATURE-----')) {
+    return { detachedSignature: null, signedDataBase64: null };
+  }
+
+  return {
+    detachedSignature,
+    signedDataBase64: Buffer.from(part1Buffer).toString('base64'),
+  };
+}
 
 type MessageAttachmentContent = {
   filename: string | null;
@@ -116,6 +237,49 @@ function hasAttachmentBody(node: unknown): boolean {
   }
 
   return candidate.childNodes.some(child => hasAttachmentBody(child));
+}
+
+function isLikelyGpgSignedMessage(parsed: {
+  text?: string | null;
+  attachments?: Array<{
+    contentType?: string | null;
+    filename?: string | null;
+  }>;
+  headers?: {
+    get(name: string): unknown;
+  };
+}): boolean {
+  const hasInlineSignature =
+    typeof parsed.text === 'string' &&
+    parsed.text.includes('-----BEGIN PGP SIGNED MESSAGE-----');
+
+  const hasSignatureAttachment = (parsed.attachments ?? []).some(item => {
+    const contentType = (item.contentType ?? '').toLowerCase();
+    const filename = (item.filename ?? '').toLowerCase();
+
+    return (
+      contentType.includes('application/pgp-signature') ||
+      contentType.includes('pgp-signature') ||
+      filename.endsWith('.asc') ||
+      filename.endsWith('.sig')
+    );
+  });
+
+  const contentTypeHeader = parsed.headers?.get('content-type');
+  const headerText =
+    typeof contentTypeHeader === 'string'
+      ? contentTypeHeader.toLowerCase()
+      : contentTypeHeader && typeof contentTypeHeader === 'object'
+        ? JSON.stringify(contentTypeHeader).toLowerCase()
+        : '';
+
+  const hasMultipartSignedHeader =
+    headerText.includes('multipart/signed') &&
+    headerText.includes('application/pgp-signature');
+
+  return (
+    hasInlineSignature || hasSignatureAttachment || hasMultipartSignedHeader
+  );
 }
 
 export function createImapClient(account: MailAccountConnection): ImapFlow {
@@ -746,6 +910,30 @@ export async function getMessageDetail(params: {
     }
 
     const parsed = await simpleParser(Buffer.from(source));
+    const pgpDetachedSignatureAttachment = parsed.attachments.find(item => {
+      const contentType = (item.contentType ?? '').toLowerCase();
+      const filename = (item.filename ?? '').toLowerCase();
+      return (
+        contentType.includes('application/pgp-signature') ||
+        filename.endsWith('.sig') ||
+        filename === 'signature.asc'
+      );
+    });
+
+    const pgpDetachedSignature = pgpDetachedSignatureAttachment
+      ? (Buffer.isBuffer(pgpDetachedSignatureAttachment.content)
+          ? pgpDetachedSignatureAttachment.content
+          : Buffer.from(pgpDetachedSignatureAttachment.content)
+        ).toString('utf8')
+      : null;
+
+    const multipartSignedParts = extractMultipartSignedParts(
+      Buffer.from(source)
+    );
+    const detachedSignature =
+      multipartSignedParts.detachedSignature ?? pgpDetachedSignature;
+    const detachedSignedDataBase64 =
+      multipartSignedParts.signedDataBase64 ?? null;
     const recipientMetaHeader = parsed.headers.get(
       'x-pitamai-draft-recipients'
     );
@@ -818,6 +1006,9 @@ export async function getMessageDetail(params: {
         size: attachment.size,
         contentDisposition: attachment.contentDisposition,
       })),
+      isGpgSigned: isLikelyGpgSignedMessage(parsed),
+      pgpDetachedSignature: detachedSignature,
+      pgpDetachedSignedDataBase64: detachedSignedDataBase64,
     };
   });
 }

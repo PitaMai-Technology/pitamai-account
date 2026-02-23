@@ -111,6 +111,26 @@ const mailServerLoading = ref(false);
 const imapTestLoading = ref(false);
 const smtpTestLoading = ref(false);
 
+const gpgLoading = ref(false);
+const gpgDeleteLoading = ref(false);
+const gpgPublishLoading = ref(false);
+const gpgGenerateName = ref('');
+const gpgImportPublicKey = ref('');
+const gpgImportPrivateKey = ref('');
+const gpgAction = ref<'generate' | 'import'>('generate');
+const gpgState = ref<{
+  hasKey: boolean;
+  key: {
+    id: string;
+    publicKey: string;
+    privateKey: string;
+    fingerprint: string;
+    email: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+}>({ hasKey: false, key: null });
+
 async function loadMailServerSetting() {
   try {
     const response = await $fetch<{
@@ -238,6 +258,167 @@ async function onTestSmtpConnection() {
   }
 }
 
+async function loadGpgKey() {
+  try {
+    const response = await $fetch<{
+      hasKey: boolean;
+      key: {
+        id: string;
+        publicKey: string;
+        privateKey: string;
+        fingerprint: string;
+        email: string;
+        createdAt: string;
+        updatedAt: string;
+      } | null;
+    }>('/api/pitamai/mail/gpg-key');
+
+    gpgState.value = response;
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description:
+        err instanceof Error ? err.message : 'GPG鍵の取得に失敗しました',
+      color: 'error',
+    });
+  }
+}
+
+async function onSaveGpgKey() {
+  if (gpgLoading.value) return;
+
+  const confirmed = await confirmDialog('GPG鍵を保存しますか？');
+  if (!confirmed) return;
+
+  gpgLoading.value = true;
+  try {
+    if (gpgAction.value === 'generate') {
+      const name = gpgGenerateName.value.trim() || session.value?.user?.name || session.value?.user?.email || 'PitaMai User';
+      await $fetch('/api/pitamai/mail/gpg-key', {
+        method: 'POST',
+        body: {
+          action: 'generate',
+          name,
+        },
+      });
+    } else {
+      await $fetch('/api/pitamai/mail/gpg-key', {
+        method: 'POST',
+        body: {
+          action: 'import',
+          publicKey: gpgImportPublicKey.value,
+          privateKey: gpgImportPrivateKey.value,
+        },
+      });
+    }
+
+    toast.add({
+      title: '成功',
+      description: 'GPG鍵を保存しました',
+      color: 'success',
+    });
+
+    gpgImportPublicKey.value = '';
+    gpgImportPrivateKey.value = '';
+    await loadGpgKey();
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description:
+        err instanceof Error ? err.message : 'GPG鍵の保存に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    gpgLoading.value = false;
+  }
+}
+
+async function onDeleteGpgKey() {
+  if (gpgDeleteLoading.value) return;
+
+  const confirmed = await confirmDialog('GPG鍵を削除しますか？');
+  if (!confirmed) return;
+
+  gpgDeleteLoading.value = true;
+  try {
+    await $fetch('/api/pitamai/mail/gpg-key', {
+      method: 'DELETE',
+    });
+
+    toast.add({
+      title: '成功',
+      description: 'GPG鍵を削除しました',
+      color: 'success',
+    });
+
+    await loadGpgKey();
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description:
+        err instanceof Error ? err.message : 'GPG鍵の削除に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    gpgDeleteLoading.value = false;
+  }
+}
+
+async function onPublishGpgKey() {
+  if (gpgPublishLoading.value) return;
+
+  const confirmed = await confirmDialog(
+    '公開鍵サーバーに公開申請しますか？確認メールが届いた場合は承認が必要です。'
+  );
+  if (!confirmed) return;
+
+  gpgPublishLoading.value = true;
+  try {
+    const result = await $fetch<{
+      ok: boolean;
+      message: string;
+      keyServer: string;
+    }>('/api/pitamai/mail/gpg-key-publish', {
+      method: 'POST',
+    });
+
+    toast.add({
+      title: '公開申請を送信しました',
+      description: result.message,
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description:
+        err instanceof Error ? err.message : '公開申請に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    gpgPublishLoading.value = false;
+  }
+}
+
+async function onCopyGpgPublicKey() {
+  const publicKey = gpgState.value.key?.publicKey;
+  if (!publicKey) return;
+
+  try {
+    await navigator.clipboard.writeText(publicKey);
+    toast.add({
+      title: 'コピーしました',
+      description: '公開鍵をクリップボードにコピーしました',
+      color: 'success',
+    });
+  } catch {
+    toast.add({
+      title: 'エラー',
+      description: '公開鍵のコピーに失敗しました',
+      color: 'error',
+    });
+  }
+}
+
 const loading = ref(false);
 
 // 共通確認モーダル
@@ -360,6 +541,7 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
 
 onMounted(async () => {
   await loadMailServerSetting();
+  await loadGpgKey();
 });
 </script>
 
@@ -459,6 +641,66 @@ onMounted(async () => {
             </UButton>
           </div>
           <p class="text-xs text-gray-500">接続テストは保存済み設定を使用します。</p>
+        </div>
+
+        <hr />
+        <h2 class="text-xl font-semibold">GPG 設定</h2>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-600">
+            メールを PGP 署名して送信するための鍵を管理します。
+          </p>
+
+          <div v-if="gpgState.hasKey && gpgState.key" class="rounded border border-gray-200 p-3 space-y-2">
+            <p class="text-sm font-medium">登録済み鍵</p>
+            <p class="text-xs text-gray-600">Fingerprint: {{ gpgState.key.fingerprint }}</p>
+            <p class="text-xs text-gray-600">Email: {{ gpgState.key.email }}</p>
+            <UFormField label="公開鍵">
+              <UTextarea :model-value="gpgState.key.publicKey" :rows="6" readonly class="w-fit mb-2" />
+            </UFormField>
+            <div class="flex gap-2">
+              <UButton color="neutral" variant="outline" size="xs" @click="onCopyGpgPublicKey">
+                公開鍵をコピー
+              </UButton>
+              <UButton color="primary" variant="outline" size="xs" :loading="gpgPublishLoading"
+                @click="onPublishGpgKey">
+                keyserverへ公開申請
+              </UButton>
+              <UButton color="error" variant="outline" size="xs" :loading="gpgDeleteLoading" @click="onDeleteGpgKey">
+                鍵を削除
+              </UButton>
+            </div>
+          </div>
+
+          <div class="rounded border border-gray-200 p-3 space-y-3">
+            <UFormField label="操作">
+              <USelect v-model="gpgAction" :items="[
+                { label: '鍵ペアを生成', value: 'generate' },
+                { label: '既存鍵をインポート', value: 'import' }
+              ]" class="w-64" />
+            </UFormField>
+
+            <template v-if="gpgAction === 'generate'">
+              <UFormField label="表示名（任意）">
+                <UInput v-model="gpgGenerateName" placeholder="例: Taro Yamada" />
+              </UFormField>
+            </template>
+
+            <template v-else>
+              <UFormField label="公開鍵" required>
+                <UTextarea v-model="gpgImportPublicKey" :rows="6" placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----" />
+              </UFormField>
+              <UFormField label="秘密鍵" required>
+                <UTextarea v-model="gpgImportPrivateKey" :rows="8"
+                  placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----" />
+              </UFormField>
+            </template>
+
+            <div class="flex gap-2">
+              <UButton color="primary" :loading="gpgLoading" @click="onSaveGpgKey">
+                GPG鍵を保存
+              </UButton>
+            </div>
+          </div>
         </div>
       </div>
     </AppBackgroundCard>

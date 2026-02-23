@@ -30,6 +30,7 @@ model User {
   auditLogs    AuditLog[]
   wikis        Wiki[]
   mailAccounts MailAccount[]
+  gpgKey       UserGpgKey?
 
   @@unique([email])
   @@map("user")
