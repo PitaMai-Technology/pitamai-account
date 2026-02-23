@@ -55,6 +55,9 @@ const newFolderName = ref('');
 const streamConnected = ref(false);
 const realtimeFolderPath = 'INBOX';
 const openingUid = ref<number | null>(null);
+const multiSelectedUids = ref<number[]>([]);
+const shiftDragBulkEnabled = ref(false);
+const shiftDragSelectedUids = ref<number[]>([]);
 let stream: EventSource | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempt = 0;
@@ -449,19 +452,28 @@ async function onDropMailToFolder(uid: number, toFolderPath: string) {
   if (!activeFolderPath.value) return;
   if (activeFolderPath.value === toFolderPath) return;
 
+  const targetUids = shiftDragBulkEnabled.value
+    ? shiftDragSelectedUids.value
+    : [uid];
+
   try {
-    await $fetch('/api/pitamai/mail/move-to-folder', {
-      method: 'POST',
-      body: {
-        uid,
-        fromFolder: activeFolderPath.value,
-        toFolder: toFolderPath,
-      },
-    });
+    for (const targetUid of targetUids) {
+      await $fetch('/api/pitamai/mail/move-to-folder', {
+        method: 'POST',
+        body: {
+          uid: targetUid,
+          fromFolder: activeFolderPath.value,
+          toFolder: toFolderPath,
+        },
+      });
+    }
 
     toast.add({
       title: '移動しました',
-      description: 'メールをフォルダへ移動しました',
+      description:
+        targetUids.length > 1
+          ? `${targetUids.length}件のメールをフォルダへ移動しました`
+          : 'メールをフォルダへ移動しました',
       color: 'success',
     });
 
@@ -476,7 +488,44 @@ async function onDropMailToFolder(uid: number, toFolderPath: string) {
       description: error instanceof Error ? error.message : 'メール移動に失敗しました',
       color: 'error',
     });
+  } finally {
+    shiftDragBulkEnabled.value = false;
+    shiftDragSelectedUids.value = [];
+    multiSelectedUids.value = [];
   }
+}
+
+function onMailDragStart(payload: { uid: number; shiftKey: boolean }) {
+  const isInSelected = multiSelectedUids.value.includes(payload.uid);
+
+  if ((payload.shiftKey || isInSelected) && multiSelectedUids.value.length > 0) {
+    shiftDragBulkEnabled.value = true;
+    shiftDragSelectedUids.value = multiSelectedUids.value.includes(payload.uid)
+      ? [...multiSelectedUids.value]
+      : [...multiSelectedUids.value, payload.uid];
+    return;
+  }
+
+  shiftDragBulkEnabled.value = false;
+  shiftDragSelectedUids.value = [payload.uid];
+}
+
+function isUidMultiSelected(uid: number) {
+  return multiSelectedUids.value.includes(uid);
+}
+
+function onMailItemClick(payload: { uid: number; shiftKey: boolean }) {
+  if (!payload.shiftKey) {
+    multiSelectedUids.value = [];
+    return;
+  }
+
+  if (multiSelectedUids.value.includes(payload.uid)) {
+    multiSelectedUids.value = multiSelectedUids.value.filter(uid => uid !== payload.uid);
+    return;
+  }
+
+  multiSelectedUids.value = [...multiSelectedUids.value, payload.uid];
 }
 
 async function loadMessages(options?: {
@@ -1010,7 +1059,8 @@ onBeforeUnmount(() => {
                 </UBadge>
               </div>
               <AppMailDraggableItem :message="group.messages[0]!" :selected-uid="selectedUid" :opening-uid="openingUid"
-                @open="uid => openMessage(uid, true)" />
+                :multi-selected="isUidMultiSelected(group.messages[0]!.uid)" @open="uid => openMessage(uid, true)"
+                @drag-start="onMailDragStart" @item-click="onMailItemClick" />
             </div>
 
             <UCollapsible v-if="group.messages.length > 1" class="pl-3">
@@ -1019,7 +1069,9 @@ onBeforeUnmount(() => {
               <template #content>
                 <div class="space-y-1 border-l border-gray-200 pl-3">
                   <AppMailDraggableItem v-for="message in group.messages.slice(1)" :key="message.uid" :message="message"
-                    :selected-uid="selectedUid" :opening-uid="openingUid" @open="uid => openMessage(uid, true)" />
+                    :selected-uid="selectedUid" :opening-uid="openingUid"
+                    :multi-selected="isUidMultiSelected(message.uid)" @open="uid => openMessage(uid, true)"
+                    @drag-start="onMailDragStart" @item-click="onMailItemClick" />
                 </div>
               </template>
             </UCollapsible>
