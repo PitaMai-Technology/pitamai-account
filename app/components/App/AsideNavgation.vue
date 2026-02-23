@@ -148,6 +148,12 @@ const {
   setActiveFolder: mailStore.setActiveFolder,
 });
 
+// フォルダ選択ハンドラー（別ページにいても自動的にメールページへ遷移）
+async function onSelectFolder(folderPath: string) {
+  mailStore.setActiveFolder(folderPath);
+  await navigateTo('/apps/mail');
+}
+
 // メール移動ハンドラー
 async function onDropMailToFolder(uid: number, toFolderPath: string) {
   if (!activeFolderPath.value) return;
@@ -192,10 +198,9 @@ async function onDropMailToFolder(uid: number, toFolderPath: string) {
         <USeparator class="mt-2 mb-8" />
         <AppMailFolderPanel :folders="folders" :active-folder-path="activeFolderPath" :new-folder-name="newFolderName"
           :creating-folder="creatingFolder" :folder-action-loading="folderActionLoading"
-          :can-edit-active-folder="canEditActiveFolder" :get-folder-display="getFolderDisplay"
-          @select="mailStore.setActiveFolder" @drop-mail="onDropMailToFolder" @create-folder="onCreateFolder"
-          @rename-folder="onRenameFolder" @delete-folder="onDeleteFolder"
-          @update:new-folder-name="newFolderName = $event" />
+          :can-edit-active-folder="canEditActiveFolder" :get-folder-display="getFolderDisplay" @select="onSelectFolder"
+          @drop-mail="onDropMailToFolder" @create-folder="onCreateFolder" @rename-folder="onRenameFolder"
+          @delete-folder="onDeleteFolder" @update:new-folder-name="newFolderName = $event" />
       </template>
     </UTabs>
   </div>
