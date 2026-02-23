@@ -31,9 +31,9 @@ if (error.value) {
   });
 }
 
-// if (data.value?.isSetupCompleted) {
-//   await navigateTo('/login');
-// }
+if (data.value?.isSetupCompleted) {
+  await navigateTo('/login');
+}
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
