@@ -1,10 +1,26 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useOrgRoleStore } from '~/stores/orgRole';
+import { useMailStore } from '~/stores/mail';
+import { useMailApi } from '~/composable/useMailApi';
+import { useMailFolders } from '~/composable/useMailFolders';
 
 defineProps<{
   collapsed?: boolean;
 }>();
+
+const tabs = [
+  {
+    label: 'メール',
+    icon: 'i-lucide-mail',
+    slot: 'mail',
+  },
+  {
+    label: '設定',
+    icon: 'i-lucide-user',
+    slot: 'settings',
+  }
+];
 
 const items = ref([
   {
@@ -13,16 +29,19 @@ const items = ref([
     to: '/apps/dashboard',
   },
   {
-    label: 'メール',
-    icon: 'i-lucide-inbox',
-    to: '/apps/mail',
-  },
-  {
     label: '設定',
     icon: 'i-lucide-user',
     to: '/apps/users/settings',
   },
 ]);
+
+const mailItems = [
+  {
+    label: 'メール',
+    icon: 'i-lucide-inbox',
+    to: '/apps/mail',
+  },
+]
 
 const adminItems = [
   [
@@ -92,6 +111,65 @@ const adminItems = [
 ];
 
 const { canAccessAdmin } = storeToRefs(useOrgRoleStore());
+
+// メールフォルダパネル用のstate
+const mailStore = useMailStore();
+const mailApi = useMailApi();
+const toast = useToast();
+
+const {
+  activeFolderPath,
+  folders,
+  isLoading,
+  creatingFolder,
+  folderActionLoading,
+  newFolderName,
+} = storeToRefs(mailStore);
+
+const hasMailSetting = computed(() => !!activeFolderPath.value);
+
+// フォルダ関連ロジック
+const {
+  canEditActiveFolder,
+  getFolderDisplay,
+  loadFolders,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolder,
+} = useMailFolders({
+  hasMailSetting,
+  activeFolderPath,
+  folders,
+  isLoading,
+  creatingFolder,
+  folderActionLoading,
+  newFolderName,
+  setFolders: mailStore.setFolders,
+  setActiveFolder: mailStore.setActiveFolder,
+});
+
+// メール移動ハンドラー
+async function onDropMailToFolder(uid: number, toFolderPath: string) {
+  if (!activeFolderPath.value) return;
+  if (activeFolderPath.value === toFolderPath) return;
+
+  try {
+    await mailApi.moveToFolder(uid, activeFolderPath.value, toFolderPath);
+    toast.add({
+      title: '移動しました',
+      description: 'メールをフォルダへ移動しました',
+      color: 'success',
+    });
+  } catch (error) {
+    toast.add({
+      title: '移動失敗',
+      description: error instanceof Error ? error.message : 'メール移動に失敗しました',
+      color: 'error',
+    });
+  }
+}
+
+
 </script>
 
 <template>
@@ -99,12 +177,26 @@ const { canAccessAdmin } = storeToRefs(useOrgRoleStore());
     <div class="mb-6">
       <AppOrganaizationCheck />
     </div>
+    <UTabs :items="tabs" class="gap-5" variant="link" color="info">
+      <template #settings>
+        <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
 
-    <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
+        <template v-if="canAccessAdmin">
+          <USeparator class="my-4" label="管理者のみ" />
+          <UNavigationMenu :collapsed="collapsed" :items="adminItems" orientation="vertical" />
+        </template>
 
-    <template v-if="canAccessAdmin">
-      <USeparator class="my-4" label="管理者のみ" />
-      <UNavigationMenu :collapsed="collapsed" :items="adminItems" orientation="vertical" />
-    </template>
+      </template>
+      <template #mail>
+        <UNavigationMenu :collapsed="collapsed" :items="mailItems" orientation="vertical" />
+        <USeparator class="mt-2 mb-8" />
+        <AppMailFolderPanel :folders="folders" :active-folder-path="activeFolderPath" :new-folder-name="newFolderName"
+          :creating-folder="creatingFolder" :folder-action-loading="folderActionLoading"
+          :can-edit-active-folder="canEditActiveFolder" :get-folder-display="getFolderDisplay"
+          @select="mailStore.setActiveFolder" @drop-mail="onDropMailToFolder" @create-folder="onCreateFolder"
+          @rename-folder="onRenameFolder" @delete-folder="onDeleteFolder"
+          @update:new-folder-name="newFolderName = $event" />
+      </template>
+    </UTabs>
   </div>
 </template>

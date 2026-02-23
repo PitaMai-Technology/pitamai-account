@@ -55,7 +55,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <UCard class="lg:col-span-4">
+  <UCard class="lg:col-span-5">
     <template #header>
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-sm font-semibold">メール一覧</h2>

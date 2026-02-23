@@ -52,16 +52,11 @@ const realtimeFolderPath = 'INBOX';
 
 const {
   folderOptions,
-  canEditActiveFolder,
   isTrashFolder,
   isSentFolder,
   isDraftFolder,
   isSpamFolder,
-  getFolderDisplay,
   loadFolders,
-  onCreateFolder,
-  onRenameFolder,
-  onDeleteFolder,
 } = useMailFolders({
   hasMailSetting,
   activeFolderPath,
@@ -329,12 +324,6 @@ onBeforeUnmount(() => {
       description="個人設定ページで IMAP/SMTP を登録してください。" :actions="[{ label: '設定を開く', to: '/apps/users/settings' }]" />
 
     <div class="grid min-h-[70vh] grid-cols-1 gap-4 lg:grid-cols-12">
-      <AppMailFolderPanel :folders="folders" :active-folder-path="activeFolderPath" :new-folder-name="newFolderName"
-        :creating-folder="creatingFolder" :folder-action-loading="folderActionLoading"
-        :can-edit-active-folder="canEditActiveFolder" :get-folder-display="getFolderDisplay"
-        @select="mailStore.setActiveFolder" @drop-mail="onDropMailToFolder" @create-folder="onCreateFolder"
-        @rename-folder="onRenameFolder" @delete-folder="onDeleteFolder"
-        @update:new-folder-name="newFolderName = $event" />
 
       <AppMailListPanel :is-loading="isLoading" :mail-list="mailList" :grouped-mail-list="groupedMailList"
         :selected-uid="selectedUid" :opening-uid="openingUid" :is-uid-multi-selected="isUidMultiSelected"

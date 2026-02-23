@@ -63,8 +63,28 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <UCard class="lg:col-span-6">
+  <UCard class="lg:col-span-7">
     <template #header>
+      <div class="flex gap-2 mb-2">
+        <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail" @click="emit('toggleSeen')">
+          {{ selectedSeen ? '未読にする' : '既読にする' }}
+        </UButton>
+        <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail"
+          @click="emit('move', 'archive')">
+          アーカイブ
+        </UButton>
+        <UButton size="xs" color="error" variant="outline" :disabled="!hasSelectedMail" @click="emit('move', 'trash')">
+          削除
+        </UButton>
+        <UButton v-if="isDraftFolder" size="xs" color="primary" variant="outline" :disabled="!hasSelectedMail"
+          @click="emit('useDraftCompose')">
+          下書きから送信
+        </UButton>
+        <UButton v-if="isTrashFolder" size="xs" color="success" variant="outline" :disabled="!hasSelectedMail"
+          @click="emit('move', 'inbox')">
+          戻す
+        </UButton>
+      </div>
       <div class="flex items-start justify-between gap-3">
         <div>
           <h2 class="truncate text-sm font-semibold">
@@ -72,27 +92,6 @@ const emit = defineEmits<{
           </h2>
           <p class="text-xs text-gray-600">{{ messageMetaLabel }}: {{ messageMetaValue }}</p>
           <p v-if="isSentFolder" class="text-xs text-gray-600">Cc: {{ messageCcValue }}</p>
-        </div>
-        <div class="flex gap-2">
-          <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail" @click="emit('toggleSeen')">
-            {{ selectedSeen ? '未読にする' : '既読にする' }}
-          </UButton>
-          <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail"
-            @click="emit('move', 'archive')">
-            アーカイブ
-          </UButton>
-          <UButton size="xs" color="error" variant="outline" :disabled="!hasSelectedMail"
-            @click="emit('move', 'trash')">
-            削除
-          </UButton>
-          <UButton v-if="isDraftFolder" size="xs" color="primary" variant="outline" :disabled="!hasSelectedMail"
-            @click="emit('useDraftCompose')">
-            下書きから送信
-          </UButton>
-          <UButton v-if="isTrashFolder" size="xs" color="success" variant="outline" :disabled="!hasSelectedMail"
-            @click="emit('move', 'inbox')">
-            戻す
-          </UButton>
         </div>
       </div>
     </template>
