@@ -26,6 +26,11 @@ type MessageListItem = {
   seen: boolean;
 };
 
+type MessageFlagItem = {
+  uid: number;
+  seen: boolean;
+};
+
 type MessageAttachment = {
   filename: string | null;
   contentType: string;
@@ -38,6 +43,8 @@ type MessageDetail = {
   subject: string | null;
   from: string | null;
   to: string | null;
+  cc: string | null;
+  bcc: string | null;
   date: string | null;
   text: string | null;
   html: string | null;
@@ -213,6 +220,41 @@ export async function listMessages(params: {
     }
 
     return messages.reverse();
+  });
+}
+
+export async function listLatestMessageFlags(params: {
+  account: MailAccountConnection;
+  folder: string;
+  limit: number;
+}): Promise<MessageFlagItem[]> {
+  return withImapClient(params.account, async client => {
+    const mailbox = await client.mailboxOpen(params.folder);
+    const total = mailbox.exists;
+
+    if (total <= 0) {
+      return [];
+    }
+
+    const start = Math.max(1, total - params.limit + 1);
+    const sequenceRange = `${start}:${total}`;
+
+    const flags: MessageFlagItem[] = [];
+    for await (const message of client.fetch(
+      sequenceRange,
+      {
+        uid: true,
+        flags: true,
+      },
+      { uid: false }
+    )) {
+      flags.push({
+        uid: message.uid,
+        seen: message.flags?.has('\\Seen') ?? false,
+      });
+    }
+
+    return flags.reverse();
   });
 }
 
@@ -697,14 +739,65 @@ export async function getMessageDetail(params: {
     }
 
     const parsed = await simpleParser(Buffer.from(source));
+    const recipientMetaHeader = parsed.headers.get(
+      'x-pitamai-draft-recipients'
+    );
+    const draftToHeader = parsed.headers.get('x-draft-to');
+    const draftCcHeader = parsed.headers.get('x-draft-cc');
+    const draftBccHeader = parsed.headers.get('x-draft-bcc');
+
+    const recipientMetaRaw =
+      typeof recipientMetaHeader === 'string' ? recipientMetaHeader : null;
+    let recipientMeta: {
+      to: string | null;
+      cc: string | null;
+      bcc: string | null;
+    } | null = null;
+
+    if (recipientMetaRaw) {
+      try {
+        const decoded = Buffer.from(recipientMetaRaw, 'base64').toString(
+          'utf8'
+        );
+        const parsedMeta = JSON.parse(decoded) as {
+          to?: string | null;
+          cc?: string | null;
+          bcc?: string | null;
+        };
+
+        recipientMeta = {
+          to: typeof parsedMeta.to === 'string' ? parsedMeta.to : null,
+          cc: typeof parsedMeta.cc === 'string' ? parsedMeta.cc : null,
+          bcc: typeof parsedMeta.bcc === 'string' ? parsedMeta.bcc : null,
+        };
+      } catch {
+        recipientMeta = null;
+      }
+    }
+
+    const draftTo = typeof draftToHeader === 'string' ? draftToHeader : null;
+    const draftCc = typeof draftCcHeader === 'string' ? draftCcHeader : null;
+    const draftBcc = typeof draftBccHeader === 'string' ? draftBccHeader : null;
 
     return {
       uid: message.uid,
       subject: parsed.subject ?? message.envelope?.subject ?? null,
       from: parsed.from?.text ?? resolveFirstAddress(message.envelope?.from),
       to:
+        recipientMeta?.to ??
         resolveParsedToAddress(parsed.to) ??
-        resolveFirstAddress(message.envelope?.to),
+        resolveFirstAddress(message.envelope?.to) ??
+        draftTo,
+      cc:
+        recipientMeta?.cc ??
+        resolveParsedToAddress(parsed.cc) ??
+        resolveFirstAddress(message.envelope?.cc) ??
+        draftCc,
+      bcc:
+        recipientMeta?.bcc ??
+        resolveParsedToAddress(parsed.bcc) ??
+        resolveFirstAddress(message.envelope?.bcc) ??
+        draftBcc,
       date: message.internalDate
         ? new Date(message.internalDate).toISOString()
         : parsed.date

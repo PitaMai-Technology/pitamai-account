@@ -179,6 +179,39 @@ const isTrashFolder = computed(() => {
   );
 });
 
+const isSentFolder = computed(() => {
+  const specialUse = currentFolder.value?.specialUse?.toLowerCase();
+  if (specialUse === '\\sent') return true;
+
+  const path = activeFolderPath.value.toLowerCase();
+  return path.includes('sent') || path.includes('送信済み');
+});
+
+const messageMetaLabel = computed(() =>
+  isSentFolder.value ? '宛先(To)' : '差出人(From)'
+);
+
+const messageMetaValue = computed(() => {
+  if (isSentFolder.value) {
+    return currentMail.value?.to || '-';
+  }
+
+  return currentMail.value?.from || selectedMessage.value?.from || '-';
+});
+
+const messageCcValue = computed(() => {
+  if (!isSentFolder.value) return null;
+  return currentMail.value?.cc || '-';
+});
+
+const isDraftFolder = computed(() => {
+  const specialUse = currentFolder.value?.specialUse?.toLowerCase();
+  if (specialUse === '\\drafts') return true;
+
+  const path = activeFolderPath.value.toLowerCase();
+  return path.includes('draft') || path.includes('下書き');
+});
+
 const selectedSeen = computed(() => {
   if (selectedUid.value === null) return null;
   return selectedMessage.value?.seen ?? null;
@@ -528,6 +561,29 @@ function onMailItemClick(payload: { uid: number; shiftKey: boolean }) {
   multiSelectedUids.value = [...multiSelectedUids.value, payload.uid];
 }
 
+function splitRecipientList(value: string | null) {
+  if (!value) return [''];
+
+  const items = value
+    .split(',')
+    .map(item => item.trim())
+    .filter(item => item.length > 0);
+
+  return items.length > 0 ? items : [''];
+}
+
+function onUseDraftForCompose() {
+  if (!currentMail.value) return;
+
+  composeState.to = currentMail.value.to ?? '';
+  composeState.ccList = splitRecipientList(currentMail.value.cc);
+  composeState.bccList = splitRecipientList(currentMail.value.bcc);
+  composeState.subject = currentMail.value.subject ?? '';
+  composeState.text = currentMail.value.text ?? '';
+  recipientType.value = 'to';
+  composeOpen.value = true;
+}
+
 async function loadMessages(options?: {
   markOpenedAsRead?: boolean;
   notifyIfNew?: boolean;
@@ -634,6 +690,8 @@ async function openMessage(uid: number, markAsRead = true) {
         subject: string | null;
         from: string | null;
         to: string | null;
+        cc: string | null;
+        bcc: string | null;
         date: string | null;
         text: string | null;
         html: string | null;
@@ -980,7 +1038,7 @@ onBeforeUnmount(() => {
     <UPageCard>
       <div class="flex flex-wrap items-center gap-3">
         <p class="text-sm text-gray-600">
-          利用中アカウント: {{ selectedAccount?.emailAddress || '未設定' }}
+          アカウント: {{ selectedAccount?.emailAddress || '未設定' }}
         </p>
         <USelect v-model="activeFolderPath" class="w-56" :items="folderOptions" placeholder="フォルダを選択" />
         <UButton color="primary" icon="i-lucide-pencil" @click="composeOpen = true">新規作成</UButton>
@@ -1033,11 +1091,13 @@ onBeforeUnmount(() => {
 
       <UCard class="lg:col-span-4">
         <template #header>
-          <h2 class="text-sm font-semibold">メール一覧</h2>
-          <UButton size="xs" color="neutral" icon="i-lucide-refresh-cw" variant="outline" :disabled="isLoading"
-            :loading="isLoading"
-            @click="loadMessages({ markOpenedAsRead: false, notifyIfNew: false, forceSync: true })">
-          </UButton>
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold">メール一覧</h2>
+            <UButton size="xs" color="neutral" icon="i-lucide-refresh-cw" variant="outline" :disabled="isLoading"
+              :loading="isLoading"
+              @click="loadMessages({ markOpenedAsRead: false, notifyIfNew: false, forceSync: true })">
+            </UButton>
+          </div>
         </template>
 
         <div v-if="isLoading" class="space-y-2">
@@ -1054,7 +1114,7 @@ onBeforeUnmount(() => {
           <template v-for="group in groupedMailList" :key="group.key">
             <div class="space-y-1">
               <div class="flex justify-end">
-                <UBadge v-if="group.messages.length > 1" color="neutral" variant="soft" size="xs">
+                <UBadge v-if="group.messages.length > 1" color="info" variant="soft" size="sm">
                   {{ group.messages.length }}件
                 </UBadge>
               </div>
@@ -1086,7 +1146,8 @@ onBeforeUnmount(() => {
               <h2 class="truncate text-sm font-semibold">
                 {{ selectedMessage?.subject || currentMail?.subject || '(件名なし)' }}
               </h2>
-              <p class="text-xs text-gray-600">{{ currentMail?.from || selectedMessage?.from || '-' }}</p>
+              <p class="text-xs text-gray-600">{{ messageMetaLabel }}: {{ messageMetaValue }}</p>
+              <p v-if="isSentFolder" class="text-xs text-gray-600">Cc: {{ messageCcValue }}</p>
             </div>
             <div class="flex gap-2">
               <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail" @click="onToggleSeen">
@@ -1098,6 +1159,10 @@ onBeforeUnmount(() => {
               </UButton>
               <UButton size="xs" color="error" variant="outline" :disabled="!hasSelectedMail" @click="onMove('trash')">
                 削除
+              </UButton>
+              <UButton v-if="isDraftFolder" size="xs" color="primary" variant="outline" :disabled="!hasSelectedMail"
+                @click="onUseDraftForCompose">
+                下書きから送信
               </UButton>
               <UButton v-if="isTrashFolder" size="xs" color="success" variant="outline" :disabled="!hasSelectedMail"
                 @click="onMove('inbox')">

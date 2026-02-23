@@ -25,6 +25,8 @@ export type MailDetail = {
   subject: string | null;
   from: string | null;
   to: string | null;
+  cc: string | null;
+  bcc: string | null;
   date: string | null;
   text: string | null;
   html: string | null;

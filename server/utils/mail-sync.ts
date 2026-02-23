@@ -8,6 +8,7 @@ import {
 } from '~~/server/utils/mail-cache';
 import {
   getMailboxMessageCount,
+  listLatestMessageFlags,
   listMessages,
   listMessagesSinceUid,
 } from '~~/server/utils/imap';
@@ -97,9 +98,21 @@ export async function syncFolderMessages(params: {
     remoteCount === cachedCount;
 
   if (shouldUseCacheOnly) {
+    const latestFlags = await listLatestMessageFlags({
+      account: params.account,
+      folder: params.folder,
+      limit: params.limit,
+    });
+
+    const seenMap = new Map(latestFlags.map(item => [item.uid, item.seen]));
+    const messages = cachedTop.map(message => ({
+      ...message,
+      seen: seenMap.get(message.uid) ?? message.seen,
+    }));
+
     return {
       strategy: 'diff-cache' as const,
-      messages: cachedTop,
+      messages,
     };
   }
 

@@ -31,12 +31,28 @@ export default defineEventHandler(async event => {
     throw createError({ statusCode: 422, message: 'Validation Error' });
   }
 
+  const to = parsed.data.to?.trim() || undefined;
+  const cc = parsed.data.cc?.trim() || undefined;
+  const bcc = parsed.data.bcc?.trim() || undefined;
+
+  const draftHeaders: Record<string, string> = {};
+  const recipientsMeta = Buffer.from(
+    JSON.stringify({ to: to ?? null, cc: cc ?? null, bcc: bcc ?? null }),
+    'utf8'
+  ).toString('base64');
+
+  draftHeaders['X-Pitamai-Draft-Recipients'] = recipientsMeta;
+  if (to) draftHeaders['X-Draft-To'] = to;
+  if (cc) draftHeaders['X-Draft-Cc'] = cc;
+  if (bcc) draftHeaders['X-Draft-Bcc'] = bcc;
+
   const mailOptions = {
     from: account.username,
     sender: account.username,
-    to: parsed.data.to?.trim() || undefined,
-    cc: parsed.data.cc?.trim() || undefined,
-    bcc: parsed.data.bcc?.trim() || undefined,
+    to,
+    cc,
+    bcc,
+    headers: draftHeaders,
     subject: parsed.data.subject,
     text: parsed.data.text,
     html: parsed.data.html,
