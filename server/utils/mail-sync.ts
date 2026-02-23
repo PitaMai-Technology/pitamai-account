@@ -1,11 +1,16 @@
 import type { MailAccount } from '@prisma/client';
 import {
+  getCachedMessageCount,
   getCachedMessages,
   getMaxCachedUid,
   pruneCache,
   upsertMessagesToCache,
 } from '~~/server/utils/mail-cache';
-import { listMessages, listMessagesSinceUid } from '~~/server/utils/imap';
+import {
+  getMailboxMessageCount,
+  listMessages,
+  listMessagesSinceUid,
+} from '~~/server/utils/imap';
 
 type MailAccountConnection = Pick<
   MailAccount,
@@ -24,6 +29,12 @@ export async function syncFolderMessages(params: {
   folder: string;
   limit: number;
 }) {
+  const cachedTop = await getCachedMessages({
+    accountId: params.account.id,
+    folder: params.folder,
+    limit: params.limit,
+  });
+
   const maxUid = await getMaxCachedUid({
     accountId: params.account.id,
     folder: params.folder,
@@ -61,12 +72,35 @@ export async function syncFolderMessages(params: {
     limit: 200,
   });
 
+  const [remoteCount, cachedCount] = await Promise.all([
+    getMailboxMessageCount({
+      account: params.account,
+      folder: params.folder,
+    }),
+    getCachedMessageCount({
+      accountId: params.account.id,
+      folder: params.folder,
+    }),
+  ]);
+
   if (diffMessages.length > 0) {
     await upsertMessagesToCache({
       accountId: params.account.id,
       folder: params.folder,
       messages: diffMessages,
     });
+  }
+
+  const shouldUseCacheOnly =
+    diffMessages.length === 0 &&
+    cachedTop.length > 0 &&
+    remoteCount === cachedCount;
+
+  if (shouldUseCacheOnly) {
+    return {
+      strategy: 'diff-cache' as const,
+      messages: cachedTop,
+    };
   }
 
   const latest = await listMessages({

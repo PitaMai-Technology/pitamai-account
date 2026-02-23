@@ -18,6 +18,20 @@ type MailboxItem = {
   specialUse: string | null;
 };
 
+type MailboxResponseItem = {
+  path: string;
+  name: string;
+  specialUse: string | null;
+};
+
+type MailGroup = {
+  key: string;
+  sender: string;
+  messages: (typeof mailList.value)[number][];
+};
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
 const toast = useToast();
 const mailStore = useMailStore();
 
@@ -34,8 +48,13 @@ const accounts = ref<MailAccountItem[]>([]);
 const hasMailSetting = computed(() => accounts.value.length > 0);
 const composeOpen = ref(false);
 const sending = ref(false);
+const draftSaving = ref(false);
+const creatingFolder = ref(false);
+const folderActionLoading = ref(false);
+const newFolderName = ref('');
 const streamConnected = ref(false);
 const realtimeFolderPath = 'INBOX';
+const openingUid = ref<number | null>(null);
 let stream: EventSource | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempt = 0;
@@ -84,10 +103,53 @@ function removeBccField(index: number) {
 
 const folderOptions = computed(() =>
   folders.value.map(folder => ({
-    label: folder.name || folder.path,
+    label: getFolderDisplay(folder).label,
     value: folder.path,
   }))
 );
+
+function normalizeFolderPath(path: string) {
+  return path.trim().toLowerCase();
+}
+
+function getFolderDisplay(folder: MailboxItem) {
+  const normalizedPath = normalizeFolderPath(folder.path);
+  const special = (folder.specialUse ?? '').toLowerCase();
+
+  if (special === '\\inbox' || normalizedPath === 'inbox') {
+    return { label: '受信トレイ', icon: 'i-lucide-inbox', protected: true };
+  }
+  if (special === '\\drafts' || normalizedPath.includes('draft')) {
+    return { label: '下書き', icon: 'i-lucide-file-pen-line', protected: true };
+  }
+  if (special === '\\sent' || normalizedPath.includes('sent')) {
+    return { label: '送信済み', icon: 'i-lucide-send', protected: true };
+  }
+  if (special === '\\trash' || normalizedPath.includes('trash') || normalizedPath.includes('deleted')) {
+    return { label: 'ゴミ箱', icon: 'i-lucide-trash-2', protected: true };
+  }
+  if (normalizedPath.includes('spam') || normalizedPath.includes('junk')) {
+    return { label: '迷惑メール', icon: 'i-lucide-shield-alert', protected: true };
+  }
+  if (special === '\\archive' || normalizedPath.includes('archive')) {
+    return { label: 'アーカイブ', icon: 'i-lucide-archive', protected: true };
+  }
+
+  return {
+    label: folder.name || folder.path,
+    icon: 'i-lucide-folder',
+    protected: false,
+  };
+}
+
+const activeFolder = computed(() =>
+  folders.value.find(folder => folder.path === activeFolderPath.value) ?? null
+);
+
+const canEditActiveFolder = computed(() => {
+  if (!activeFolder.value) return false;
+  return !getFolderDisplay(activeFolder.value).protected;
+});
 
 const selectedAccount = computed(() => {
   return accounts.value[0] ?? null;
@@ -120,6 +182,95 @@ const selectedSeen = computed(() => {
 });
 
 const hasSelectedMail = computed(() => selectedUid.value !== null);
+
+function extractSenderAddress(from: string | null) {
+  if (!from) return 'unknown';
+
+  const matched = from.match(/<([^>]+)>/);
+  if (matched?.[1]) {
+    return matched[1].trim().toLowerCase();
+  }
+
+  return from.trim().toLowerCase();
+}
+
+function isReplySubject(subject: string | null) {
+  if (!subject) return false;
+  return /^re(\[\d+\])?\s*:/i.test(subject.trim());
+}
+
+function normalizeThreadSubject(subject: string | null) {
+  const raw = (subject ?? '').trim();
+  if (!raw) return '(件名なし)';
+
+  let normalized = raw;
+  while (/^re(\[\d+\])?\s*:/i.test(normalized)) {
+    normalized = normalized.replace(/^re(\[\d+\])?\s*:/i, '').trim();
+  }
+
+  return normalized.toLowerCase() || '(件名なし)';
+}
+
+function isWithinOneDay(dateText: string | null) {
+  if (!dateText) return false;
+
+  const time = new Date(dateText).getTime();
+  if (Number.isNaN(time)) return false;
+
+  return Date.now() - time <= ONE_DAY_MS;
+}
+
+function messageButtonClass(message: (typeof mailList.value)[number]) {
+  if (selectedUid.value === message.uid) {
+    return 'border-gray-400 bg-gray-50';
+  }
+
+  return message.seen
+    ? 'border-gray-200 bg-white'
+    : 'border-emerald-400 bg-white';
+}
+
+const groupedMailList = computed<MailGroup[]>(() => {
+  const groups: MailGroup[] = [];
+  const threadGroupIndex = new Map<string, number>();
+
+  for (const message of mailList.value) {
+    const senderKey = extractSenderAddress(message.from);
+    const replyThreadingEnabled =
+      senderKey !== 'unknown' &&
+      isReplySubject(message.subject) &&
+      isWithinOneDay(message.date);
+
+    if (replyThreadingEnabled) {
+      const threadKey = `${senderKey}:${normalizeThreadSubject(message.subject)}`;
+      const existingIndex = threadGroupIndex.get(threadKey);
+
+      if (existingIndex !== undefined) {
+        const existing = groups[existingIndex];
+        if (existing) {
+          existing.messages.push(message);
+        }
+        continue;
+      }
+
+      threadGroupIndex.set(threadKey, groups.length);
+      groups.push({
+        key: `thread:${threadKey}`,
+        sender: message.from || '-',
+        messages: [message],
+      });
+      continue;
+    }
+
+    groups.push({
+      key: `single:${message.uid}`,
+      sender: message.from || '-',
+      messages: [message],
+    });
+  }
+
+  return groups;
+});
 
 async function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -154,7 +305,7 @@ async function loadFolders() {
   try {
     isLoading.value = true;
 
-    const response = await $fetch<{ mailboxes: MailboxItem[] }>('/api/pitamai/mail/imap-test');
+    const response = await $fetch<{ mailboxes: MailboxResponseItem[] }>('/api/pitamai/mail/imap-test');
 
     const mapped = response.mailboxes.map(box => ({
       path: box.path,
@@ -178,6 +329,153 @@ async function loadFolders() {
     });
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function onCreateFolder() {
+  if (creatingFolder.value) return;
+
+  const name = newFolderName.value.trim();
+  if (!name) return;
+
+  creatingFolder.value = true;
+  try {
+    const response = await $fetch<{ mailboxes: MailboxResponseItem[] }>('/api/pitamai/mail/folder-create', {
+      method: 'POST',
+      body: { name },
+    });
+
+    mailStore.setFolders(response.mailboxes);
+    newFolderName.value = '';
+
+    toast.add({
+      title: '作成しました',
+      description: 'フォルダを作成しました',
+      color: 'success',
+    });
+  } catch (error) {
+    toast.add({
+      title: '作成失敗',
+      description: error instanceof Error ? error.message : 'フォルダ作成に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    creatingFolder.value = false;
+  }
+}
+
+async function onRenameFolder() {
+  if (!activeFolder.value || !canEditActiveFolder.value || folderActionLoading.value) return;
+
+  const sourcePath = activeFolder.value.path;
+
+  const nextName = window.prompt('新しいフォルダ名を入力してください', activeFolder.value.name || sourcePath);
+  if (!nextName || !nextName.trim()) return;
+
+  folderActionLoading.value = true;
+  try {
+    const response = await $fetch<{ mailboxes: MailboxResponseItem[] }>('/api/pitamai/mail/folder-rename', {
+      method: 'POST',
+      body: {
+        path: sourcePath,
+        newName: nextName.trim(),
+      },
+    });
+
+    mailStore.setFolders(response.mailboxes);
+    if (activeFolderPath.value === sourcePath) {
+      mailStore.setActiveFolder(nextName.trim());
+    }
+    toast.add({
+      title: '変更しました',
+      description: 'フォルダ名を変更しました',
+      color: 'success',
+    });
+  } catch (error) {
+    toast.add({
+      title: '変更失敗',
+      description: error instanceof Error ? error.message : 'フォルダ名の変更に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    folderActionLoading.value = false;
+  }
+}
+
+async function onDeleteFolder() {
+  if (!activeFolder.value || !canEditActiveFolder.value || folderActionLoading.value) return;
+
+  const targetPath = activeFolder.value.path;
+  const targetName = activeFolder.value.name || targetPath;
+
+  const confirmed = window.confirm(`フォルダ「${targetName}」を削除しますか？`);
+  if (!confirmed) return;
+
+  folderActionLoading.value = true;
+  try {
+    const response = await $fetch<{ mailboxes: MailboxResponseItem[] }>('/api/pitamai/mail/folder-delete', {
+      method: 'POST',
+      body: {
+        path: targetPath,
+      },
+    });
+
+    mailStore.setFolders(response.mailboxes);
+
+    if (activeFolderPath.value === targetPath) {
+      const first = response.mailboxes[0];
+      if (first) {
+        mailStore.setActiveFolder(first.path);
+      }
+    }
+
+    toast.add({
+      title: '削除しました',
+      description: 'フォルダを削除しました',
+      color: 'success',
+    });
+  } catch (error) {
+    toast.add({
+      title: '削除失敗',
+      description: error instanceof Error ? error.message : 'フォルダ削除に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    folderActionLoading.value = false;
+  }
+}
+
+async function onDropMailToFolder(uid: number, toFolderPath: string) {
+  if (!activeFolderPath.value) return;
+  if (activeFolderPath.value === toFolderPath) return;
+
+  try {
+    await $fetch('/api/pitamai/mail/move-to-folder', {
+      method: 'POST',
+      body: {
+        uid,
+        fromFolder: activeFolderPath.value,
+        toFolder: toFolderPath,
+      },
+    });
+
+    toast.add({
+      title: '移動しました',
+      description: 'メールをフォルダへ移動しました',
+      color: 'success',
+    });
+
+    await loadMessages({
+      markOpenedAsRead: false,
+      notifyIfNew: false,
+      forceSync: true,
+    });
+  } catch (error) {
+    toast.add({
+      title: '移動失敗',
+      description: error instanceof Error ? error.message : 'メール移動に失敗しました',
+      color: 'error',
+    });
   }
 }
 
@@ -236,7 +534,12 @@ async function loadMessages(options?: {
 
       const target = selected ?? response.messages[0];
       if (target) {
-        await openMessage(target.uid, markOpenedAsRead);
+        const isSameAsCurrent =
+          currentMail.value?.uid === target.uid && selectedUid.value === target.uid;
+
+        if (!isSameAsCurrent) {
+          await openMessage(target.uid, markOpenedAsRead);
+        }
       }
     } else {
       mailStore.setCurrentMail(null);
@@ -269,8 +572,10 @@ function maybeNotifyNewMail() {
 
 async function openMessage(uid: number, markAsRead = true) {
   if (!hasMailSetting.value) return;
+  if (openingUid.value === uid) return;
 
   try {
+    openingUid.value = uid;
     selectedUid.value = uid;
     const listItem = mailList.value.find(item => item.uid === uid);
 
@@ -320,6 +625,10 @@ async function openMessage(uid: number, markAsRead = true) {
       description: error instanceof Error ? error.message : 'メール詳細取得に失敗しました',
       color: 'error',
     });
+  } finally {
+    if (openingUid.value === uid) {
+      openingUid.value = null;
+    }
   }
 }
 
@@ -470,6 +779,63 @@ async function onSendMail() {
   }
 }
 
+async function onSaveDraft() {
+  if (draftSaving.value) return;
+
+  const to = composeState.to.trim();
+  const cc = composeState.ccList
+    .map(item => item.trim())
+    .filter(item => item.length > 0)
+    .join(',');
+  const bcc = composeState.bccList
+    .map(item => item.trim())
+    .filter(item => item.length > 0)
+    .join(',');
+
+  draftSaving.value = true;
+  try {
+    const attachments = await Promise.all(
+      composeState.files.map(async file => ({
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream',
+        contentBase64: await toBase64(file),
+      }))
+    );
+
+    const result = await $fetch<{
+      ok: true;
+      stored: boolean;
+      mailbox: string | null;
+    }>('/api/pitamai/mail/draft', {
+      method: 'POST',
+      body: {
+        to: to || undefined,
+        cc: cc || undefined,
+        bcc: bcc || undefined,
+        subject: composeState.subject,
+        text: composeState.text,
+        attachments,
+      },
+    });
+
+    toast.add({
+      title: '下書きを保存しました',
+      description: result.mailbox
+        ? `保存先: ${result.mailbox}`
+        : '下書きフォルダに保存しました',
+      color: 'success',
+    });
+  } catch (error) {
+    toast.add({
+      title: '下書き保存に失敗しました',
+      description: error instanceof Error ? error.message : '下書き保存に失敗しました',
+      color: 'error',
+    });
+  } finally {
+    draftSaving.value = false;
+  }
+}
+
 function startRealtimeStream() {
   if (!import.meta.client) return;
   if (!hasMailSetting.value) return;
@@ -578,20 +944,51 @@ onBeforeUnmount(() => {
     <div class="grid min-h-[70vh] grid-cols-1 gap-4 lg:grid-cols-12">
       <UCard class="lg:col-span-2">
         <template #header>
-          <h2 class="text-sm font-semibold">フォルダ</h2>
+          <div class="space-y-2">
+            <h2 class="text-sm font-semibold mb-2">フォルダ</h2>
+          </div>
+          <UCollapsible class="flex flex-col gap-2 w-48">
+            <UButton class="text-xs p-1" label="フォルダ編集" color="neutral" variant="subtle"
+              trailing-icon="i-lucide-settings" block />
+
+            <template #content>
+              <div class="flex gap-1">
+                <UFieldGroup>
+                  <UInput v-model="newFolderName" size="xs" placeholder="新規フォルダ名" />
+                  <UButton size="xs" icon="i-lucide-plus" :loading="creatingFolder" @click="onCreateFolder">
+                  </UButton>
+                </UFieldGroup>
+              </div>
+              <div class="flex gap-1">
+                <UFieldGroup>
+                  <UButton size="xs" color="neutral" variant="outline" :disabled="!canEditActiveFolder"
+                    :loading="folderActionLoading" @click="onRenameFolder">
+                    名前変更
+                  </UButton>
+                  <UButton size="xs" color="error" variant="outline" :disabled="!canEditActiveFolder"
+                    :loading="folderActionLoading" @click="onDeleteFolder">
+                    削除
+                  </UButton>
+                </UFieldGroup>
+              </div>
+            </template>
+          </UCollapsible>
         </template>
         <div class="space-y-1">
-          <UButton v-for="folder in folders" :key="folder.path"
-            :variant="activeFolderPath === folder.path ? 'solid' : 'ghost'" color="neutral" class="w-full justify-start"
-            @click="mailStore.setActiveFolder(folder.path)">
-            {{ folder.name || folder.path }}
-          </UButton>
+          <AppMailDroppableFolder v-for="folder in folders" :key="folder.path" :folder="folder"
+            :active-folder-path="activeFolderPath" :icon="getFolderDisplay(folder).icon"
+            :label="getFolderDisplay(folder).label" @select="mailStore.setActiveFolder"
+            @drop-mail="onDropMailToFolder" />
         </div>
       </UCard>
 
       <UCard class="lg:col-span-4">
         <template #header>
           <h2 class="text-sm font-semibold">メール一覧</h2>
+          <UButton size="xs" color="neutral" icon="i-lucide-refresh-cw" variant="outline" :disabled="isLoading"
+            :loading="isLoading"
+            @click="loadMessages({ markOpenedAsRead: false, notifyIfNew: false, forceSync: true })">
+          </UButton>
         </template>
 
         <div v-if="isLoading" class="space-y-2">
@@ -604,19 +1001,29 @@ onBeforeUnmount(() => {
           メールがありません。
         </div>
 
-        <div v-else class="space-y-1">
-          <button v-for="message in mailList" :key="message.uid" type="button"
-            class="w-full rounded border px-3 py-2 text-left" :class="selectedUid === message.uid
-              ? 'border-gray-400 bg-gray-50'
-              : message.seen
-                ? 'border-gray-200 bg-white'
-                : 'border-emerald-400 bg-white'
-              " @click="openMessage(message.uid, true)">
-            <p class="truncate text-sm font-medium">{{ message.subject || '(件名なし)' }}</p>
-            <p class="truncate text-xs text-gray-600">{{ message.from || '-' }}</p>
-            <p class="text-xs text-gray-500">{{ message.date ? new Date(message.date).toLocaleString('ja-JP') : '-' }}
-            </p>
-          </button>
+        <div v-else class="space-y-2">
+          <template v-for="group in groupedMailList" :key="group.key">
+            <div class="space-y-1">
+              <div class="flex justify-end">
+                <UBadge v-if="group.messages.length > 1" color="neutral" variant="soft" size="xs">
+                  {{ group.messages.length }}件
+                </UBadge>
+              </div>
+              <AppMailDraggableItem :message="group.messages[0]!" :selected-uid="selectedUid" :opening-uid="openingUid"
+                @open="uid => openMessage(uid, true)" />
+            </div>
+
+            <UCollapsible v-if="group.messages.length > 1" class="pl-3">
+              <UButton color="neutral" variant="ghost" size="xs" trailing-icon="i-lucide-chevron-down" class="mb-1"
+                label="返信履歴を表示" />
+              <template #content>
+                <div class="space-y-1 border-l border-gray-200 pl-3">
+                  <AppMailDraggableItem v-for="message in group.messages.slice(1)" :key="message.uid" :message="message"
+                    :selected-uid="selectedUid" :opening-uid="openingUid" @open="uid => openMessage(uid, true)" />
+                </div>
+              </template>
+            </UCollapsible>
+          </template>
         </div>
       </UCard>
 
@@ -719,6 +1126,7 @@ onBeforeUnmount(() => {
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" @click="composeOpen = false">キャンセル</UButton>
+          <UButton color="neutral" variant="outline" :loading="draftSaving" @click="onSaveDraft">下書き保存</UButton>
           <UButton color="primary" :loading="sending" @click="onSendMail">送信</UButton>
         </div>
       </template>

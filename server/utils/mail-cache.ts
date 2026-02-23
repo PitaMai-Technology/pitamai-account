@@ -84,6 +84,18 @@ export async function getMaxCachedUid(params: {
   return max._max.uid ?? null;
 }
 
+export async function getCachedMessageCount(params: {
+  accountId: string;
+  folder: string;
+}) {
+  return prisma.mailCache.count({
+    where: {
+      accountId: params.accountId,
+      folder: params.folder,
+    },
+  });
+}
+
 export async function upsertMessagesToCache(params: {
   accountId: string;
   folder: string;
