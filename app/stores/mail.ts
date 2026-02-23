@@ -34,6 +34,7 @@ export type MailDetail = {
   isGpgSigned: boolean;
   pgpDetachedSignature: string | null;
   pgpDetachedSignedDataBase64: string | null;
+  pgpEncryptedMessage: string | null;
 };
 
 export type ComposeRecipientType = 'to' | 'cc' | 'bcc';

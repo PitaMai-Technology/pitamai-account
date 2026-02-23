@@ -66,6 +66,7 @@ type MailDetail = {
   isGpgSigned: boolean;
   pgpDetachedSignature: string | null;
   pgpDetachedSignedDataBase64: string | null;
+  pgpEncryptedMessage: string | null;
   attachments: Array<{
     filename: string | null;
     contentType: string;

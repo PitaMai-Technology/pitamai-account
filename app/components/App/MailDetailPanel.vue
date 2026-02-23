@@ -36,6 +36,7 @@ type MailDetail = {
   text: string | null;
   pgpDetachedSignature: string | null;
   pgpDetachedSignedDataBase64: string | null;
+  pgpEncryptedMessage: string | null;
   attachments: Array<{
     filename: string | null;
     contentType: string;
@@ -74,8 +75,10 @@ type GpgDecryptStatus = 'none' | 'checking' | 'ok' | 'failed';
 const gpgDecryptStatus = ref<GpgDecryptStatus>('none');
 const gpgDecryptDetail = ref('');
 const decryptedText = ref<string | null>(null);
+const decryptedHtml = ref<string | null>(null);
 
 const displayText = computed(() => decryptedText.value ?? props.currentMail?.text ?? null);
+const displayHtml = computed(() => decryptedHtml.value ?? props.currentMail?.html ?? null);
 
 const visibleAttachments = computed(() => {
   const attachments = props.currentMail?.attachments ?? [];
@@ -96,19 +99,23 @@ const visibleAttachments = computed(() => {
     return !(isPgpSignature || isPgpPublicKey);
   });
 });
-
 watch(
   () => props.currentMail,
   async mail => {
     decryptedText.value = null;
+    decryptedHtml.value = null;
     gpgDecryptStatus.value = 'none';
     gpgDecryptDetail.value = '';
 
-    if (!mail?.text) {
+    if (!mail) {
       return;
     }
 
-    if (!mail.text.includes('-----BEGIN PGP MESSAGE-----')) {
+    const encryptedPayload =
+      mail.pgpEncryptedMessage ??
+      (mail.text?.includes('-----BEGIN PGP MESSAGE-----') ? mail.text : null);
+
+    if (!encryptedPayload) {
       return;
     }
 
@@ -116,17 +123,29 @@ watch(
 
     try {
       const result = await $fetch<
-        | { decrypted: true; text: string }
-        | { decrypted: false; reason: string; text: string }
+        | {
+          decrypted: true;
+          text: string;
+          html: string | null;
+          hasAttachments: boolean;
+        }
+        | {
+          decrypted: false;
+          reason: string;
+          text: string;
+          html: null;
+          hasAttachments: boolean;
+        }
       >('/api/pitamai/mail/gpg-decrypt', {
         method: 'POST',
         body: {
-          text: mail.text,
+          text: encryptedPayload,
         },
       });
 
       if (result.decrypted) {
         decryptedText.value = result.text;
+        decryptedHtml.value = result.html;
         gpgDecryptStatus.value = 'ok';
         gpgDecryptDetail.value = '秘密鍵で復号済み';
       } else {
@@ -142,9 +161,12 @@ watch(
 );
 
 watch(
-  () => props.currentMail,
+  () => [props.currentMail, decryptedText.value] as const,
   async mail => {
-    if (!mail || !mail.isGpgSigned) {
+    const currentMail = mail[0];
+    const currentDecryptedText = mail[1];
+
+    if (!currentMail) {
       gpgStatus.value = 'none';
       gpgDetail.value = '';
       return;
@@ -152,12 +174,19 @@ watch(
 
     gpgStatus.value = 'checking';
 
+    const verificationText = currentDecryptedText ?? currentMail.text ?? '';
+
     const hasInlineSignedText =
-      typeof mail.text === 'string' &&
-      mail.text.includes('-----BEGIN PGP SIGNED MESSAGE-----');
+      verificationText.includes('-----BEGIN PGP SIGNED MESSAGE-----');
     const hasDetachedSignature =
-      typeof mail.pgpDetachedSignature === 'string' &&
-      mail.pgpDetachedSignature.includes('-----BEGIN PGP SIGNATURE-----');
+      typeof currentMail.pgpDetachedSignature === 'string' &&
+      currentMail.pgpDetachedSignature.includes('-----BEGIN PGP SIGNATURE-----');
+
+    if (!currentMail.isGpgSigned && !hasInlineSignedText && !hasDetachedSignature) {
+      gpgStatus.value = 'none';
+      gpgDetail.value = '';
+      return;
+    }
 
     if (!hasInlineSignedText && !hasDetachedSignature) {
       gpgStatus.value = 'unknown';
@@ -166,7 +195,8 @@ watch(
     }
 
     try {
-      const senderEmail = mail.from?.match(/<(.+?)>/)?.[1] ?? mail.from ?? '';
+      const senderEmail =
+        currentMail.from?.match(/<(.+?)>/)?.[1] ?? currentMail.from ?? '';
       if (!senderEmail || !senderEmail.includes('@')) {
         gpgStatus.value = 'unknown';
         gpgDetail.value = '送信者メールアドレスを特定できないため検証できません';
@@ -179,11 +209,12 @@ watch(
       >('/api/pitamai/mail/gpg-verify', {
         method: 'POST',
         body: {
-          text: mail.text ?? '',
+          text: verificationText,
           senderEmail,
           useOwnKey: props.isSentFolder,
-          detachedSignature: mail.pgpDetachedSignature ?? undefined,
-          detachedSignedDataBase64: mail.pgpDetachedSignedDataBase64 ?? undefined,
+          detachedSignature: currentMail.pgpDetachedSignature ?? undefined,
+          detachedSignedDataBase64:
+            currentMail.pgpDetachedSignedDataBase64 ?? undefined,
         },
       });
 
@@ -283,7 +314,7 @@ watch(
       <p class="text-xs font-medium text-gray-700">添付ファイル</p>
       <div v-for="(attachment, index) in visibleAttachments" :key="`${attachment.filename}-${attachment.size}`"
         class="flex items-center justify-between gap-3 text-xs text-gray-600">
-        <p>
+        <p>displayH
           {{ attachment.filename || 'unnamed' }} ({{ attachment.size }} bytes)
         </p>
         <UButton size="xs" color="neutral" variant="outline" :disabled="isSpamFolder"

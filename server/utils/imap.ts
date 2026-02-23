@@ -52,6 +52,7 @@ type MessageDetail = {
   isGpgSigned: boolean;
   pgpDetachedSignature: string | null;
   pgpDetachedSignedDataBase64: string | null;
+  pgpEncryptedMessage: string | null;
 };
 
 function extractMultipartSignedParts(source: Buffer): {
@@ -170,6 +171,110 @@ function extractMultipartSignedParts(source: Buffer): {
     detachedSignature,
     signedDataBase64: Buffer.from(part1Buffer).toString('base64'),
   };
+}
+
+function extractMultipartEncryptedMessage(source: Buffer): string | null {
+  const sourceText = source.toString('latin1');
+
+  const headerEndCRLF = sourceText.indexOf('\r\n\r\n');
+  const headerEndLF = sourceText.indexOf('\n\n');
+
+  const headerEndIndex =
+    headerEndCRLF >= 0 ? headerEndCRLF : headerEndLF >= 0 ? headerEndLF : -1;
+  const headerSeparatorLength =
+    headerEndCRLF >= 0 ? 4 : headerEndLF >= 0 ? 2 : 0;
+
+  if (headerEndIndex < 0) {
+    return null;
+  }
+
+  const headersText = sourceText.slice(0, headerEndIndex);
+  const normalizedHeaders = headersText.replace(/\r?\n[ \t]+/g, ' ');
+
+  const isMultipartEncrypted = /content-type:\s*multipart\/encrypted/i.test(
+    normalizedHeaders
+  );
+
+  if (!isMultipartEncrypted) {
+    return null;
+  }
+
+  const boundaryMatch = normalizedHeaders.match(/boundary="?([^";\r\n]+)"?/i);
+  if (!boundaryMatch?.[1]) {
+    return null;
+  }
+
+  const boundary = boundaryMatch[1];
+  const marker = `--${boundary}`;
+
+  const bodyBuffer = source.subarray(headerEndIndex + headerSeparatorLength);
+  const bodyText = bodyBuffer.toString('latin1');
+
+  let firstMarker = bodyText.indexOf(marker);
+  if (firstMarker < 0) {
+    return null;
+  }
+
+  let part1Start = firstMarker + marker.length;
+  if (bodyText.startsWith('\r\n', part1Start)) {
+    part1Start += 2;
+  } else if (bodyText.startsWith('\n', part1Start)) {
+    part1Start += 1;
+  }
+
+  let secondMarker = bodyText.indexOf(`\r\n${marker}`, part1Start);
+  let secondMarkerPrefixLength = 2;
+  if (secondMarker < 0) {
+    secondMarker = bodyText.indexOf(`\n${marker}`, part1Start);
+    secondMarkerPrefixLength = 1;
+  }
+  if (secondMarker < 0) {
+    return null;
+  }
+
+  let part2Start = secondMarker + secondMarkerPrefixLength + marker.length;
+  if (bodyText.startsWith('\r\n', part2Start)) {
+    part2Start += 2;
+  } else if (bodyText.startsWith('\n', part2Start)) {
+    part2Start += 1;
+  }
+
+  let thirdMarker = bodyText.indexOf(`\r\n${marker}`, part2Start);
+  if (thirdMarker < 0) {
+    thirdMarker = bodyText.indexOf(`\n${marker}`, part2Start);
+  }
+  if (thirdMarker < 0) {
+    return null;
+  }
+
+  const part2Buffer = bodyBuffer.subarray(part2Start, thirdMarker);
+  const part2Text = part2Buffer.toString('latin1');
+
+  const part2HeaderEndCRLF = part2Text.indexOf('\r\n\r\n');
+  const part2HeaderEndLF = part2Text.indexOf('\n\n');
+  const part2HeaderEndIndex =
+    part2HeaderEndCRLF >= 0
+      ? part2HeaderEndCRLF
+      : part2HeaderEndLF >= 0
+        ? part2HeaderEndLF
+        : -1;
+  const part2HeaderSeparatorLength =
+    part2HeaderEndCRLF >= 0 ? 4 : part2HeaderEndLF >= 0 ? 2 : 0;
+
+  if (part2HeaderEndIndex < 0) {
+    return null;
+  }
+
+  const encryptedBody = part2Buffer
+    .subarray(part2HeaderEndIndex + part2HeaderSeparatorLength)
+    .toString('utf8')
+    .trim();
+
+  if (!encryptedBody.includes('-----BEGIN PGP MESSAGE-----')) {
+    return null;
+  }
+
+  return encryptedBody;
 }
 
 type MessageAttachmentContent = {
@@ -910,6 +1015,9 @@ export async function getMessageDetail(params: {
     }
 
     const parsed = await simpleParser(Buffer.from(source));
+    const multipartEncryptedMessage = extractMultipartEncryptedMessage(
+      Buffer.from(source)
+    );
     const pgpDetachedSignatureAttachment = parsed.attachments.find(item => {
       const contentType = (item.contentType ?? '').toLowerCase();
       const filename = (item.filename ?? '').toLowerCase();
@@ -926,6 +1034,33 @@ export async function getMessageDetail(params: {
           : Buffer.from(pgpDetachedSignatureAttachment.content)
         ).toString('utf8')
       : null;
+
+    const pgpEncryptedAttachment = parsed.attachments.find(item => {
+      const contentType = (item.contentType ?? '').toLowerCase();
+      const filename = (item.filename ?? '').toLowerCase();
+
+      return (
+        contentType.includes('application/octet-stream') ||
+        contentType.includes('application/pgp-encrypted') ||
+        filename === 'encrypted.asc' ||
+        filename === 'message.asc'
+      );
+    });
+
+    const pgpEncryptedAttachmentBody = pgpEncryptedAttachment
+      ? (Buffer.isBuffer(pgpEncryptedAttachment.content)
+          ? pgpEncryptedAttachment.content
+          : Buffer.from(pgpEncryptedAttachment.content)
+        )
+          .toString('utf8')
+          .trim()
+      : null;
+
+    const pgpEncryptedMessage =
+      multipartEncryptedMessage ??
+      (pgpEncryptedAttachmentBody?.includes('-----BEGIN PGP MESSAGE-----')
+        ? pgpEncryptedAttachmentBody
+        : null);
 
     const multipartSignedParts = extractMultipartSignedParts(
       Buffer.from(source)
@@ -1009,6 +1144,7 @@ export async function getMessageDetail(params: {
       isGpgSigned: isLikelyGpgSignedMessage(parsed),
       pgpDetachedSignature: detachedSignature,
       pgpDetachedSignedDataBase64: detachedSignedDataBase64,
+      pgpEncryptedMessage,
     };
   });
 }

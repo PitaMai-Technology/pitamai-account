@@ -2,6 +2,7 @@ import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { requireSessionUser } from '~~/server/utils/mail-account';
+import { simpleParser } from 'mailparser';
 import {
   decryptEncryptedMessage,
   decryptGpgPrivateKey,
@@ -26,6 +27,8 @@ export default defineEventHandler(async event => {
       decrypted: false,
       reason: 'PGP 暗号化メッセージではありません',
       text: parsed.data.text,
+      html: null,
+      hasAttachments: false,
     };
   }
 
@@ -43,6 +46,8 @@ export default defineEventHandler(async event => {
       decrypted: false,
       reason: '秘密鍵が登録されていないため復号できません',
       text: parsed.data.text,
+      html: null,
+      hasAttachments: false,
     };
   }
 
@@ -58,15 +63,36 @@ export default defineEventHandler(async event => {
       armoredPrivateKey,
     });
 
+    // 復号結果を MIME として再解析し、本文・HTML・添付を分離
+    let finalText = decryptedText;
+    let finalHtml: string | null = null;
+    let hasAttachments = false;
+
+    try {
+      const decryptedMimeBuffer = Buffer.from(decryptedText, 'utf8');
+      const mimeAnalysis = await simpleParser(decryptedMimeBuffer);
+
+      finalText = mimeAnalysis.text ?? decryptedText;
+      finalHtml =
+        typeof mimeAnalysis.html === 'string' ? mimeAnalysis.html : null;
+      hasAttachments = (mimeAnalysis.attachments?.length ?? 0) > 0;
+    } catch {
+      // MIME 解析失敗は無視、元の decryptedText を使用
+    }
+
     return {
       decrypted: true,
-      text: decryptedText,
+      text: finalText,
+      html: finalHtml,
+      hasAttachments,
     };
   } catch (e) {
     return {
       decrypted: false,
       reason: e instanceof Error ? e.message : '復号に失敗しました',
       text: parsed.data.text,
+      html: null,
+      hasAttachments: false,
     };
   }
 });
