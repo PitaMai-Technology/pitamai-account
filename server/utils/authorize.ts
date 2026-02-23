@@ -23,6 +23,17 @@ export async function assertActiveMemberRole(
   const headers = event.headers;
 
   try {
+    // グローバル owner/admins ロールを持つユーザーは常に許可
+    const session = (await auth.api.getSession({
+      headers,
+    })) as { user?: { role?: string } } | null;
+
+    const globalRole = session?.user?.role;
+    if (globalRole === 'owner' || globalRole === 'admins') {
+      return 'owner'; // グローバル owner を org ロールの owner として扱う
+    }
+
+    // グローバル権限がない場合、organization レベルのロールをチェック
     const response = (await auth.api.getActiveMemberRole({
       headers,
     })) as { role?: string } | undefined;
