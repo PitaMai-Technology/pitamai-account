@@ -417,12 +417,28 @@ export function useMailMessages(params: UseMailMessagesParams) {
     if (uid === null) return;
 
     try {
+      const listItem = params.mailList.value.find(item => item.uid === uid);
+      if (!listItem) return;
+
+      const newSeenState = !selectedSeen.value;
+
       await mailApi.updateSeen(
         params.activeFolderPath.value,
         uid,
-        !selectedSeen.value
+        newSeenState
       );
-      await loadMessages();
+
+      // メモリ上の状態を即座に更新
+      listItem.seen = newSeenState;
+
+      // キャッシュを更新
+      params.setCachedMailList(
+        params.activeFolderPath.value,
+        params.mailList.value
+      );
+
+      // キャッシュをバイパスして最新を取得
+      await loadMessages({ forceSync: true });
     } catch (error) {
       toast.add({
         title: 'エラー',
