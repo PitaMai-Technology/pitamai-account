@@ -120,6 +120,7 @@ const toast = useToast();
 const {
   activeFolderPath,
   folders,
+  selectedUid,
   isLoading,
   creatingFolder,
   folderActionLoading,
@@ -159,8 +160,24 @@ async function onDropMailToFolder(uid: number, toFolderPath: string) {
   if (!activeFolderPath.value) return;
   if (activeFolderPath.value === toFolderPath) return;
 
+  const fromFolderPath = activeFolderPath.value;
+
   try {
-    await mailApi.moveToFolder(uid, activeFolderPath.value, toFolderPath);
+    await mailApi.moveToFolder(uid, fromFolderPath, toFolderPath);
+
+    const response = await mailApi.getMessages({
+      folder: fromFolderPath,
+      limit: 50,
+      forceSync: true,
+    });
+
+    mailStore.setMailList(response.messages);
+
+    if (selectedUid.value === uid) {
+      mailStore.selectUid(null);
+      mailStore.setCurrentMail(null);
+    }
+
     toast.add({
       title: '移動しました',
       description: 'メールをフォルダへ移動しました',
