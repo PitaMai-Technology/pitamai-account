@@ -116,14 +116,28 @@ export function useMailApi() {
     folder: string;
     limit: number;
     forceSync: boolean;
+    signal?: AbortSignal;
   }) =>
     $fetch<{ messages: MailListItem[] }>('/api/pitamai/mail/messages', {
-      query: params,
+      query: {
+        folder: params.folder,
+        limit: params.limit,
+        forceSync: params.forceSync,
+      },
+      signal: params.signal,
     });
 
-  const getMessage = (params: { folder: string; uid: number }) =>
+  const getMessage = (params: {
+    folder: string;
+    uid: number;
+    signal?: AbortSignal;
+  }) =>
     $fetch<{ message: MailDetail }>('/api/pitamai/mail/message', {
-      query: params,
+      query: {
+        folder: params.folder,
+        uid: params.uid,
+      },
+      signal: params.signal,
     });
 
   const updateSeen = (folder: string, uid: number, seen: boolean) =>

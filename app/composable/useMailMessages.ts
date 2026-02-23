@@ -32,6 +32,23 @@ export function useMailMessages(params: UseMailMessagesParams) {
 
   const lastRealtimeToastAt = ref(0);
   const lastKnownTopUid = ref<number | null>(null);
+  const listAbortController = ref<AbortController | null>(null);
+  const openAbortController = ref<AbortController | null>(null);
+  let latestLoadRequestId = 0;
+  let latestOpenRequestId = 0;
+
+  function isAbortError(error: unknown) {
+    if (!error || typeof error !== 'object') return false;
+    const maybeError = error as {
+      name?: string;
+      cause?: { name?: string };
+    };
+
+    return (
+      maybeError.name === 'AbortError' ||
+      maybeError.cause?.name === 'AbortError'
+    );
+  }
 
   const selectedMessage = computed(() => {
     if (params.selectedUid.value === null) return null;
@@ -151,9 +168,29 @@ export function useMailMessages(params: UseMailMessagesParams) {
     });
   }
 
-  async function openMessage(uid: number, markAsRead = true) {
+  async function openMessage(
+    uid: number,
+    markAsRead = true,
+    folderPath?: string
+  ) {
     if (!params.hasMailSetting.value) return;
-    if (params.openingUid.value === uid) return;
+
+    const requestFolder = folderPath ?? params.activeFolderPath.value;
+    if (!requestFolder) return;
+
+    if (
+      params.openingUid.value === uid &&
+      params.activeFolderPath.value === requestFolder
+    )
+      return;
+
+    if (openAbortController.value) {
+      openAbortController.value.abort();
+    }
+
+    const controller = new AbortController();
+    openAbortController.value = controller;
+    const requestId = ++latestOpenRequestId;
 
     try {
       params.openingUid.value = uid;
@@ -161,15 +198,24 @@ export function useMailMessages(params: UseMailMessagesParams) {
       const listItem = params.mailList.value.find(item => item.uid === uid);
 
       const response = await mailApi.getMessage({
-        folder: params.activeFolderPath.value,
+        folder: requestFolder,
         uid,
+        signal: controller.signal,
       });
+
+      if (requestId !== latestOpenRequestId) {
+        return;
+      }
+
+      if (params.activeFolderPath.value !== requestFolder) {
+        return;
+      }
 
       params.setCurrentMail(response.message);
 
       // 日本語コメント: 詳細を開いたタイミングでのみ既読APIを呼び、一覧読み込みだけでは既読化しないよう制御します。
       if (markAsRead && listItem && !listItem.seen) {
-        await mailApi.updateSeen(params.activeFolderPath.value, uid, true);
+        await mailApi.updateSeen(requestFolder, uid, true);
 
         const target = params.mailList.value.find(item => item.uid === uid);
         if (target) {
@@ -177,6 +223,10 @@ export function useMailMessages(params: UseMailMessagesParams) {
         }
       }
     } catch (error) {
+      if (isAbortError(error)) {
+        return;
+      }
+
       toast.add({
         title: 'エラー',
         description:
@@ -186,8 +236,15 @@ export function useMailMessages(params: UseMailMessagesParams) {
         color: 'error',
       });
     } finally {
-      if (params.openingUid.value === uid) {
+      if (
+        requestId === latestOpenRequestId &&
+        params.openingUid.value === uid
+      ) {
         params.openingUid.value = null;
+      }
+
+      if (openAbortController.value === controller) {
+        openAbortController.value = null;
       }
     }
   }
@@ -209,14 +266,38 @@ export function useMailMessages(params: UseMailMessagesParams) {
 
     if (!params.hasMailSetting.value) return;
 
+    const requestFolder = params.activeFolderPath.value;
+    if (!requestFolder) return;
+
+    if (listAbortController.value) {
+      listAbortController.value.abort();
+    }
+
+    const listController = new AbortController();
+    listAbortController.value = listController;
+    const requestId = ++latestLoadRequestId;
+
     try {
       params.isLoading.value = true;
 
+      if (openAbortController.value) {
+        openAbortController.value.abort();
+      }
+
       const response = await mailApi.getMessages({
-        folder: params.activeFolderPath.value,
+        folder: requestFolder,
         limit: 50,
         forceSync,
+        signal: listController.signal,
       });
+
+      if (requestId !== latestLoadRequestId) {
+        return;
+      }
+
+      if (params.activeFolderPath.value !== requestFolder) {
+        return;
+      }
 
       const nextTopUid = response.messages[0]?.uid ?? null;
       const prevTopUid = lastKnownTopUid.value;
@@ -249,7 +330,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
             params.selectedUid.value === target.uid;
 
           if (!isSameAsCurrent) {
-            await openMessage(target.uid, markOpenedAsRead);
+            await openMessage(target.uid, markOpenedAsRead, requestFolder);
           }
         }
       } else {
@@ -257,6 +338,10 @@ export function useMailMessages(params: UseMailMessagesParams) {
         params.selectUid(null);
       }
     } catch (error) {
+      if (isAbortError(error)) {
+        return;
+      }
+
       toast.add({
         title: 'エラー',
         description:
@@ -266,7 +351,13 @@ export function useMailMessages(params: UseMailMessagesParams) {
         color: 'error',
       });
     } finally {
-      params.isLoading.value = false;
+      if (requestId === latestLoadRequestId) {
+        params.isLoading.value = false;
+      }
+
+      if (listAbortController.value === listController) {
+        listAbortController.value = null;
+      }
     }
   }
 
