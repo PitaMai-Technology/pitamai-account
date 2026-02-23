@@ -666,7 +666,7 @@ onMounted(async () => {
         </div>
 
         <hr />
-        <h2 class="text-xl font-semibold">GPG 設定</h2>
+        <h2 class="text-xl font-semibold">メールの GPG 設定(高度な設定)</h2>
         <div class="space-y-4">
           <p class="text-sm text-gray-600">
             メールを PGP 署名して送信するための鍵を管理します。

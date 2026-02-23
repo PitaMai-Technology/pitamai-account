@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMailStore } from '~/stores/mail';
 /**
  * MailDetailPanel.vue
  * 
@@ -30,6 +31,7 @@ type MailListItem = {
 };
 
 type MailDetail = {
+  uid: number;
   subject: string | null;
   from: string | null;
   html: string | null;
@@ -53,6 +55,7 @@ const props = defineProps<{
   isSentFolder: boolean;
   messageCcValue: string | null;
   hasSelectedMail: boolean;
+  openingUid: number | null;
   selectedSeen: boolean | null;
   isDraftFolder: boolean;
   isTrashFolder: boolean;
@@ -66,6 +69,8 @@ const emit = defineEmits<{
   openAttachment: [index: number];
 }>();
 
+const mailStore = useMailStore();
+
 // GPG 署名検証
 type GpgStatus = 'none' | 'checking' | 'valid' | 'invalid' | 'unknown';
 const gpgStatus = ref<GpgStatus>('none');
@@ -76,12 +81,26 @@ const gpgDecryptStatus = ref<GpgDecryptStatus>('none');
 const gpgDecryptDetail = ref('');
 const decryptedText = ref<string | null>(null);
 const decryptedHtml = ref<string | null>(null);
+let latestDecryptRequestId = 0;
+let latestVerifyRequestId = 0;
 
-const displayText = computed(() => decryptedText.value ?? props.currentMail?.text ?? null);
-const displayHtml = computed(() => decryptedHtml.value ?? props.currentMail?.html ?? null);
+const selectedUid = computed(() => props.selectedMessage?.uid ?? null);
+const activeMail = computed(() => {
+  if (selectedUid.value === null) return null;
+  if (!props.currentMail) return null;
+  return props.currentMail.uid === selectedUid.value ? props.currentMail : null;
+});
+
+const isBodyLoading = computed(() => {
+  if (!props.hasSelectedMail || selectedUid.value === null) return false;
+  return props.openingUid === selectedUid.value && activeMail.value === null;
+});
+
+const displayText = computed(() => decryptedText.value ?? activeMail.value?.text ?? null);
+const displayHtml = computed(() => decryptedHtml.value ?? activeMail.value?.html ?? null);
 
 const visibleAttachments = computed(() => {
-  const attachments = props.currentMail?.attachments ?? [];
+  const attachments = activeMail.value?.attachments ?? [];
   return attachments.filter(item => {
     const contentType = (item.contentType ?? '').toLowerCase();
     const filename = (item.filename ?? '').toLowerCase();
@@ -99,13 +118,43 @@ const visibleAttachments = computed(() => {
     return !(isPgpSignature || isPgpPublicKey);
   });
 });
+
+function buildVerifyCacheKey(params: {
+  uid: number | null;
+  folderPath: string;
+  useOwnKey: boolean;
+  senderEmail: string;
+  verificationText: string;
+  detachedSignature: string | null;
+  detachedSignedDataBase64: string | null;
+}) {
+  const text = params.verificationText ?? '';
+  const signature = params.detachedSignature ?? '';
+  const signedData = params.detachedSignedDataBase64 ?? '';
+
+  const textDigest = `${text.length}:${text.slice(0, 80)}:${text.slice(-80)}`;
+  const sigDigest = `${signature.length}:${signature.slice(0, 32)}`;
+  const dataDigest = `${signedData.length}:${signedData.slice(0, 32)}`;
+
+  return [
+    params.folderPath,
+    params.uid ?? 'none',
+    params.useOwnKey ? 'own' : 'sender',
+    params.senderEmail.toLowerCase(),
+    textDigest,
+    sigDigest,
+    dataDigest,
+  ].join('|');
+}
 watch(
-  () => props.currentMail,
+  () => activeMail.value,
   async mail => {
     decryptedText.value = null;
     decryptedHtml.value = null;
     gpgDecryptStatus.value = 'none';
     gpgDecryptDetail.value = '';
+
+    const requestId = ++latestDecryptRequestId;
 
     if (!mail) {
       return;
@@ -143,6 +192,10 @@ watch(
         },
       });
 
+      if (requestId !== latestDecryptRequestId || activeMail.value?.uid !== mail.uid) {
+        return;
+      }
+
       if (result.decrypted) {
         decryptedText.value = result.text;
         decryptedHtml.value = result.html;
@@ -161,10 +214,12 @@ watch(
 );
 
 watch(
-  () => [props.currentMail, decryptedText.value] as const,
+  () => [activeMail.value, decryptedText.value] as const,
   async mail => {
     const currentMail = mail[0];
     const currentDecryptedText = mail[1];
+
+    const requestId = ++latestVerifyRequestId;
 
     if (!currentMail) {
       gpgStatus.value = 'none';
@@ -203,6 +258,23 @@ watch(
         return;
       }
 
+      const cacheKey = buildVerifyCacheKey({
+        uid: currentMail.uid ?? null,
+        folderPath: mailStore.activeFolderPath,
+        useOwnKey: props.isSentFolder,
+        senderEmail,
+        verificationText,
+        detachedSignature: currentMail.pgpDetachedSignature ?? null,
+        detachedSignedDataBase64: currentMail.pgpDetachedSignedDataBase64 ?? null,
+      });
+
+      const cached = mailStore.getGpgVerifyCache(cacheKey);
+      if (cached) {
+        gpgStatus.value = cached.status;
+        gpgDetail.value = cached.detail;
+        return;
+      }
+
       const result = await $fetch<
         | { verified: true; fingerprint: string; signerEmail: string | null }
         | { verified: false; reason: string }
@@ -218,12 +290,24 @@ watch(
         },
       });
 
+      if (requestId !== latestVerifyRequestId || activeMail.value?.uid !== currentMail.uid) {
+        return;
+      }
+
       if (result.verified) {
         gpgStatus.value = 'valid';
         gpgDetail.value = `フィンガープリント: ${result.fingerprint}`;
+        mailStore.setGpgVerifyCache(cacheKey, {
+          status: 'valid',
+          detail: gpgDetail.value,
+        });
       } else {
         gpgStatus.value = 'invalid';
         gpgDetail.value = result.reason;
+        mailStore.setGpgVerifyCache(cacheKey, {
+          status: 'invalid',
+          detail: gpgDetail.value,
+        });
       }
     } catch {
       gpgStatus.value = 'unknown';
@@ -260,7 +344,7 @@ watch(
       <div class="flex items-start justify-between gap-3">
         <div>
           <h2 class="truncate text-sm font-semibold">
-            {{ selectedMessage?.subject || currentMail?.subject || '(件名なし)' }}
+            {{ selectedMessage?.subject || activeMail?.subject || '(件名なし)' }}
           </h2>
           <p class="text-xs text-gray-600">{{ messageMetaLabel }}: {{ messageMetaValue }}</p>
           <p v-if="isSentFolder" class="text-xs text-gray-600">Cc: {{ messageCcValue }}</p>
@@ -310,11 +394,11 @@ watch(
       </div>
     </template>
 
-    <div v-if="visibleAttachments.length" class="mb-4 space-y-1 rounded border border-gray-200 p-3">
+    <div v-if="!isBodyLoading && visibleAttachments.length" class="mb-4 space-y-1 rounded border border-gray-200 p-3">
       <p class="text-xs font-medium text-gray-700">添付ファイル</p>
       <div v-for="(attachment, index) in visibleAttachments" :key="`${attachment.filename}-${attachment.size}`"
         class="flex items-center justify-between gap-3 text-xs text-gray-600">
-        <p>displayH
+        <p>
           {{ attachment.filename || 'unnamed' }} ({{ attachment.size }} bytes)
         </p>
         <UButton size="xs" color="neutral" variant="outline" :disabled="isSpamFolder"
@@ -327,6 +411,6 @@ watch(
       </p>
     </div>
 
-    <AppMailBody :html="currentMail?.html" :text="displayText" :block-media="isSpamFolder" />
+    <AppMailBody :html="displayHtml" :text="displayText" :block-media="isSpamFolder" :loading="isBodyLoading" />
   </UCard>
 </template>

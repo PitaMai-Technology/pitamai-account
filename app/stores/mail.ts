@@ -50,6 +50,21 @@ export type ComposeState = {
   encrypt: boolean;
 };
 
+export type GpgVerifyCacheItem = {
+  status: 'valid' | 'invalid' | 'unknown';
+  detail: string;
+};
+
+type TimedCacheEntry<T> = {
+  value: T;
+  cachedAt: number;
+};
+type MailListTimedCacheMap = Record<string, TimedCacheEntry<MailListItem[]>>;
+type MailDetailTimedCacheMap = Record<string, TimedCacheEntry<MailDetail>>;
+
+const MAIL_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAIL_CACHE_MAX_ITEMS = 500;
+
 function createInitialComposeState(): ComposeState {
   return {
     to: '',
@@ -86,6 +101,9 @@ export const useMailStore = defineStore('mail', () => {
   const shiftDragSelectedUids = ref<number[]>([]);
   const recipientType = ref<ComposeRecipientType>('to');
   const composeState = reactive<ComposeState>(createInitialComposeState());
+  const gpgVerifyCache = ref<Record<string, GpgVerifyCacheItem>>({});
+  const mailListCache = ref<MailListTimedCacheMap>({});
+  const mailDetailCache = ref<MailDetailTimedCacheMap>({});
 
   const selectedMail = computed(() => {
     if (selectedUid.value === null) return null;
@@ -139,6 +157,93 @@ export const useMailStore = defineStore('mail', () => {
     shiftDragSelectedUids.value = [];
   }
 
+  function buildMailDetailCacheKey(folderPath: string, uid: number) {
+    return `${folderPath}:${uid}`;
+  }
+
+  function trimCacheEntries<T>(target: Record<string, TimedCacheEntry<T>>) {
+    const entries = Object.entries(target);
+    if (entries.length <= MAIL_CACHE_MAX_ITEMS) {
+      return;
+    }
+
+    entries
+      .sort((a, b) => a[1].cachedAt - b[1].cachedAt)
+      .slice(0, entries.length - MAIL_CACHE_MAX_ITEMS)
+      .forEach(([key]) => {
+        delete target[key];
+      });
+  }
+
+  function isExpired(cachedAt: number) {
+    return Date.now() - cachedAt > MAIL_CACHE_TTL_MS;
+  }
+
+  function getCachedMailList(folderPath: string): MailListItem[] | null {
+    const entry = mailListCache.value[folderPath];
+    if (!entry) {
+      return null;
+    }
+
+    if (isExpired(entry.cachedAt)) {
+      delete mailListCache.value[folderPath];
+      return null;
+    }
+
+    return entry.value;
+  }
+
+  function setCachedMailList(folderPath: string, items: MailListItem[]) {
+    mailListCache.value[folderPath] = {
+      value: items,
+      cachedAt: Date.now(),
+    };
+    trimCacheEntries(mailListCache.value);
+  }
+
+  function getCachedMailDetail(
+    folderPath: string,
+    uid: number
+  ): MailDetail | null {
+    const key = buildMailDetailCacheKey(folderPath, uid);
+    const entry = mailDetailCache.value[key];
+    if (!entry) {
+      return null;
+    }
+
+    if (isExpired(entry.cachedAt)) {
+      delete mailDetailCache.value[key];
+      return null;
+    }
+
+    return entry.value;
+  }
+
+  function setCachedMailDetail(folderPath: string, mail: MailDetail) {
+    mailDetailCache.value[buildMailDetailCacheKey(folderPath, mail.uid)] = {
+      value: mail,
+      cachedAt: Date.now(),
+    };
+    trimCacheEntries(mailDetailCache.value);
+  }
+
+  function clearMailDataCache() {
+    mailListCache.value = {};
+    mailDetailCache.value = {};
+  }
+
+  function getGpgVerifyCache(key: string): GpgVerifyCacheItem | null {
+    return gpgVerifyCache.value[key] ?? null;
+  }
+
+  function setGpgVerifyCache(key: string, value: GpgVerifyCacheItem) {
+    gpgVerifyCache.value[key] = value;
+  }
+
+  function clearGpgVerifyCache() {
+    gpgVerifyCache.value = {};
+  }
+
   function resetComposeState() {
     const initial = createInitialComposeState();
     composeState.to = initial.to;
@@ -157,6 +262,8 @@ export const useMailStore = defineStore('mail', () => {
     mailList.value = [];
     clearMailSelection();
     clearInteractionState();
+    clearGpgVerifyCache();
+    clearMailDataCache();
     errorMessage.value = null;
   }
 
@@ -180,6 +287,9 @@ export const useMailStore = defineStore('mail', () => {
     multiSelectedUids,
     shiftDragBulkEnabled,
     shiftDragSelectedUids,
+    gpgVerifyCache,
+    mailListCache,
+    mailDetailCache,
     recipientType,
     composeState,
     setActiveAccount,
@@ -190,8 +300,16 @@ export const useMailStore = defineStore('mail', () => {
     selectUid,
     setLoading,
     setError,
+    getCachedMailList,
+    setCachedMailList,
+    getCachedMailDetail,
+    setCachedMailDetail,
+    clearMailDataCache,
     clearMailSelection,
     clearInteractionState,
+    getGpgVerifyCache,
+    setGpgVerifyCache,
+    clearGpgVerifyCache,
     resetComposeState,
     clearViewState,
   };

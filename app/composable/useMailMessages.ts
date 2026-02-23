@@ -22,6 +22,10 @@ type UseMailMessagesParams = {
   setMailList: (items: MailListItem[]) => void;
   setCurrentMail: (mail: MailDetail | null) => void;
   selectUid: (uid: number | null) => void;
+  getCachedMailList: (folderPath: string) => MailListItem[] | null;
+  setCachedMailList: (folderPath: string, items: MailListItem[]) => void;
+  getCachedMailDetail: (folderPath: string, uid: number) => MailDetail | null;
+  setCachedMailDetail: (folderPath: string, mail: MailDetail) => void;
 };
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -184,6 +188,19 @@ export function useMailMessages(params: UseMailMessagesParams) {
     )
       return;
 
+    const cachedDetail = params.getCachedMailDetail(requestFolder, uid);
+    if (cachedDetail) {
+      params.selectedUid.value = uid;
+      params.setCurrentMail(cachedDetail);
+
+      const listItem = params.mailList.value.find(item => item.uid === uid);
+      if (markAsRead && listItem && !listItem.seen) {
+        await mailApi.updateSeen(requestFolder, uid, true);
+        listItem.seen = true;
+      }
+      return;
+    }
+
     if (openAbortController.value) {
       openAbortController.value.abort();
     }
@@ -212,6 +229,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
       }
 
       params.setCurrentMail(response.message);
+      params.setCachedMailDetail(requestFolder, response.message);
 
       // 日本語コメント: 詳細を開いたタイミングでのみ既読APIを呼び、一覧読み込みだけでは既読化しないよう制御します。
       if (markAsRead && listItem && !listItem.seen) {
@@ -269,6 +287,36 @@ export function useMailMessages(params: UseMailMessagesParams) {
     const requestFolder = params.activeFolderPath.value;
     if (!requestFolder) return;
 
+    if (!forceSync) {
+      const cachedList = params.getCachedMailList(requestFolder);
+      if (cachedList) {
+        params.setMailList(cachedList);
+
+        if (cachedList.length > 0) {
+          const selected =
+            params.selectedUid.value !== null
+              ? cachedList.find(item => item.uid === params.selectedUid.value)
+              : null;
+
+          const target = selected ?? cachedList[0];
+          if (target) {
+            const isSameAsCurrent =
+              params.currentMail.value?.uid === target.uid &&
+              params.selectedUid.value === target.uid;
+
+            if (!isSameAsCurrent) {
+              await openMessage(target.uid, markOpenedAsRead, requestFolder);
+            }
+          }
+        } else {
+          params.setCurrentMail(null);
+          params.selectUid(null);
+        }
+
+        return;
+      }
+    }
+
     if (listAbortController.value) {
       listAbortController.value.abort();
     }
@@ -314,6 +362,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
       lastKnownTopUid.value = nextTopUid;
 
       params.setMailList(response.messages);
+      params.setCachedMailList(requestFolder, response.messages);
 
       if (response.messages.length > 0) {
         const selected =

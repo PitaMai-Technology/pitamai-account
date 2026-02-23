@@ -103,15 +103,26 @@ const messageMetaLabel = computed(() =>
 );
 
 const messageMetaValue = computed(() => {
+  const isCurrentMailSelected =
+    currentMail.value?.uid !== undefined &&
+    selectedUid.value !== null &&
+    currentMail.value.uid === selectedUid.value;
+
   if (isSentFolder.value) {
+    if (!isCurrentMailSelected) return '-';
     return currentMail.value?.to || '-';
   }
 
-  return currentMail.value?.from || selectedMessage.value?.from || '-';
+  if (isCurrentMailSelected) {
+    return currentMail.value?.from || selectedMessage.value?.from || '-';
+  }
+
+  return selectedMessage.value?.from || '-';
 });
 
 const messageCcValue = computed(() => {
   if (!isSentFolder.value) return null;
+  if (currentMail.value?.uid !== selectedUid.value) return '-';
   return currentMail.value?.cc || '-';
 });
 
@@ -138,6 +149,10 @@ const {
   setMailList: mailStore.setMailList,
   setCurrentMail: mailStore.setCurrentMail,
   selectUid: mailStore.selectUid,
+  getCachedMailList: mailStore.getCachedMailList,
+  setCachedMailList: mailStore.setCachedMailList,
+  getCachedMailDetail: mailStore.getCachedMailDetail,
+  setCachedMailDetail: mailStore.setCachedMailDetail,
 });
 
 // メール選択ロジック
@@ -334,7 +349,7 @@ async function onOpenAttachment(index: number) {
   if (!attachment) return;
 
   const confirmed = await confirmDialog(
-    `添付ファイル「${attachment.filename ?? 'unnamed'}」を開きますか？`
+    `添付ファイル「${attachment.filename ?? '名前なし'}」を開きますか？`
   );
 
   if (!confirmed) return;
@@ -404,10 +419,10 @@ onBeforeUnmount(() => {
 
       <AppMailDetailPanel :selected-message="selectedMessage" :current-mail="currentMail"
         :message-meta-label="messageMetaLabel" :message-meta-value="messageMetaValue" :is-sent-folder="isSentFolder"
-        :message-cc-value="messageCcValue" :has-selected-mail="hasSelectedMail" :selected-seen="selectedSeen"
-        :is-draft-folder="isDraftFolder" :is-trash-folder="isTrashFolder" :is-spam-folder="isSpamFolder"
-        @toggle-seen="onToggleSeen" @move="onMove" @use-draft-compose="onUseDraftForCompose"
-        @open-attachment="onOpenAttachment" />
+        :message-cc-value="messageCcValue" :has-selected-mail="hasSelectedMail" :opening-uid="openingUid"
+        :selected-seen="selectedSeen" :is-draft-folder="isDraftFolder" :is-trash-folder="isTrashFolder"
+        :is-spam-folder="isSpamFolder" @toggle-seen="onToggleSeen" @move="onMove"
+        @use-draft-compose="onUseDraftForCompose" @open-attachment="onOpenAttachment" />
     </div>
 
     <div v-if="selectedAccount === null" class="text-sm text-gray-500">
