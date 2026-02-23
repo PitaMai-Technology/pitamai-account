@@ -413,6 +413,7 @@ onMounted(async () => {
         </UForm>
 
         <hr />
+        <UColorModeSelect />
         <h2 class="text-xl font-semibold">メールサーバー設定（個人）</h2>
         <div class="space-y-4">
           <UFormField label="ユーザー名" name="mail.username" required>

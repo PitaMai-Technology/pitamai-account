@@ -2,6 +2,7 @@ import { createError, defineEventHandler, readBody } from 'h3';
 import { z } from 'zod';
 import { auth } from '~~/server/utils/auth';
 import { logger } from '~~/server/utils/logger';
+import { logAuditWithSession } from '~~/server/utils/audit';
 
 const sendVerificationSchema = z.object({
   callbackURL: z.string().min(1).optional(),
@@ -23,6 +24,14 @@ export default defineEventHandler(async event => {
         message: 'このメールアドレスは既に認証済みです。',
       };
     }
+
+    await logAuditWithSession(event, {
+      action: 'SEND_VERIFICATION_EMAIL',
+      details: {
+        email: session.user.email,
+        status: 'sent',
+      },
+    });
 
     const body = await readBody(event);
     const parsed = sendVerificationSchema.safeParse(body ?? {});

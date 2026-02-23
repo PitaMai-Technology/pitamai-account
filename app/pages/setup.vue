@@ -79,6 +79,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       <template #title>初回セットアップ</template>
       <template #description>
         最初の owner アカウントを作成します。
+        なおこのセットアップは、アプリケーションを初めて起動したときにのみ表示されます。
+        そして、必ずIPアドレス制限などを設定した安全な環境で実行してください。
       </template>
 
       <div v-if="setupCompleted" class="py-4 text-sm text-neutral-600">
