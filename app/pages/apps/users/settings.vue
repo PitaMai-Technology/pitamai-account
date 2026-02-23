@@ -11,6 +11,8 @@ const toast = useToast();
 
 // セッション取得
 interface UserInfo {
+  email?: string | null;
+  emailVerified?: boolean;
   name?: string | null;
   image?: string | null;
 }
@@ -27,6 +29,61 @@ const { data: session } = await useFetch<GetSessionResponse>(
   '/api/auth/get-session',
   { key: 'session' }
 );
+
+const emailVerificationLoading = ref(false);
+const isEmailVerified = computed(
+  () => Boolean(session.value?.user?.emailVerified)
+);
+
+type SendVerificationResponse = {
+  status: boolean;
+  message: string;
+};
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null) {
+    const eObj = err as Record<string, unknown>;
+    const data = eObj.data;
+    if (typeof data === 'object' && data !== null) {
+      const d = data as Record<string, unknown>;
+      if (typeof d.message === 'string') return d.message;
+    }
+    if (typeof eObj.message === 'string') return eObj.message;
+  }
+  return '認証メールの送信に失敗しました';
+}
+
+async function onSendVerificationEmail() {
+  if (emailVerificationLoading.value || isEmailVerified.value) return;
+
+  emailVerificationLoading.value = true;
+  try {
+    const response = await $fetch<SendVerificationResponse>(
+      '/api/auth/verification/send',
+      {
+        method: 'POST',
+        body: {
+          callbackURL: '/apps/users/settings',
+        },
+      }
+    );
+
+    toast.add({
+      title: '確認',
+      description: response.message,
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description: getErrorMessage(err),
+      color: 'error',
+    });
+  } finally {
+    emailVerificationLoading.value = false;
+  }
+}
 
 // プロフィール更新用 state
 const profileState = reactive<Partial<UserUpdate>>({
@@ -311,6 +368,25 @@ onMounted(async () => {
     <AppBackgroundCard>
       <h1 class="text-xl font-semibold">アカウント設定</h1>
       <div class="mt-4 space-y-4">
+        <div class="rounded border border-gray-200 p-4">
+          <h2 class="text-lg font-semibold">メール認証</h2>
+          <p class="mt-2 text-sm text-gray-600">
+            現在の状態:
+            <span class="font-medium" :class="isEmailVerified ? 'text-green-700' : 'text-amber-700'">
+              {{ isEmailVerified ? '認証済み' : '未認証' }}
+            </span>
+          </p>
+          <p v-if="session?.user?.email" class="mt-1 text-xs text-gray-500">
+            対象メール: {{ session.user.email }}
+          </p>
+          <div class="mt-3">
+            <UButton color="primary" variant="outline" :disabled="isEmailVerified" :loading="emailVerificationLoading"
+              @click="onSendVerificationEmail">
+              認証メールを送信
+            </UButton>
+          </div>
+        </div>
+
         <UForm :schema="userUpdateSchema" :state="profileState" class="space-y-4" @submit="onSubmitProfile">
           <UFormField label="名前" name="data.name">
             <UInput v-model="profileState.data!.name" />
