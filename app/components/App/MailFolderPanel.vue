@@ -18,7 +18,7 @@
  * 
  * Emits:
  * - select: フォルダクリック時に親へ folder.path を通知
- * - dropMail: メールドロップ時に [uid, toFolderPath] タプルを通知
+ * - dropMail: メールドロップ時に [uids, toFolderPath] タプルを通知
  * - createFolder / renameFolder / deleteFolder: 各操作ボタンクリック時
  * - update:newFolderName: 新規フォルダ名入力フィールド値変更時
  */
@@ -43,7 +43,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [path: string];
-  dropMail: [uid: number, toFolderPath: string];
+  dropMail: [uids: number[], toFolderPath: string];
   createFolder: [];
   renameFolder: [];
   deleteFolder: [];
@@ -93,7 +93,7 @@ const newFolderNameModel = computed({
       <AppMailDroppableFolder v-for="folder in folders" :key="folder.path" :folder="folder"
         :active-folder-path="activeFolderPath" :icon="getFolderDisplay(folder).icon"
         :label="getFolderDisplay(folder).label" @select="emit('select', $event)"
-        @drop-mail="(uid, toFolderPath) => emit('dropMail', uid, toFolderPath)" />
+        @drop-mail="(uids, toFolderPath) => emit('dropMail', uids, toFolderPath)" />
     </div>
   </UCard>
 </template>

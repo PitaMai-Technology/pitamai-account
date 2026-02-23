@@ -228,11 +228,28 @@ function startConnectivityPolling() {
   }, 12 * 60 * 60 * 1000);
 }
 
-async function onDropMailToFolder(uid: number, toFolderPath: string) {
+async function onDropMailToFolder(droppedUids: number[], toFolderPath: string) {
   if (!activeFolderPath.value) return;
   if (activeFolderPath.value === toFolderPath) return;
 
-  const targetUids = resolveDropTargetUids(uid);
+  const targetUids =
+    droppedUids.length > 0
+      ? Array.from(new Set(droppedUids))
+      : resolveDropTargetUids(selectedUid.value ?? 0);
+
+  if (targetUids.length === 0) {
+    return;
+  }
+
+  if (targetUids.length > 1) {
+    const confirmed = await confirmDialog(
+      `${targetUids.length}件のメールを「${toFolderPath}」へ移動しますか？`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+  }
 
   try {
     for (const targetUid of targetUids) {
@@ -381,6 +398,7 @@ onBeforeUnmount(() => {
 
       <AppMailListPanel :is-loading="isLoading" :mail-list="mailList" :grouped-mail-list="groupedMailList"
         :selected-uid="selectedUid" :opening-uid="openingUid" :is-uid-multi-selected="isUidMultiSelected"
+        :selected-uids="multiSelectedUids"
         @refresh="loadMessages({ markOpenedAsRead: false, notifyIfNew: false, forceSync: true })"
         @open="uid => openMessage(uid, true)" @drag-start="onMailDragStart" @item-click="onMailItemClick" />
 

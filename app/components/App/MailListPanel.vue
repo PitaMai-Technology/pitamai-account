@@ -44,6 +44,7 @@ const props = defineProps<{
   selectedUid: number | null;
   openingUid: number | null;
   isUidMultiSelected: (uid: number) => boolean;
+  selectedUids: number[];
 }>();
 
 const emit = defineEmits<{
@@ -84,8 +85,9 @@ const emit = defineEmits<{
             </UBadge>
           </div>
           <AppMailDraggableItem :message="group.messages[0]!" :selected-uid="selectedUid" :opening-uid="openingUid"
-            :multi-selected="isUidMultiSelected(group.messages[0]!.uid)" @open="emit('open', $event)"
-            @drag-start="emit('dragStart', $event)" @item-click="emit('itemClick', $event)" />
+            :multi-selected="isUidMultiSelected(group.messages[0]!.uid)" :selected-uids="selectedUids"
+            :selected-count="selectedUids.length" @open="emit('open', $event)" @drag-start="emit('dragStart', $event)"
+            @item-click="emit('itemClick', $event)" />
         </div>
 
         <UCollapsible v-if="group.messages.length > 1" class="pl-3">
@@ -95,8 +97,8 @@ const emit = defineEmits<{
             <div class="space-y-1 border-l border-gray-200 pl-3">
               <AppMailDraggableItem v-for="message in group.messages.slice(1)" :key="message.uid" :message="message"
                 :selected-uid="selectedUid" :opening-uid="openingUid" :multi-selected="isUidMultiSelected(message.uid)"
-                @open="emit('open', $event)" @drag-start="emit('dragStart', $event)"
-                @item-click="emit('itemClick', $event)" />
+                :selected-uids="selectedUids" :selected-count="selectedUids.length" @open="emit('open', $event)"
+                @drag-start="emit('dragStart', $event)" @item-click="emit('itemClick', $event)" />
             </div>
           </template>
         </UCollapsible>

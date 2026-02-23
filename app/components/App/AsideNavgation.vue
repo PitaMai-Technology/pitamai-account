@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia';
 import { useOrgRoleStore } from '~/stores/orgRole';
 import { useMailStore } from '~/stores/mail';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 import { useMailApi } from '~/composable/useMailApi';
 import { useMailFolders } from '~/composable/useMailFolders';
 
@@ -116,6 +117,9 @@ const { canAccessAdmin } = storeToRefs(useOrgRoleStore());
 const mailStore = useMailStore();
 const mailApi = useMailApi();
 const toast = useToast();
+const confirmStore = useConfirmDialogStore();
+const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
+const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
 const {
   activeFolderPath,
@@ -156,14 +160,29 @@ async function onSelectFolder(folderPath: string) {
 }
 
 // メール移動ハンドラー
-async function onDropMailToFolder(uid: number, toFolderPath: string) {
+async function onDropMailToFolder(uids: number[], toFolderPath: string) {
   if (!activeFolderPath.value) return;
   if (activeFolderPath.value === toFolderPath) return;
 
   const fromFolderPath = activeFolderPath.value;
+  const targetUids = Array.from(new Set(uids));
+
+  if (targetUids.length === 0) return;
+
+  if (targetUids.length > 1) {
+    const confirmed = await confirmDialog(
+      `${targetUids.length}件のメールを「${toFolderPath}」へ移動しますか？`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+  }
 
   try {
-    await mailApi.moveToFolder(uid, fromFolderPath, toFolderPath);
+    for (const uid of targetUids) {
+      await mailApi.moveToFolder(uid, fromFolderPath, toFolderPath);
+    }
 
     const response = await mailApi.getMessages({
       folder: fromFolderPath,
@@ -173,14 +192,17 @@ async function onDropMailToFolder(uid: number, toFolderPath: string) {
 
     mailStore.setMailList(response.messages);
 
-    if (selectedUid.value === uid) {
+    if (selectedUid.value !== null && targetUids.includes(selectedUid.value)) {
       mailStore.selectUid(null);
       mailStore.setCurrentMail(null);
     }
 
     toast.add({
       title: '移動しました',
-      description: 'メールをフォルダへ移動しました',
+      description:
+        targetUids.length > 1
+          ? `${targetUids.length}件のメールをフォルダへ移動しました`
+          : 'メールをフォルダへ移動しました',
       color: 'success',
     });
   } catch (error) {
@@ -221,4 +243,7 @@ async function onDropMailToFolder(uid: number, toFolderPath: string) {
       </template>
     </UTabs>
   </div>
+
+  <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
+    @cancel="() => resolveConfirm(false)" />
 </template>

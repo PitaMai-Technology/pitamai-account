@@ -17,7 +17,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [path: string];
-  dropMail: [uid: number, toFolderPath: string];
+  dropMail: [uids: number[], toFolderPath: string];
 }>();
 
 const buttonClass = computed(() =>
@@ -31,12 +31,21 @@ const { elementRef, isOvered } = useDroppable({
   })),
   events: {
     onDrop: async (_store, payload) => {
-      const uid = payload.items[0]?.data?.uid;
-      if (!uid || typeof uid !== 'number') {
+      const dragged = payload.items[0]?.data as
+        | { uid?: number; uids?: number[] }
+        | undefined;
+
+      const droppedUids = Array.isArray(dragged?.uids)
+        ? dragged.uids.filter((item): item is number => typeof item === 'number')
+        : typeof dragged?.uid === 'number'
+          ? [dragged.uid]
+          : [];
+
+      if (droppedUids.length === 0) {
         return false;
       }
 
-      emit('dropMail', uid, props.folder.path);
+      emit('dropMail', droppedUids, props.folder.path);
       return true;
     },
   },

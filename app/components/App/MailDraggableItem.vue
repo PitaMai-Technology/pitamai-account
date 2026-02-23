@@ -16,6 +16,8 @@ const props = defineProps<{
   selectedUid: number | null;
   openingUid: number | null;
   multiSelected?: boolean;
+  selectedUids?: number[];
+  selectedCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -48,6 +50,16 @@ const className = computed(() => {
 
 const isDisabled = computed(() => props.openingUid === props.message.uid);
 
+const dragUids = computed(() => {
+  const selected = props.selectedUids ?? [];
+
+  if (props.multiSelected && selected.length > 0) {
+    return selected;
+  }
+
+  return [props.message.uid];
+});
+
 function onClick(event: MouseEvent) {
   emit('itemClick', {
     uid: props.message.uid,
@@ -67,6 +79,7 @@ const { elementRef, handleDragStart, isDragging } = useDraggable({
   groups: ['mail-item'],
   data: computed(() => ({
     uid: props.message.uid,
+    uids: dragUids.value,
   })),
 });
 </script>
@@ -78,5 +91,8 @@ const { elementRef, handleDragStart, isDragging } = useDraggable({
     <p class="truncate text-sm font-medium">{{ message.subject || '(件名なし)' }}</p>
     <p class="truncate text-xs text-gray-600">{{ message.from || '-' }}</p>
     <p class="text-xs text-gray-500">{{ message.date ? new Date(message.date).toLocaleString('ja-JP') : '-' }}</p>
+    <p v-if="multiSelected && (selectedCount ?? 0) > 1" class="text-xs text-primary-700">
+      {{ selectedCount }}件選択中
+    </p>
   </button>
 </template>
