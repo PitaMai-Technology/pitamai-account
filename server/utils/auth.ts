@@ -16,7 +16,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: false,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     disableSignUp: false,
   },
   user: {
@@ -42,12 +42,21 @@ export const auth = betterAuth({
       }
     },
     sendOnSignUp: true,
-    sendOnSignIn: true,
+    sendOnSignIn: false,
   },
   hooks: {
     after: createAuthMiddleware(async ctx => {
       const newSession = ctx.context.newSession;
       if (!newSession) return;
+
+      if (!newSession.user.emailVerified) {
+        try {
+          await prisma.user.update({
+            where: { id: newSession.user.id },
+            data: { emailVerified: true },
+          });
+        } catch {}
+      }
 
       try {
         await recordAuditLog({
