@@ -192,6 +192,10 @@ export function useMailApi() {
       body: payload,
     });
 
+  const testImapConnection = () => $fetch('/api/pitamai/mail/imap-test');
+
+  const testSmtpConnection = () => $fetch('/api/pitamai/mail/smtp-test');
+
   const createStreamUrl = (folder: string) =>
     `/api/pitamai/mail/stream?folder=${encodeURIComponent(folder)}`;
 
@@ -208,6 +212,8 @@ export function useMailApi() {
     moveMessage,
     sendMail,
     saveDraft,
+    testImapConnection,
+    testSmtpConnection,
     createStreamUrl,
   };
 }

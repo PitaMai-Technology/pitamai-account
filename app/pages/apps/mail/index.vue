@@ -48,6 +48,26 @@ const composeState = mailStore.composeState;
 
 const accounts = ref<MailAccountItem[]>([]);
 const hasMailSetting = computed(() => accounts.value.length > 0);
+const imapReachable = ref<boolean | null>(null);
+const smtpReachable = ref<boolean | null>(null);
+let connectivityTimer: ReturnType<typeof setInterval> | null = null;
+
+const showMailSettingAlert = computed(() => {
+  if (!hasMailSetting.value) return true;
+  return imapReachable.value === false || smtpReachable.value === false;
+});
+
+const mailSettingAlertDescription = computed(() => {
+  if (!hasMailSetting.value) {
+    return '個人設定ページで IMAP/SMTP を登録してください。';
+  }
+
+  if (imapReachable.value === false || smtpReachable.value === false) {
+    return 'IMAP/SMTP の疎通に失敗しています。設定を確認してください。';
+  }
+
+  return '個人設定ページで IMAP/SMTP の設定をご確認ください。';
+});
 const realtimeFolderPath = 'INBOX';
 
 const {
@@ -182,6 +202,32 @@ async function loadAccounts() {
   }
 }
 
+async function checkMailConnectivity() {
+  if (!hasMailSetting.value) {
+    imapReachable.value = null;
+    smtpReachable.value = null;
+    return;
+  }
+
+  const [imapResult, smtpResult] = await Promise.allSettled([
+    mailApi.testImapConnection(),
+    mailApi.testSmtpConnection(),
+  ]);
+
+  imapReachable.value = imapResult.status === 'fulfilled';
+  smtpReachable.value = smtpResult.status === 'fulfilled';
+}
+
+function startConnectivityPolling() {
+  if (connectivityTimer) {
+    clearInterval(connectivityTimer);
+  }
+
+  connectivityTimer = setInterval(() => {
+    checkMailConnectivity();
+  }, 12 * 60 * 60 * 1000);
+}
+
 async function onDropMailToFolder(uid: number, toFolderPath: string) {
   if (!activeFolderPath.value) return;
   if (activeFolderPath.value === toFolderPath) return;
@@ -286,9 +332,12 @@ async function onOpenAttachment(index: number) {
 watch(hasMailSetting, async enabled => {
   if (!enabled) {
     stopRealtimeStream();
+    imapReachable.value = null;
+    smtpReachable.value = null;
     return;
   }
 
+  await checkMailConnectivity();
   await loadFolders();
   await loadMessages({ markOpenedAsRead: false, notifyIfNew: false });
   startRealtimeStream();
@@ -301,10 +350,15 @@ watch(activeFolderPath, async () => {
 
 onMounted(async () => {
   await loadAccounts();
+  startConnectivityPolling();
 });
 
 onBeforeUnmount(() => {
   stopRealtimeStream();
+  if (connectivityTimer) {
+    clearInterval(connectivityTimer);
+    connectivityTimer = null;
+  }
 });
 </script>
 
@@ -320,8 +374,8 @@ onBeforeUnmount(() => {
       </div>
     </UPageCard>
 
-    <UAlert v-if="!hasMailSetting" color="warning" variant="soft" title="メールサーバー設定が未登録です"
-      description="個人設定ページで IMAP/SMTP を登録してください。" :actions="[{ label: '設定を開く', to: '/apps/users/settings' }]" />
+    <UAlert v-if="showMailSettingAlert" color="warning" variant="soft" title="メールサーバーの設定がうまくいっていません"
+      :description="mailSettingAlertDescription" :actions="[{ label: '設定を開く', to: '/apps/users/settings' }]" />
 
     <div class="grid min-h-[70vh] grid-cols-1 gap-4 lg:grid-cols-12">
 
