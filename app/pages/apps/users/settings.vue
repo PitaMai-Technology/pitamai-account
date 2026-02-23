@@ -419,6 +419,28 @@ async function onCopyGpgPublicKey() {
   }
 }
 
+const showGpgPrivateKey = ref(false);
+
+async function onCopyGpgPrivateKey() {
+  const privateKey = gpgState.value.key?.privateKey;
+  if (!privateKey) return;
+
+  try {
+    await navigator.clipboard.writeText(privateKey);
+    toast.add({
+      title: 'コピーしました',
+      description: '秘密鍵をクリップボードにコピーしました',
+      color: 'success',
+    });
+  } catch {
+    toast.add({
+      title: 'エラー',
+      description: '秘密鍵のコピーに失敗しました',
+      color: 'error',
+    });
+  }
+}
+
 const loading = ref(false);
 
 // 共通確認モーダル
@@ -657,7 +679,7 @@ onMounted(async () => {
             <UFormField label="公開鍵">
               <UTextarea :model-value="gpgState.key.publicKey" :rows="6" readonly class="w-fit mb-2" />
             </UFormField>
-            <div class="flex gap-2">
+            <div class="flex gap-2 mb-2">
               <UButton color="neutral" variant="outline" size="xs" @click="onCopyGpgPublicKey">
                 公開鍵をコピー
               </UButton>
@@ -668,6 +690,28 @@ onMounted(async () => {
               <UButton color="error" variant="outline" size="xs" :loading="gpgDeleteLoading" @click="onDeleteGpgKey">
                 鍵を削除
               </UButton>
+            </div>
+            <div class="border-t border-gray-200 pt-3 mt-3">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-medium">秘密鍵</p>
+                <UButton color="neutral" variant="ghost" size="xs" @click="showGpgPrivateKey = !showGpgPrivateKey">
+                  {{ showGpgPrivateKey ? '隠す' : '表示' }}
+                </UButton>
+              </div>
+              <template v-if="showGpgPrivateKey">
+                <UFormField label="">
+                  <UTextarea :model-value="gpgState.key.privateKey" :rows="8" readonly
+                    class="w-fit mb-2 font-mono text-xs" />
+                </UFormField>
+                <div class="flex gap-2">
+                  <UButton color="neutral" variant="outline" size="xs" @click="onCopyGpgPrivateKey">
+                    秘密鍵をコピー
+                  </UButton>
+                </div>
+              </template>
+              <p v-else class="text-xs text-gray-500">
+                セキュリティのため秘密鍵はデフォルトで非表示です
+              </p>
             </div>
           </div>
 
