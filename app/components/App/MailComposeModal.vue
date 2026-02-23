@@ -108,10 +108,13 @@ const recipientTypeModel = computed({
             {{ composeState.files.length }} 件選択中
           </p>
         </UFormField>
-        <UCheckbox v-model="composeState.sign" label="PGP署名して送信" />
-        <p class="text-xs text-gray-500">署名するには設定ページで GPG 鍵ペアを作成してください。</p>
-        <UCheckbox v-model="composeState.encrypt" label="受信者公開鍵で暗号化して送信" />
-        <p class="text-xs text-gray-500">暗号化するには、宛先ユーザーの公開鍵がシステムに登録されている必要があります。</p>
+
+        <UPageCard title="高度な設定" :collapsible="true" :default-open="false">
+          <UCheckbox v-model="composeState.sign" label="PGP署名して送信" />
+          <p class="text-xs text-gray-500">署名するには設定ページで GPG 鍵ペアを作成してください。</p>
+          <UCheckbox v-model="composeState.encrypt" label="受信者公開鍵で暗号化して送信" />
+          <p class="text-xs text-gray-500">暗号化するには、"宛先ユーザー"の公開鍵が外部システム(keys.openpgp.org)に登録されている必要があります。</p>
+        </UPageCard>
       </div>
     </template>
     <template #footer>

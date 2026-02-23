@@ -93,6 +93,39 @@ const selectedAccount = computed(() => {
   return accounts.value[0] ?? null;
 });
 
+const searchQuery = ref('');
+const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
+
+const filteredMailList = computed(() => {
+  const query = normalizedSearchQuery.value;
+  if (!query) {
+    return mailList.value;
+  }
+
+  return mailList.value.filter(item => {
+    const subject = (item.subject ?? '').toLowerCase();
+    const from = (item.from ?? '').toLowerCase();
+
+    return subject.includes(query) || from.includes(query);
+  });
+});
+
+const filteredGroupedMailList = computed(() => {
+  const query = normalizedSearchQuery.value;
+  if (!query) {
+    return groupedMailList.value;
+  }
+
+  const visibleUidSet = new Set(filteredMailList.value.map(item => item.uid));
+
+  return groupedMailList.value
+    .map(group => ({
+      ...group,
+      messages: group.messages.filter(message => visibleUidSet.has(message.uid)),
+    }))
+    .filter(group => group.messages.length > 0);
+});
+
 const selectedMessage = computed(() => {
   if (selectedUid.value === null) return null;
   return mailList.value.find(item => item.uid === selectedUid.value) ?? null;
@@ -377,6 +410,7 @@ watch(hasMailSetting, async enabled => {
 
 watch(activeFolderPath, async () => {
   if (!hasMailSetting.value) return;
+  searchQuery.value = '';
   await loadMessages({ markOpenedAsRead: false, notifyIfNew: false });
 });
 
@@ -397,12 +431,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="space-y-4">
     <UPageCard>
+      <UInput v-model="searchQuery" class="w-full max-w-md mb-4" icon="i-lucide-search" placeholder="件名・差出人で検索" />
       <div class="flex flex-wrap items-center gap-3">
-        <p class="text-sm text-gray-600">
-          アカウント: {{ selectedAccount?.emailAddress || '未設定' }}
-        </p>
         <USelect v-model="activeFolderPath" class="w-56" :items="folderOptions" placeholder="フォルダを選択" />
-        <UButton color="primary" icon="i-lucide-pencil" @click="composeOpen = true">新規作成</UButton>
+        <UButton color="primary" icon="i-lucide-pencil" @click="composeOpen = true">メール新規作成</UButton>
       </div>
     </UPageCard>
 
@@ -411,9 +443,9 @@ onBeforeUnmount(() => {
 
     <div class="grid min-h-[70vh] grid-cols-1 gap-4 lg:grid-cols-12">
 
-      <AppMailListPanel :is-loading="isLoading" :mail-list="mailList" :grouped-mail-list="groupedMailList"
-        :selected-uid="selectedUid" :opening-uid="openingUid" :is-uid-multi-selected="isUidMultiSelected"
-        :selected-uids="multiSelectedUids"
+      <AppMailListPanel :is-loading="isLoading" :mail-list="filteredMailList"
+        :grouped-mail-list="filteredGroupedMailList" :selected-uid="selectedUid" :opening-uid="openingUid"
+        :is-uid-multi-selected="isUidMultiSelected" :selected-uids="multiSelectedUids"
         @refresh="loadMessages({ markOpenedAsRead: false, notifyIfNew: false, forceSync: true })"
         @open="uid => openMessage(uid, true)" @drag-start="onMailDragStart" @item-click="onMailItemClick" />
 
