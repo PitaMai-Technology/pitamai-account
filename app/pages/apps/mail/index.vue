@@ -6,6 +6,7 @@ import { useMailFolders } from '~/composable/useMailFolders';
 import { useMailMessages } from '~/composable/useMailMessages';
 import { useMailRealtime } from '~/composable/useMailRealtime';
 import { useMailSelection } from '~/composable/useMailSelection';
+import { useErrorMessage } from '~/composable/useErrorMessage';
 import { useMailStore } from '~/stores/mail';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
@@ -23,6 +24,7 @@ const toast = useToast();
 const mailStore = useMailStore();
 const mailApi = useMailApi();
 const confirmStore = useConfirmDialogStore();
+const { getErrorMessage } = useErrorMessage();
 
 const {
   activeFolderPath,
@@ -244,7 +246,7 @@ async function loadAccounts() {
   } catch (error) {
     toast.add({
       title: 'エラー',
-      description: error instanceof Error ? error.message : 'メールアカウント取得に失敗しました',
+      description: getErrorMessage(error, 'メールアカウント取得に失敗しました'),
       color: 'error',
     });
   }
@@ -321,7 +323,7 @@ async function onDropMailToFolder(droppedUids: number[], toFolderPath: string) {
   } catch (error) {
     toast.add({
       title: '移動失敗',
-      description: error instanceof Error ? error.message : 'メール移動に失敗しました',
+      description: getErrorMessage(error, 'メール移動に失敗しました'),
       color: 'error',
     });
   } finally {
@@ -351,16 +353,15 @@ async function onMove(destination: 'trash' | 'archive' | 'inbox') {
 
     await loadMessages();
   } catch (error) {
+    const defaultMsg = destination === 'trash'
+      ? '削除に失敗しました'
+      : destination === 'archive'
+        ? 'アーカイブに失敗しました'
+        : '復元に失敗しました';
+
     toast.add({
       title: 'エラー',
-      description:
-        error instanceof Error
-          ? error.message
-          : destination === 'trash'
-            ? '削除に失敗しました'
-            : destination === 'archive'
-              ? 'アーカイブに失敗しました'
-              : '復元に失敗しました',
+      description: getErrorMessage(error, defaultMsg),
       color: 'error',
     });
   }

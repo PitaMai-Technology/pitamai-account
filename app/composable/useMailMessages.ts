@@ -1,4 +1,5 @@
 import { useMailApi } from '~/composable/useMailApi';
+import { useErrorMessage } from '~/composable/useErrorMessage';
 import type { MailDetail, MailListItem } from '~/stores/mail';
 
 // ==============================================================================
@@ -33,6 +34,7 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 export function useMailMessages(params: UseMailMessagesParams) {
   const toast = useToast();
   const mailApi = useMailApi();
+  const { getErrorMessage } = useErrorMessage();
 
   const lastRealtimeToastAt = ref(0);
   const lastKnownTopUid = ref<number | null>(null);
@@ -247,10 +249,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
 
       toast.add({
         title: 'エラー',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'メール詳細取得に失敗しました',
+        description: getErrorMessage(error, 'メール詳細取得に失敗しました'),
         color: 'error',
       });
     } finally {
@@ -393,10 +392,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
 
       toast.add({
         title: 'エラー',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'メール一覧取得に失敗しました',
+        description: getErrorMessage(error, 'メール一覧取得に失敗しました'),
         color: 'error',
       });
     } finally {
@@ -442,8 +438,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
     } catch (error) {
       toast.add({
         title: 'エラー',
-        description:
-          error instanceof Error ? error.message : '既読更新に失敗しました',
+        description: getErrorMessage(error, '既読更新に失敗しました'),
         color: 'error',
       });
     }

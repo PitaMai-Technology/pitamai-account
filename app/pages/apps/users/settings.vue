@@ -40,18 +40,28 @@ type SendVerificationResponse = {
   message: string;
 };
 
-function getErrorMessage(err: unknown): string {
+function getErrorMessage(err: unknown, fallback = '操作に失敗しました'): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'object' && err !== null) {
     const eObj = err as Record<string, unknown>;
-    const data = eObj.data;
-    if (typeof data === 'object' && data !== null) {
-      const d = data as Record<string, unknown>;
-      if (typeof d.message === 'string') return d.message;
+
+    // サーバーレスポンスの data.message を優先
+    if (typeof eObj.data === 'object' && eObj.data !== null) {
+      const data = eObj.data as Record<string, unknown>;
+      if (typeof data.message === 'string') return data.message;
     }
+
+    // トップレベルの message フィールド
     if (typeof eObj.message === 'string') return eObj.message;
+
+    // _error フィールド（Nitro エラー形式）
+    const errorField = eObj._error;
+    if (typeof errorField === 'object' && errorField !== null) {
+      const errObj = errorField as Record<string, unknown>;
+      if (typeof errObj.message === 'string') return errObj.message;
+    }
   }
-  return '認証メールの送信に失敗しました';
+  return fallback;
 }
 
 async function onSendVerificationEmail() {
