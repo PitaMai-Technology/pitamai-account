@@ -7,6 +7,7 @@ import { useMailMessages } from '~/composable/useMailMessages';
 import { useMailRealtime } from '~/composable/useMailRealtime';
 import { useMailSelection } from '~/composable/useMailSelection';
 import { useMailStore } from '~/stores/mail';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
 definePageMeta({
   layout: 'the-app',
@@ -21,6 +22,7 @@ type MailAccountItem = {
 const toast = useToast();
 const mailStore = useMailStore();
 const mailApi = useMailApi();
+const confirmStore = useConfirmDialogStore();
 
 const {
   activeFolderPath,
@@ -54,6 +56,7 @@ const {
   isTrashFolder,
   isSentFolder,
   isDraftFolder,
+  isSpamFolder,
   getFolderDisplay,
   loadFolders,
   onCreateFolder,
@@ -96,6 +99,9 @@ const messageCcValue = computed(() => {
   if (!isSentFolder.value) return null;
   return currentMail.value?.cc || '-';
 });
+
+const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
+const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
 // 
 const {
@@ -254,6 +260,34 @@ async function onMove(destination: 'trash' | 'archive' | 'inbox') {
   }
 }
 
+async function onOpenAttachment(index: number) {
+  if (!currentMail.value) return;
+
+  if (isSpamFolder.value) {
+    toast.add({
+      title: 'ブロックしました',
+      description: '迷惑メールでは添付ファイルを開けません。',
+      color: 'warning',
+    });
+    return;
+  }
+
+  const attachment = currentMail.value.attachments[index];
+  if (!attachment) return;
+
+  const confirmed = await confirmDialog(
+    `添付ファイル「${attachment.filename ?? 'unnamed'}」を開きますか？`
+  );
+
+  if (!confirmed) return;
+
+  const uid = selectedUid.value;
+  if (uid === null) return;
+
+  const url = `/api/pitamai/mail/attachment?folder=${encodeURIComponent(activeFolderPath.value)}&uid=${uid}&index=${index}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 watch(hasMailSetting, async enabled => {
   if (!enabled) {
     stopRealtimeStream();
@@ -310,8 +344,9 @@ onBeforeUnmount(() => {
       <AppMailDetailPanel :selected-message="selectedMessage" :current-mail="currentMail"
         :message-meta-label="messageMetaLabel" :message-meta-value="messageMetaValue" :is-sent-folder="isSentFolder"
         :message-cc-value="messageCcValue" :has-selected-mail="hasSelectedMail" :selected-seen="selectedSeen"
-        :is-draft-folder="isDraftFolder" :is-trash-folder="isTrashFolder" @toggle-seen="onToggleSeen" @move="onMove"
-        @use-draft-compose="onUseDraftForCompose" />
+        :is-draft-folder="isDraftFolder" :is-trash-folder="isTrashFolder" :is-spam-folder="isSpamFolder"
+        @toggle-seen="onToggleSeen" @move="onMove" @use-draft-compose="onUseDraftForCompose"
+        @open-attachment="onOpenAttachment" />
     </div>
 
     <div v-if="selectedAccount === null" class="text-sm text-gray-500">
@@ -323,5 +358,8 @@ onBeforeUnmount(() => {
       :sending="sending" @update:compose-open="composeOpen = $event" @update:recipient-type="recipientType = $event"
       @add-cc-field="addCcField" @remove-cc-field="removeCcField" @add-bcc-field="addBccField"
       @remove-bcc-field="removeBccField" @save-draft="onSaveDraft" @send-mail="onSendMail" />
+
+    <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
+      @cancel="() => resolveConfirm(false)" />
   </div>
 </template>

@@ -124,6 +124,15 @@ export function useMailFolders(params: UseMailFoldersParams) {
     return path.includes('draft') || path.includes('下書き');
   });
 
+  const isSpamFolder = computed(() => {
+    const path = params.activeFolderPath.value.toLowerCase();
+    return (
+      path.includes('spam') ||
+      path.includes('junk') ||
+      path.includes('迷惑メール')
+    );
+  });
+
   async function loadFolders() {
     if (!params.hasMailSetting.value) return;
 
@@ -281,6 +290,7 @@ export function useMailFolders(params: UseMailFoldersParams) {
     isTrashFolder,
     isSentFolder,
     isDraftFolder,
+    isSpamFolder,
     getFolderDisplay,
     loadFolders,
     onCreateFolder,

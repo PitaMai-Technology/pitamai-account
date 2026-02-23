@@ -35,6 +35,7 @@ type MailDetail = {
   text: string | null;
   attachments: Array<{
     filename: string | null;
+    contentType: string;
     size: number;
   }>;
 };
@@ -50,12 +51,14 @@ const props = defineProps<{
   selectedSeen: boolean | null;
   isDraftFolder: boolean;
   isTrashFolder: boolean;
+  isSpamFolder: boolean;
 }>();
 
 const emit = defineEmits<{
   toggleSeen: [];
   move: [destination: 'trash' | 'archive' | 'inbox'];
   useDraftCompose: [];
+  openAttachment: [index: number];
 }>();
 </script>
 
@@ -96,12 +99,21 @@ const emit = defineEmits<{
 
     <div v-if="currentMail?.attachments?.length" class="mb-4 space-y-1 rounded border border-gray-200 p-3">
       <p class="text-xs font-medium text-gray-700">添付ファイル</p>
-      <p v-for="attachment in currentMail.attachments" :key="`${attachment.filename}-${attachment.size}`"
-        class="text-xs text-gray-600">
-        {{ attachment.filename || 'unnamed' }} ({{ attachment.size }} bytes)
+      <div v-for="(attachment, index) in currentMail.attachments" :key="`${attachment.filename}-${attachment.size}`"
+        class="flex items-center justify-between gap-3 text-xs text-gray-600">
+        <p>
+          {{ attachment.filename || 'unnamed' }} ({{ attachment.size }} bytes)
+        </p>
+        <UButton size="xs" color="neutral" variant="outline" :disabled="isSpamFolder"
+          @click="emit('openAttachment', index)">
+          開く
+        </UButton>
+      </div>
+      <p v-if="isSpamFolder" class="text-xs text-amber-700">
+        迷惑メールでは添付ファイルを開けません。
       </p>
     </div>
 
-    <AppMailBody :html="currentMail?.html" :text="currentMail?.text" />
+    <AppMailBody :html="currentMail?.html" :text="currentMail?.text" :block-media="isSpamFolder" />
   </UCard>
 </template>

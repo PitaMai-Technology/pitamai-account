@@ -51,6 +51,13 @@ type MessageDetail = {
   attachments: MessageAttachment[];
 };
 
+type MessageAttachmentContent = {
+  filename: string | null;
+  contentType: string;
+  contentDisposition: string;
+  content: Buffer;
+};
+
 function resolveFirstAddress(
   value: Array<{ name?: string | null; address?: string | null }> | undefined
 ) {
@@ -811,6 +818,51 @@ export async function getMessageDetail(params: {
         size: attachment.size,
         contentDisposition: attachment.contentDisposition,
       })),
+    };
+  });
+}
+
+export async function getMessageAttachment(params: {
+  account: MailAccountConnection;
+  folder: string;
+  uid: number;
+  index: number;
+}): Promise<MessageAttachmentContent> {
+  return withImapClient(params.account, async client => {
+    await client.mailboxOpen(params.folder);
+
+    const fetched = await client.fetchOne(
+      params.uid,
+      {
+        source: true,
+      },
+      { uid: true }
+    );
+
+    if (!fetched || !fetched.source) {
+      throw createError({
+        statusCode: 404,
+        message: 'メールが見つかりません',
+      });
+    }
+
+    const parsed = await simpleParser(Buffer.from(fetched.source));
+    const attachment = parsed.attachments[params.index];
+
+    if (!attachment || !attachment.content) {
+      throw createError({
+        statusCode: 404,
+        message: '添付ファイルが見つかりません',
+      });
+    }
+
+    return {
+      filename: attachment.filename ?? null,
+      contentType: attachment.contentType,
+      contentDisposition: attachment.contentDisposition,
+      content: Buffer.isBuffer(attachment.content)
+        ? attachment.content
+        : Buffer.from(attachment.content),
     };
   });
 }

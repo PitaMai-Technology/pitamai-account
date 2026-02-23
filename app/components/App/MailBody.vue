@@ -5,10 +5,12 @@ const props = withDefaults(
   defineProps<{
     html?: string | null;
     text?: string | null;
+    blockMedia?: boolean;
   }>(),
   {
     html: null,
     text: null,
+    blockMedia: false,
   }
 );
 
@@ -17,6 +19,9 @@ const sanitizedHtml = computed(() => {
 
   return DOMPurify.sanitize(props.html, {
     USE_PROFILES: { html: true },
+    FORBID_TAGS: props.blockMedia
+      ? ['img', 'picture', 'source', 'video', 'audio', 'iframe', 'object', 'embed']
+      : [],
   });
 });
 </script>
