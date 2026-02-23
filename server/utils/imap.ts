@@ -22,6 +22,9 @@ type MessageListItem = {
   subject: string | null;
   from: string | null;
   date: string | null;
+  messageId: string | null;
+  inReplyTo: string | null;
+  references: string[];
   hasAttachment: boolean;
   seen: boolean;
 };
@@ -297,6 +300,72 @@ function resolveFirstAddress(
   return first.address ?? first.name ?? null;
 }
 
+function extractHeaderFieldValue(headersText: string, fieldName: string) {
+  const unfolded = headersText.replace(/\r?\n[ \t]+/g, ' ');
+  const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`^${escapedFieldName}:\\s*(.+)$`, 'im');
+  const matched = unfolded.match(pattern);
+  return matched?.[1]?.trim() ?? null;
+}
+
+function extractHeaderMessageIds(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const bracketMatched = Array.from(value.matchAll(/<([^>]+)>/g))
+    .map(item => item[1]?.trim())
+    .filter((item): item is string => Boolean(item));
+
+  if (bracketMatched.length > 0) {
+    return bracketMatched;
+  }
+
+  return value
+    .split(/\s+/)
+    .map(item => item.trim().replace(/^<+|>+$/g, ''))
+    .filter(item => item.length > 0);
+}
+
+function extractThreadHeadersFromSource(source: Buffer | null | undefined): {
+  messageId: string | null;
+  inReplyTo: string | null;
+  references: string[];
+} {
+  if (!source) {
+    return {
+      messageId: null,
+      inReplyTo: null,
+      references: [],
+    };
+  }
+
+  const sourceText = source.toString('latin1');
+  const headerEndCRLF = sourceText.indexOf('\r\n\r\n');
+  const headerEndLF = sourceText.indexOf('\n\n');
+  const headerEndIndex =
+    headerEndCRLF >= 0 ? headerEndCRLF : headerEndLF >= 0 ? headerEndLF : -1;
+
+  if (headerEndIndex < 0) {
+    return {
+      messageId: null,
+      inReplyTo: null,
+      references: [],
+    };
+  }
+
+  const headersText = sourceText.slice(0, headerEndIndex);
+  const messageId = extractHeaderFieldValue(headersText, 'Message-Id');
+  const inReplyTo = extractHeaderFieldValue(headersText, 'In-Reply-To');
+  const referencesRaw = extractHeaderFieldValue(headersText, 'References');
+
+  return {
+    messageId,
+    inReplyTo,
+    references: extractHeaderMessageIds(referencesRaw),
+  };
+}
+
 function resolveParsedToAddress(value: unknown): string | null {
   if (!value) return null;
 
@@ -480,9 +549,14 @@ export async function listMessages(params: {
         internalDate: true,
         bodyStructure: true,
         flags: true,
+        source: true,
       },
       { uid: false }
     )) {
+      const threadHeaders = extractThreadHeadersFromSource(
+        message.source ? Buffer.from(message.source) : null
+      );
+
       messages.push({
         uid: message.uid,
         subject: message.envelope?.subject ?? null,
@@ -490,6 +564,17 @@ export async function listMessages(params: {
         date: message.internalDate
           ? new Date(message.internalDate).toISOString()
           : null,
+        messageId:
+          threadHeaders.messageId ??
+          (message.envelope as { messageId?: string | null } | undefined)
+            ?.messageId ??
+          null,
+        inReplyTo:
+          threadHeaders.inReplyTo ??
+          (message.envelope as { inReplyTo?: string | null } | undefined)
+            ?.inReplyTo ??
+          null,
+        references: threadHeaders.references,
         hasAttachment: hasAttachmentBody(message.bodyStructure),
         seen: message.flags?.has('\\Seen') ?? false,
       });
@@ -558,9 +643,14 @@ export async function listMessagesSinceUid(params: {
         internalDate: true,
         bodyStructure: true,
         flags: true,
+        source: true,
       },
       { uid: true }
     )) {
+      const threadHeaders = extractThreadHeadersFromSource(
+        message.source ? Buffer.from(message.source) : null
+      );
+
       messages.push({
         uid: message.uid,
         subject: message.envelope?.subject ?? null,
@@ -568,6 +658,17 @@ export async function listMessagesSinceUid(params: {
         date: message.internalDate
           ? new Date(message.internalDate).toISOString()
           : null,
+        messageId:
+          threadHeaders.messageId ??
+          (message.envelope as { messageId?: string | null } | undefined)
+            ?.messageId ??
+          null,
+        inReplyTo:
+          threadHeaders.inReplyTo ??
+          (message.envelope as { inReplyTo?: string | null } | undefined)
+            ?.inReplyTo ??
+          null,
+        references: threadHeaders.references,
         hasAttachment: hasAttachmentBody(message.bodyStructure),
         seen: message.flags?.has('\\Seen') ?? false,
       });

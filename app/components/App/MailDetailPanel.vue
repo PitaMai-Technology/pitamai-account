@@ -67,6 +67,7 @@ const emit = defineEmits<{
   move: [destination: 'trash' | 'archive' | 'inbox'];
   useDraftCompose: [];
   openAttachment: [index: number];
+  reply: [];
 }>();
 
 const mailStore = useMailStore();
@@ -339,6 +340,9 @@ watch(
         <UButton v-if="isTrashFolder" size="xs" color="success" variant="outline" :disabled="!hasSelectedMail"
           @click="emit('move', 'inbox')">
           戻す
+        </UButton>
+        <UButton size="xs" color="primary" variant="outline" :disabled="!hasSelectedMail" @click="emit('reply')">
+          返信
         </UButton>
       </div>
       <div class="flex items-start justify-between gap-3">

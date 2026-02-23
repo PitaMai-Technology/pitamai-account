@@ -43,6 +43,9 @@ type MailListItem = {
   subject: string | null;
   from: string | null;
   date: string | null;
+  messageId: string | null;
+  inReplyTo: string | null;
+  references: string[];
   hasAttachment: boolean;
   seen: boolean;
 };

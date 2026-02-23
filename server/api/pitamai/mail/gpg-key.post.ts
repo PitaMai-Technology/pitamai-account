@@ -31,7 +31,10 @@ export default defineEventHandler(async event => {
 
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    throw createError({ statusCode: 422, message: 'Validation Error' });
+    throw createError({
+      statusCode: 422,
+      message: '形式(バリデーション)が違います',
+    });
   }
 
   let publicKey: string;

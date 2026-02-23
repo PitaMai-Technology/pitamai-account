@@ -68,17 +68,6 @@ export function useMailMessages(params: UseMailMessagesParams) {
   const selectedSeen = computed(() => selectedMessage.value?.seen ?? null);
   const hasSelectedMail = computed(() => params.selectedUid.value !== null);
 
-  function extractSenderAddress(from: string | null) {
-    if (!from) return 'unknown';
-
-    const matched = from.match(/<([^>]+)>/);
-    if (matched?.[1]) {
-      return matched[1].trim().toLowerCase();
-    }
-
-    return from.trim().toLowerCase();
-  }
-
   // 日本語コメント: 返信スレッド判定
   // - Re: / Re[n]: の返信件名パターンのみ抽出
   // - 転送（Fwd: など）や通常件名は対象外にして誤グループ化を防ぎます
@@ -98,6 +87,42 @@ export function useMailMessages(params: UseMailMessagesParams) {
     }
 
     return normalized.toLowerCase() || '(件名なし)';
+  }
+
+  function normalizeMessageId(raw: string | null) {
+    if (!raw) return null;
+    const normalized = raw
+      .trim()
+      .replace(/^<+|>+$/g, '')
+      .toLowerCase();
+    return normalized || null;
+  }
+
+  function extractMessageIds(value: string | null) {
+    if (!value) return [];
+
+    const bracketMatches = Array.from(value.matchAll(/<([^>]+)>/g))
+      .map(match => match[1]?.trim().toLowerCase())
+      .filter((id): id is string => Boolean(id));
+
+    if (bracketMatches.length > 0) {
+      return bracketMatches;
+    }
+
+    return value
+      .split(/\s+/)
+      .map(token => normalizeMessageId(token))
+      .filter((id): id is string => Boolean(id));
+  }
+
+  function extractReferenceIds(value: string[] | null | undefined) {
+    if (!Array.isArray(value) || value.length === 0) {
+      return [];
+    }
+
+    return value
+      .map(item => normalizeMessageId(item))
+      .filter((id): id is string => Boolean(id));
   }
 
   // 日本語コメント: 24時間以内判定（スレッド化の時間条件）
@@ -121,16 +146,83 @@ export function useMailMessages(params: UseMailMessagesParams) {
   const groupedMailList = computed<MailGroup[]>(() => {
     const groups: MailGroup[] = [];
     const threadGroupIndex = new Map<string, number>();
+    const childToParentMessageId = new Map<string, string>();
+    const referencedMessageIdSet = new Set<string>();
+    const threadableSubjects = new Set<string>();
+
+    function resolveThreadRootId(messageId: string) {
+      let current = messageId;
+      const visited = new Set<string>();
+
+      while (true) {
+        if (visited.has(current)) {
+          break;
+        }
+
+        visited.add(current);
+        const parent = childToParentMessageId.get(current);
+        if (!parent) {
+          break;
+        }
+
+        current = parent;
+      }
+
+      return current;
+    }
 
     for (const message of params.mailList.value) {
-      const senderKey = extractSenderAddress(message.from);
+      if (!isWithinOneDay(message.date)) {
+        continue;
+      }
+
+      const ownMessageId = normalizeMessageId(message.messageId);
+      const inReplyToId = normalizeMessageId(message.inReplyTo);
+      const referenceIds = extractReferenceIds(message.references);
+
+      if (isReplySubject(message.subject)) {
+        threadableSubjects.add(normalizeThreadSubject(message.subject));
+      }
+
+      const parentId =
+        inReplyToId ?? referenceIds[referenceIds.length - 1] ?? null;
+      if (parentId) {
+        referencedMessageIdSet.add(parentId);
+      }
+
+      if (parentId && ownMessageId) {
+        childToParentMessageId.set(ownMessageId, parentId);
+      }
+    }
+
+    for (const message of params.mailList.value) {
+      const normalizedSubject = normalizeThreadSubject(message.subject);
+      const ownMessageId = normalizeMessageId(message.messageId);
+      const inReplyToId = normalizeMessageId(message.inReplyTo);
+      const referenceIds = extractReferenceIds(message.references);
+      const referenceLastId = referenceIds[referenceIds.length - 1] ?? null;
+
+      const isHeaderThreadCandidate =
+        Boolean(inReplyToId) ||
+        referenceIds.length > 0 ||
+        (ownMessageId ? referencedMessageIdSet.has(ownMessageId) : false);
+
+      let threadRootFromHeaders: string | null = null;
+      if (isHeaderThreadCandidate) {
+        const startId = ownMessageId ?? inReplyToId ?? referenceLastId ?? null;
+
+        threadRootFromHeaders = startId ? resolveThreadRootId(startId) : null;
+      }
+
       const replyThreadingEnabled =
-        senderKey !== 'unknown' &&
-        isReplySubject(message.subject) &&
-        isWithinOneDay(message.date);
+        isWithinOneDay(message.date) &&
+        (Boolean(threadRootFromHeaders) ||
+          threadableSubjects.has(normalizedSubject));
 
       if (replyThreadingEnabled) {
-        const threadKey = `${senderKey}:${normalizeThreadSubject(message.subject)}`;
+        const threadKey = threadRootFromHeaders
+          ? `hdr:${threadRootFromHeaders}`
+          : `sub:${normalizedSubject}`;
         const existingIndex = threadGroupIndex.get(threadKey);
 
         if (existingIndex !== undefined) {

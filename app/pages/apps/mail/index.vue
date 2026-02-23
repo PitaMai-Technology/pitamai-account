@@ -161,6 +161,36 @@ const messageCcValue = computed(() => {
   return currentMail.value?.cc || '-';
 });
 
+function extractReplyToAddress(fromValue: string | null) {
+  if (!fromValue) return '';
+
+  const match = fromValue.match(/<([^>]+)>/);
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+
+  return fromValue.trim();
+}
+
+function buildReplySubject(subject: string | null) {
+  const baseSubject = (subject ?? '').trim();
+  if (!baseSubject) return 'Re:';
+  if (/^re\s*:/i.test(baseSubject)) return baseSubject;
+  return `Re: ${baseSubject}`;
+}
+
+function buildReplyBody(text: string | null) {
+  const sourceText = (text ?? '').trim();
+  if (!sourceText) return '';
+
+  const quoted = sourceText
+    .split('\n')
+    .map(line => `> ${line}`)
+    .join('\n');
+
+  return `\n\n${quoted}`;
+}
+
 const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
 const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
@@ -395,6 +425,35 @@ async function onOpenAttachment(index: number) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+function onReplyCompose() {
+  const activeDetail = currentMail.value;
+
+  if (!activeDetail || activeDetail.uid !== selectedUid.value) {
+    toast.add({
+      title: 'エラー',
+      description: '返信対象メールの読み込みが完了していません',
+      color: 'error',
+    });
+    return;
+  }
+
+  const replyTo = extractReplyToAddress(activeDetail.from);
+  if (!replyTo) {
+    toast.add({
+      title: 'エラー',
+      description: '返信先アドレスを特定できませんでした',
+      color: 'error',
+    });
+    return;
+  }
+
+  mailStore.resetComposeState();
+  composeState.to = replyTo;
+  composeState.subject = buildReplySubject(activeDetail.subject);
+  composeState.text = buildReplyBody(activeDetail.text);
+  composeOpen.value = true;
+}
+
 watch(hasMailSetting, async enabled => {
   if (!enabled) {
     stopRealtimeStream();
@@ -455,7 +514,7 @@ onBeforeUnmount(() => {
         :message-cc-value="messageCcValue" :has-selected-mail="hasSelectedMail" :opening-uid="openingUid"
         :selected-seen="selectedSeen" :is-draft-folder="isDraftFolder" :is-trash-folder="isTrashFolder"
         :is-spam-folder="isSpamFolder" @toggle-seen="onToggleSeen" @move="onMove"
-        @use-draft-compose="onUseDraftForCompose" @open-attachment="onOpenAttachment" />
+        @use-draft-compose="onUseDraftForCompose" @open-attachment="onOpenAttachment" @reply="onReplyCompose" />
     </div>
 
     <div v-if="selectedAccount === null" class="text-sm text-gray-500">

@@ -5,6 +5,9 @@ export type CachedMailListItem = {
   subject: string | null;
   from: string | null;
   date: string | null;
+  messageId: string | null;
+  inReplyTo: string | null;
+  references: string[];
   hasAttachment: boolean;
   seen: boolean;
 };
@@ -14,6 +17,9 @@ type UpsertMessageInput = {
   subject: string | null;
   from: string | null;
   date: string | null;
+  messageId: string | null;
+  inReplyTo: string | null;
+  references: string[];
   hasAttachment: boolean;
 };
 
@@ -62,6 +68,9 @@ export async function getCachedMessages(params: {
     subject: row.subject,
     from: joinFrom(row.fromName, row.fromAddress),
     date: row.internalDate ? row.internalDate.toISOString() : null,
+    messageId: row.messageId,
+    inReplyTo: null,
+    references: [],
     hasAttachment: row.hasAttachment,
     seen: false,
   }));
@@ -118,6 +127,7 @@ export async function upsertMessagesToCache(params: {
           accountId: params.accountId,
           folder: params.folder,
           uid: message.uid,
+          messageId: message.messageId,
           subject: message.subject,
           fromName: split.fromName,
           fromAddress: split.fromAddress,
@@ -126,6 +136,7 @@ export async function upsertMessagesToCache(params: {
           snippet: null,
         },
         update: {
+          messageId: message.messageId,
           subject: message.subject,
           fromName: split.fromName,
           fromAddress: split.fromAddress,

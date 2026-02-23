@@ -4,10 +4,12 @@ import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
 import { usePageLeaveGuard } from '~/composable/usePageLeaveGuard';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
+import { useErrorMessage } from '~/composable/useErrorMessage';
 
 definePageMeta({ layout: 'the-app' });
 
 const toast = useToast();
+const { getErrorMessage } = useErrorMessage();
 
 // セッション取得
 interface UserInfo {
@@ -40,30 +42,6 @@ type SendVerificationResponse = {
   message: string;
 };
 
-function getErrorMessage(err: unknown, fallback = '操作に失敗しました'): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === 'object' && err !== null) {
-    const eObj = err as Record<string, unknown>;
-
-    // サーバーレスポンスの data.message を優先
-    if (typeof eObj.data === 'object' && eObj.data !== null) {
-      const data = eObj.data as Record<string, unknown>;
-      if (typeof data.message === 'string') return data.message;
-    }
-
-    // トップレベルの message フィールド
-    if (typeof eObj.message === 'string') return eObj.message;
-
-    // _error フィールド（Nitro エラー形式）
-    const errorField = eObj._error;
-    if (typeof errorField === 'object' && errorField !== null) {
-      const errObj = errorField as Record<string, unknown>;
-      if (typeof errObj.message === 'string') return errObj.message;
-    }
-  }
-  return fallback;
-}
-
 async function onSendVerificationEmail() {
   if (emailVerificationLoading.value || isEmailVerified.value) return;
 
@@ -87,7 +65,7 @@ async function onSendVerificationEmail() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err),
+      description: getErrorMessage(err, '認証メール送信に失敗しました'),
       color: 'error',
     });
   } finally {
@@ -172,8 +150,7 @@ async function loadMailServerSetting() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : 'メールサーバー設定の取得に失敗しました',
+      description: getErrorMessage(err, 'メールサーバー設定の取得に失敗しました'),
       color: 'error',
     });
   }
@@ -213,8 +190,7 @@ async function onSubmitMailServer() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : 'メールサーバー設定の保存に失敗しました',
+      description: getErrorMessage(err, 'メールサーバー設定の保存に失敗しました'),
       color: 'error',
     });
   } finally {
@@ -236,8 +212,7 @@ async function onTestImapConnection() {
   } catch (err: unknown) {
     toast.add({
       title: '接続失敗',
-      description:
-        err instanceof Error ? err.message : 'IMAPサーバー接続テストに失敗しました',
+      description: getErrorMessage(err, 'IMAPサーバー接続テストに失敗しました'),
       color: 'error',
     });
   } finally {
@@ -259,8 +234,7 @@ async function onTestSmtpConnection() {
   } catch (err: unknown) {
     toast.add({
       title: '接続失敗',
-      description:
-        err instanceof Error ? err.message : 'SMTPサーバー接続テストに失敗しました',
+      description: getErrorMessage(err, 'SMTPサーバー接続テストに失敗しました'),
       color: 'error',
     });
   } finally {
@@ -287,8 +261,7 @@ async function loadGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : 'GPG鍵の取得に失敗しました',
+      description: getErrorMessage(err, 'GPG鍵の取得に失敗しました'),
       color: 'error',
     });
   }
@@ -334,8 +307,7 @@ async function onSaveGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : 'GPG鍵の保存に失敗しました',
+      description: getErrorMessage(err, 'GPG鍵の保存に失敗しました'),
       color: 'error',
     });
   } finally {
@@ -365,8 +337,7 @@ async function onDeleteGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : 'GPG鍵の削除に失敗しました',
+      description: getErrorMessage(err, 'GPG鍵の削除に失敗しました'),
       color: 'error',
     });
   } finally {
@@ -400,8 +371,7 @@ async function onPublishGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : '公開申請に失敗しました',
+      description: getErrorMessage(err, '公開申請に失敗しました'),
       color: 'error',
     });
   } finally {
@@ -420,10 +390,10 @@ async function onCopyGpgPublicKey() {
       description: '公開鍵をクリップボードにコピーしました',
       color: 'success',
     });
-  } catch {
+  } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: '公開鍵のコピーに失敗しました',
+      description: getErrorMessage(err, '公開鍵のコピーに失敗しました'),
       color: 'error',
     });
   }
@@ -442,10 +412,10 @@ async function onCopyGpgPrivateKey() {
       description: '秘密鍵をクリップボードにコピーしました',
       color: 'success',
     });
-  } catch {
+  } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: '秘密鍵のコピーに失敗しました',
+      description: getErrorMessage(err, '秘密鍵のコピーに失敗しました'),
       color: 'error',
     });
   }
@@ -485,7 +455,7 @@ async function onSubmitProfile(event?: FormSubmitEvent<UserUpdate>) {
   if (!parsed.success) {
     toast.add({
       title: '入力エラー',
-      description: '少なくとも1つのフィールドを更新してください',
+      description: getErrorMessage(parsed.error, 'プロフィール入力内容が不正です'),
       color: 'error',
     });
     return;
@@ -513,8 +483,7 @@ async function onSubmitProfile(event?: FormSubmitEvent<UserUpdate>) {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : 'プロフィール更新に失敗しました',
+      description: getErrorMessage(err, 'プロフィール更新に失敗しました'),
       color: 'error',
     });
   } finally {
@@ -532,8 +501,11 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
   };
   const parsed = userChangeEmailSettingsSchema.safeParse(payload);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map(i => i.message).join(', ');
-    toast.add({ title: '入力エラー', description: issues, color: 'error' });
+    toast.add({
+      title: '入力エラー',
+      description: getErrorMessage(parsed.error, 'メールアドレス入力内容が不正です'),
+      color: 'error',
+    });
     return;
   }
 
@@ -562,8 +534,7 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description:
-        err instanceof Error ? err.message : 'メール変更に失敗しました',
+      description: getErrorMessage(err, 'メール変更に失敗しました'),
       color: 'error',
     });
   } finally {
