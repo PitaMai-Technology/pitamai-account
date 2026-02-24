@@ -24,6 +24,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // サーバ専用（公開されない）
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
     SMTP_HOST: process.env.SMTP_HOST,
     SMTP_PORT: process.env.SMTP_PORT,
     SMTP_SECURE: process.env.SMTP_SECURE,
@@ -34,6 +35,7 @@ export default defineNuxtConfig({
     // クライアントにも公開
     public: {
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+      TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY,
     },
   },
 

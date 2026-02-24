@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
+import { useTurnstile } from '~/composable/useTurnstile';
 
 definePageMeta({
   layout: 'the-front',
@@ -10,6 +11,7 @@ const toast = useToast();
 const loading = ref(false);
 const emailSent = ref(false);
 const session = authClient.useSession();
+const { config, turnstileToken, resetTurnstileToken } = useTurnstile('login-turnstile');
 
 const fields: AuthFormField[] = [
   {
@@ -26,6 +28,15 @@ const fields: AuthFormField[] = [
 type Schema = MagicLinkForm;
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
+  if (!turnstileToken.value) {
+    toast.add({
+      title: '確認が必要です',
+      description: 'Turnstile の認証を完了してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
   loading.value = true;
   try {
     const { error } = await authClient.signIn.magicLink({
@@ -33,6 +44,11 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       callbackURL: '/apps/dashboard',
       newUserCallbackURL: '/apps/dashboard?welcome=true',
       errorCallbackURL: '/error',
+      fetchOptions: {
+        headers: {
+          'x-captcha-response': turnstileToken.value,
+        },
+      },
     });
 
     if (error) {
@@ -51,6 +67,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         description: errorMessage,
         color: 'error',
       });
+      resetTurnstileToken();
       return;
     }
     emailSent.value = true;
@@ -70,6 +87,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       description: errorMessage,
       color: 'error',
     });
+    resetTurnstileToken();
   } finally {
     loading.value = false;
   }
@@ -107,6 +125,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         <UAuthForm v-else :schema="magicLinkFormSchema" :fields="fields" :loading="loading" title="ログイン"
           description="メールアドレスにログインリンクを送信します" icon="i-lucide-mail" :submit="{ label: 'ログインリンクを送信' }"
           @submit="onSubmit" />
+        <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center" />
       </UPageCard>
     </div>
   </div>

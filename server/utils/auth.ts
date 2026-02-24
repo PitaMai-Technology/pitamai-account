@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import { organization, magicLink, admin } from 'better-auth/plugins';
+import { organization, magicLink, admin, captcha } from 'better-auth/plugins';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import { PrismaClient } from '@prisma/client';
@@ -62,6 +62,15 @@ export const auth = betterAuth({
     }),
   },
   plugins: [
+    ...(process.env.TURNSTILE_SECRET_KEY
+      ? [
+          captcha({
+            provider: 'cloudflare-turnstile',
+            secretKey: process.env.TURNSTILE_SECRET_KEY,
+            endpoints: ['/sign-up/email', '/sign-in/magic-link'],
+          }),
+        ]
+      : []),
     admin({
       defaultRole: 'member',
       adminRoles: ['admins', 'owner'],

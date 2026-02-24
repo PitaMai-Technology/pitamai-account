@@ -1,4 +1,4 @@
-import { createError, defineEventHandler, readBody } from 'h3';
+import { createError, defineEventHandler, getHeader, readBody } from 'h3';
 import { generateId } from 'better-auth';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
@@ -10,8 +10,57 @@ const setupOwnerSchema = z.object({
   name: z.string().trim().min(1).optional(),
 });
 
+type TurnstileVerifyResponse = {
+  success: boolean;
+  'error-codes'?: string[];
+};
+
+async function verifyTurnstileToken(token: string, secretKey: string) {
+  const form = new URLSearchParams();
+  form.set('secret', secretKey);
+  form.set('response', token);
+
+  const response = await $fetch<TurnstileVerifyResponse>(
+    'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: form.toString(),
+    }
+  );
+
+  return response.success;
+}
+
 export default defineEventHandler(async event => {
   try {
+    const config = useRuntimeConfig();
+    const secretKey = config.TURNSTILE_SECRET_KEY;
+    if (!secretKey) {
+      throw createError({
+        statusCode: 503,
+        message: 'Turnstile 設定が不足しています',
+      });
+    }
+
+    const captchaToken = getHeader(event, 'x-captcha-response');
+    if (!captchaToken) {
+      throw createError({
+        statusCode: 403,
+        message: 'Captcha トークンが必要です',
+      });
+    }
+
+    const captchaVerified = await verifyTurnstileToken(captchaToken, secretKey);
+    if (!captchaVerified) {
+      throw createError({
+        statusCode: 403,
+        message: 'Captcha 検証に失敗しました',
+      });
+    }
+
     const existingOwnerCount = await prisma.user.count({
       where: {
         role: 'owner',
