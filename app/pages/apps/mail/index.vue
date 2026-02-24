@@ -509,12 +509,15 @@ onBeforeUnmount(() => {
         @refresh="loadMessages({ markOpenedAsRead: false, notifyIfNew: false, forceSync: true })"
         @open="uid => openMessage(uid, true)" @drag-start="onMailDragStart" @item-click="onMailItemClick" />
 
-      <AppMailDetailPanel :selected-message="selectedMessage" :current-mail="currentMail"
-        :message-meta-label="messageMetaLabel" :message-meta-value="messageMetaValue" :is-sent-folder="isSentFolder"
-        :message-cc-value="messageCcValue" :has-selected-mail="hasSelectedMail" :opening-uid="openingUid"
-        :selected-seen="selectedSeen" :is-draft-folder="isDraftFolder" :is-trash-folder="isTrashFolder"
-        :is-spam-folder="isSpamFolder" @toggle-seen="onToggleSeen" @move="onMove"
-        @use-draft-compose="onUseDraftForCompose" @open-attachment="onOpenAttachment" @reply="onReplyCompose" />
+      <AppSticky v-slot="{ stickyClass, stickyStyle }">
+        <AppMailDetailPanel class="h-[80vh] overflow-y-scroll" :selected-message="selectedMessage"
+          :current-mail="currentMail" :class="stickyClass" :style="stickyStyle" :message-meta-label="messageMetaLabel"
+          :message-meta-value="messageMetaValue" :is-sent-folder="isSentFolder" :message-cc-value="messageCcValue"
+          :has-selected-mail="hasSelectedMail" :opening-uid="openingUid" :selected-seen="selectedSeen"
+          :is-draft-folder="isDraftFolder" :is-trash-folder="isTrashFolder" :is-spam-folder="isSpamFolder"
+          @toggle-seen="onToggleSeen" @move="onMove" @use-draft-compose="onUseDraftForCompose"
+          @open-attachment="onOpenAttachment" @reply="onReplyCompose" />
+      </AppSticky>
     </div>
 
     <div v-if="selectedAccount === null" class="text-sm text-gray-500">
