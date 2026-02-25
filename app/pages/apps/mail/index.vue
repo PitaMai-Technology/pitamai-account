@@ -336,6 +336,9 @@ async function onDropMailToFolder(droppedUids: number[], toFolderPath: string) {
       await mailApi.moveToFolder(targetUid, activeFolderPath.value, toFolderPath);
     }
 
+    // フォルダ移動後は一覧キャッシュを破棄して再スレッド化を最新データで行う
+    mailStore.clearMailDataCache();
+
     toast.add({
       title: '移動しました',
       description:
@@ -370,6 +373,9 @@ async function onMove(destination: 'trash' | 'archive' | 'inbox') {
   try {
     await mailApi.moveMessage(activeFolderPath.value, uid, destination);
 
+    // 重要フォルダ移動後は一覧キャッシュを破棄して整合性を維持
+    mailStore.clearMailDataCache();
+
     toast.add({
       title: '成功',
       description:
@@ -381,7 +387,7 @@ async function onMove(destination: 'trash' | 'archive' | 'inbox') {
       color: 'success',
     });
 
-    await loadMessages();
+    await loadMessages({ forceSync: true });
   } catch (error) {
     const defaultMsg = destination === 'trash'
       ? '削除に失敗しました'

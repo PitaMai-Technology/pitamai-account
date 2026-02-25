@@ -184,6 +184,9 @@ async function onDropMailToFolder(uids: number[], toFolderPath: string) {
       await mailApi.moveToFolder(uid, fromFolderPath, toFolderPath);
     }
 
+    // 移動後はメール一覧キャッシュを破棄し、スレッド表示の不整合を防止
+    mailStore.clearMailDataCache();
+
     const response = await mailApi.getMessages({
       folder: fromFolderPath,
       limit: 50,

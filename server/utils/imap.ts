@@ -580,7 +580,18 @@ export async function listMessages(params: {
       });
     }
 
-    return messages.reverse();
+    return messages
+      .sort((a, b) => {
+        const timeA = a.date ? new Date(a.date).getTime() : 0;
+        const timeB = b.date ? new Date(b.date).getTime() : 0;
+
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+
+        return b.uid - a.uid;
+      })
+      .slice(0, params.limit);
   });
 }
 
@@ -674,7 +685,18 @@ export async function listMessagesSinceUid(params: {
       });
     }
 
-    return messages.slice(-params.limit);
+    return messages
+      .sort((a, b) => {
+        const timeA = a.date ? new Date(a.date).getTime() : 0;
+        const timeB = b.date ? new Date(b.date).getTime() : 0;
+
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+
+        return b.uid - a.uid;
+      })
+      .slice(0, params.limit);
   });
 }
 

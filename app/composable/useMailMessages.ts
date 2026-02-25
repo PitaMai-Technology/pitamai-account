@@ -29,8 +29,6 @@ type UseMailMessagesParams = {
   setCachedMailDetail: (folderPath: string, mail: MailDetail) => void;
 };
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
 export function useMailMessages(params: UseMailMessagesParams) {
   const toast = useToast();
   const mailApi = useMailApi();
@@ -125,18 +123,8 @@ export function useMailMessages(params: UseMailMessagesParams) {
       .filter((id): id is string => Boolean(id));
   }
 
-  // 日本語コメント: 24時間以内判定（スレッド化の時間条件）
-  // - 返信スレッドが同一送信者・同一件名でも、24時間を超える古い返信は別グループに分離
-  // - 古いメールスレッドと新しいメールスレッドを混同して表示しないための時間境界
-  // - 例: 先週のやりとりと今週のやりとりは別グループとして管理
-  function isWithinOneDay(dateText: string | null) {
-    if (!dateText) return false;
-
-    const time = new Date(dateText).getTime();
-    if (Number.isNaN(time)) return false;
-
-    return Date.now() - time <= ONE_DAY_MS;
-  }
+  // 日本語コメント: 以前は24時間制限でスレッド化していましたが、
+  // 実利用では返信履歴が分断されやすいため、Message-Id 系ヘッダ優先で時刻制限なしに統合します。
 
   // 日本語コメント: メール一覧のグループ化（スレッド化）
   // - 同一送信者からの返信で、24時間以内、同じ正規化件名を持つメールをグループ化
@@ -172,10 +160,6 @@ export function useMailMessages(params: UseMailMessagesParams) {
     }
 
     for (const message of params.mailList.value) {
-      if (!isWithinOneDay(message.date)) {
-        continue;
-      }
-
       const ownMessageId = normalizeMessageId(message.messageId);
       const inReplyToId = normalizeMessageId(message.inReplyTo);
       const referenceIds = extractReferenceIds(message.references);
@@ -215,9 +199,8 @@ export function useMailMessages(params: UseMailMessagesParams) {
       }
 
       const replyThreadingEnabled =
-        isWithinOneDay(message.date) &&
-        (Boolean(threadRootFromHeaders) ||
-          threadableSubjects.has(normalizedSubject));
+        Boolean(threadRootFromHeaders) ||
+        threadableSubjects.has(normalizedSubject);
 
       if (replyThreadingEnabled) {
         const threadKey = threadRootFromHeaders

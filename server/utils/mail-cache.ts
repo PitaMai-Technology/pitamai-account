@@ -59,7 +59,7 @@ export async function getCachedMessages(params: {
       accountId: params.accountId,
       folder: params.folder,
     },
-    orderBy: [{ uid: 'desc' }, { internalDate: 'desc' }],
+    orderBy: [{ internalDate: 'desc' }, { uid: 'desc' }],
     take: params.limit,
   });
 
