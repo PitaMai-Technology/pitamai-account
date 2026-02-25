@@ -117,6 +117,27 @@ export async function createSignedMessage(params: {
   });
 }
 
+export async function createDetachedSignature(params: {
+  text: string;
+  armoredPrivateKey: string;
+}): Promise<string> {
+  const privateKey = await openpgp.readPrivateKey({
+    armoredKey: params.armoredPrivateKey,
+  });
+
+  const message = await openpgp.createMessage({ text: params.text });
+  const signature = await openpgp.sign({
+    message,
+    signingKeys: privateKey,
+    detached: true,
+    format: 'armored',
+  });
+
+  return typeof signature === 'string'
+    ? signature
+    : Buffer.from(signature).toString('utf8');
+}
+
 export async function createEncryptedMessage(params: {
   text: string;
   armoredPublicKeys: string[];

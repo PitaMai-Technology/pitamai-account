@@ -11,6 +11,7 @@ import { appendToSentMailbox } from '~~/server/utils/imap';
 import { logger } from '~~/server/utils/logger';
 import {
   createEncryptedMessage,
+  createDetachedSignature,
   createSignedMessage,
   decryptGpgPrivateKey,
   fetchPublicKeyFromKeyServer,
@@ -81,10 +82,121 @@ export default defineEventHandler(async event => {
     new Set([...extractEmails(to), ...extractEmails(cc), ...extractEmails(bcc)])
   );
 
+  const parsedAttachments = (parsed.data.attachments ?? []).map(item => ({
+    filename: item.filename,
+    contentType: item.contentType,
+    content: Buffer.from(item.contentBase64, 'base64'),
+  }));
+
+  const shouldApplyGpg = Boolean(parsed.data.sign || parsed.data.encrypt);
+
+  let gpgPayloadText = parsed.data.text ?? '';
+
+  if (shouldApplyGpg) {
+    const payloadRaw = await new MailComposer({
+      text: parsed.data.text ?? '',
+      html: parsed.data.html,
+      attachments: parsedAttachments,
+    })
+      .compile()
+      .build();
+
+    gpgPayloadText = Buffer.from(payloadRaw)
+      .toString('utf8')
+      .replace(/^Message-ID:.*\r?\n/im, '')
+      .replace(/^Date:.*\r?\n/im, '')
+      .trim();
+  }
+
   // GPG 署名
-  let finalText = parsed.data.text ?? '';
+  let finalText = gpgPayloadText;
+  let detachedSignature: string | null = null;
   let isSigned = false;
   let isEncrypted = false;
+  const shouldUseDetachedSign =
+    Boolean(parsed.data.encrypt) ||
+    parsedAttachments.length > 0 ||
+    Boolean(parsed.data.html);
+
+  function buildMultipartSignedEntity(params: {
+    signedEntity: string;
+    signature: string;
+  }) {
+    const boundary = `pitamai-signed-${Date.now().toString(16)}`;
+    return [
+      `Content-Type: multipart/signed; micalg=pgp-sha256; protocol="application/pgp-signature"; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      params.signedEntity,
+      `--${boundary}`,
+      'Content-Type: application/pgp-signature; name="signature.asc"',
+      'Content-Transfer-Encoding: 7bit',
+      'Content-Disposition: attachment; filename="signature.asc"',
+      '',
+      params.signature,
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+  }
+
+  function buildMultipartEncryptedRawMail(params: {
+    from: string;
+    to?: string;
+    cc?: string;
+    bcc?: string;
+    subject: string;
+    armoredEncrypted: string;
+  }) {
+    const boundary = `pitamai-encrypted-${Date.now().toString(16)}`;
+    const headers = [
+      `From: ${params.from}`,
+      params.to ? `To: ${params.to}` : null,
+      params.cc ? `Cc: ${params.cc}` : null,
+      params.bcc ? `Bcc: ${params.bcc}` : null,
+      `Subject: ${params.subject}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: application/pgp-encrypted',
+      'Content-Transfer-Encoding: 7bit',
+      '',
+      'Version: 1',
+      '',
+      `--${boundary}`,
+      'Content-Type: application/octet-stream; name="encrypted.asc"',
+      'Content-Transfer-Encoding: 7bit',
+      'Content-Disposition: inline; filename="encrypted.asc"',
+      '',
+      params.armoredEncrypted,
+      `--${boundary}--`,
+      '',
+    ].filter((line): line is string => line !== null);
+
+    return headers.join('\r\n');
+  }
+
+  function buildRawMailFromMimeEntity(params: {
+    from: string;
+    to?: string;
+    cc?: string;
+    bcc?: string;
+    subject: string;
+    mimeEntity: string;
+  }) {
+    const headers = [
+      `From: ${params.from}`,
+      params.to ? `To: ${params.to}` : null,
+      params.cc ? `Cc: ${params.cc}` : null,
+      params.bcc ? `Bcc: ${params.bcc}` : null,
+      `Subject: ${params.subject}`,
+      'MIME-Version: 1.0',
+      params.mimeEntity,
+      '',
+    ].filter((line): line is string => line !== null);
+
+    return headers.join('\r\n');
+  }
 
   if (parsed.data.sign) {
     const gpgRecord = await prisma.userGpgKey.findUnique({
@@ -110,10 +222,22 @@ export default defineEventHandler(async event => {
       authTag: gpgRecord.encryptionAuthTag,
     });
 
-    finalText = await createSignedMessage({
-      text: finalText,
-      armoredPrivateKey,
-    });
+    if (shouldUseDetachedSign) {
+      detachedSignature = await createDetachedSignature({
+        text: finalText,
+        armoredPrivateKey,
+      });
+
+      finalText = buildMultipartSignedEntity({
+        signedEntity: finalText,
+        signature: detachedSignature,
+      });
+    } else {
+      finalText = await createSignedMessage({
+        text: finalText,
+        armoredPrivateKey,
+      });
+    }
     isSigned = true;
   }
 
@@ -219,6 +343,36 @@ export default defineEventHandler(async event => {
   try {
     await transporter.verify();
 
+    const encryptedRawMail =
+      isEncrypted && shouldApplyGpg
+        ? buildMultipartEncryptedRawMail({
+            from: account.username,
+            to,
+            cc,
+            bcc,
+            subject: parsed.data.subject,
+            armoredEncrypted: finalText,
+          })
+        : null;
+
+    const signedRawMail =
+      isSigned &&
+      !isEncrypted &&
+      shouldUseDetachedSign &&
+      detachedSignature &&
+      shouldApplyGpg
+        ? buildRawMailFromMimeEntity({
+            from: account.username,
+            to,
+            cc,
+            bcc,
+            subject: parsed.data.subject,
+            mimeEntity: finalText,
+          })
+        : null;
+
+    const rawMail = encryptedRawMail ?? signedRawMail;
+
     const mailOptions = {
       from: account.username,
       sender: account.username,
@@ -226,14 +380,15 @@ export default defineEventHandler(async event => {
       cc,
       bcc,
       subject: parsed.data.subject,
+      raw: rawMail ?? undefined,
       text: finalText,
       html: isSigned || isEncrypted ? undefined : parsed.data.html,
-      attachments: (parsed.data.attachments ?? []).map(item => ({
-        filename: item.filename,
-        contentType: item.contentType,
-        content: Buffer.from(item.contentBase64, 'base64'),
-      })),
+      attachments: isSigned || isEncrypted ? undefined : parsedAttachments,
     };
+
+    if (rawMail) {
+      mailOptions.text = undefined as unknown as string;
+    }
 
     const result = await transporter.sendMail(mailOptions);
 
