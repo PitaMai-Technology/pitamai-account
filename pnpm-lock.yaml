@@ -33,6 +33,9 @@ importers:
       '@sentry/vite-plugin':
         specifier: ^4.9.1
         version: 4.9.1
+      '@types/nodemailer':
+        specifier: ^7.0.11
+        version: 7.0.11
       '@vue-dnd-kit/core':
         specifier: 1.7.0
         version: 1.7.0(@vueuse/core@14.2.1(vue@3.5.28(typescript@5.9.3)))(vue@3.5.28(typescript@5.9.3))
@@ -106,9 +109,6 @@ importers:
       '@types/node':
         specifier: ^24.10.13
         version: 24.10.13
-      '@types/nodemailer':
-        specifier: ^7.0.11
-        version: 7.0.11
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@9.39.3(jiti@2.6.1))

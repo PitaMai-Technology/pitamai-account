@@ -25,6 +25,39 @@ export function useMailRealtime(params: UseMailRealtimeParams) {
   let stream: EventSource | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectAttempt = 0;
+  // Track the last known exists count reported by the server in 'ready' events.
+  // After a reconnect, if the count grew we know a mail arrived while disconnected.
+  // JA: サーバーからの 'ready' イベントで最後に報告された exists カウントを追跡します。
+  // 再接続後、カウントが増えていれば、切断中にメールが届いたことがわかります。
+  let lastKnownExists = -1;
+
+  // Heartbeat watchdog: the server sends a heartbeat every 5 seconds.
+  // If nothing arrives for WATCHDOG_MS, the connection is considered silently
+  // dead and we force a reconnect.
+  const WATCHDOG_MS = 12_000;
+  let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function resetWatchdog() {
+    if (watchdogTimer) clearTimeout(watchdogTimer);
+    watchdogTimer = setTimeout(() => {
+      // No heartbeat / event for WATCHDOG_MS — treat as silent disconnect.
+      streamConnected.value = false;
+      if (stream) {
+        stream.close();
+        stream = null;
+      }
+      if (params.hasMailSetting.value) {
+        startRealtimeStream();
+      }
+    }, WATCHDOG_MS);
+  }
+
+  function clearWatchdog() {
+    if (watchdogTimer) {
+      clearTimeout(watchdogTimer);
+      watchdogTimer = null;
+    }
+  }
 
   /**
    * SSE 接続を開始する。
@@ -42,22 +75,66 @@ export function useMailRealtime(params: UseMailRealtimeParams) {
     stream.addEventListener('connected', () => {
       streamConnected.value = true;
       reconnectAttempt = 0;
+      resetWatchdog();
     });
 
-    stream.addEventListener('ready', () => {
+    stream.addEventListener('ready', async e => {
       streamConnected.value = true;
+      resetWatchdog();
+
+      // After a reconnect the server sends the current exists count.
+      // If it grew since we last knew, a new mail arrived while we were
+      // disconnected — trigger onNewMail() to catch up immediately.
+      try {
+        const data = JSON.parse((e as MessageEvent).data ?? '{}');
+        const serverExists: number =
+          typeof data.exists === 'number' ? data.exists : -1;
+        const missed = lastKnownExists >= 0 && serverExists > lastKnownExists;
+        lastKnownExists = serverExists;
+        if (missed) {
+          await params.onNewMail();
+        }
+      } catch {
+        // ignore parse errors
+      }
     });
 
-    stream.addEventListener('heartbeat', () => {
+    stream.addEventListener('heartbeat', async e => {
       streamConnected.value = true;
+      resetWatchdog();
+
+      // Fallback catch-up: if an exists event was missed, heartbeat carries
+      // the latest mailbox exists count so we can refresh immediately.
+      try {
+        const data = JSON.parse((e as MessageEvent).data ?? '{}');
+        const serverExists: number =
+          typeof data.exists === 'number' ? data.exists : -1;
+        const missed = lastKnownExists >= 0 && serverExists > lastKnownExists;
+        lastKnownExists = serverExists;
+        if (missed) {
+          await params.onNewMail();
+        }
+      } catch {
+        // ignore parse errors
+      }
     });
 
-    stream.addEventListener('new-mail', async () => {
+    stream.addEventListener('new-mail', async e => {
+      resetWatchdog();
+      try {
+        const data = JSON.parse((e as MessageEvent).data ?? '{}');
+        if (typeof data.exists === 'number') {
+          lastKnownExists = data.exists;
+        }
+      } catch {
+        // ignore
+      }
       await params.onNewMail();
     });
 
     // エラー発生時は接続を閉じ、再接続タイマーを設定
     stream.addEventListener('error', () => {
+      clearWatchdog();
       streamConnected.value = false;
       if (stream) {
         stream.close();
@@ -85,6 +162,8 @@ export function useMailRealtime(params: UseMailRealtimeParams) {
    * 現在の SSE 接続を停止し、再接続タイマーをクリアする。
    */
   function stopRealtimeStream() {
+    clearWatchdog();
+    lastKnownExists = -1;
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;

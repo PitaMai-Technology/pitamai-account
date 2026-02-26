@@ -7,8 +7,9 @@
  */
 import { createError, createEventStream, getQuery } from 'h3';
 import { z } from 'zod';
+import { ImapFlow } from 'imapflow';
 import { requireMailAccountForUser } from '~~/server/utils/mail-account';
-import { createImapClient } from '~~/server/utils/imap';
+import { decryptMailPassword } from '~~/server/utils/mail-crypto';
 import { logger } from '~~/server/utils/logger';
 
 /**
@@ -34,21 +35,44 @@ export default defineEventHandler(async event => {
   // 認証済みユーザーの MailAccount を取得
   const account = await requireMailAccountForUser({ event });
   const stream = createEventStream(event);
-  const client = createImapClient(account);
+
+  // disableAutoIdle: true — auto-IDLE を完全無効にする。
+  // デフォルト (false) のままだと、下の idleLoop の明示的 idle() と
+  // auto-IDLE が競合し、EXISTS 後の IDLE 再エントリーが
+  // サーバー側タイムアウト（30秒〜）待ちなって遅延が生じる。
+  const password = decryptMailPassword({
+    ciphertext: account.encryptedPassword,
+    iv: account.encryptionIv,
+    authTag: account.encryptionAuthTag,
+  });
+  const client = new ImapFlow({
+    host: account.imapHost,
+    port: account.imapPort,
+    secure: account.imapSecure,
+    auth: { user: account.username, pass: password },
+    disableAutoIdle: true,
+    logger: false,
+  });
+
   let lock: Awaited<ReturnType<typeof client.getMailboxLock>> | null = null;
   let existsCount = 0;
   let closed = false;
 
-  // 15秒間隔で heartbeat イベントを送信して接続維持
+  // 5秒間隔で heartbeat イベントを送信して接続維持
+  // existsCount も同梱し、クライアント側で差分検知できるようにする。
   const heartbeat = setInterval(() => {
+    const mb = client.mailbox;
+    const currentExists = mb ? mb.exists : existsCount;
+    existsCount = currentExists;
     stream.push({
       event: 'heartbeat',
       data: JSON.stringify({
         at: new Date().toISOString(),
         folder: parsed.data.folder,
+        exists: currentExists,
       }),
     });
-  }, 15000);
+  }, 5000);
 
   // IMAP 'exists' イベントハンドラ。
   // メッセージ総数が前回より増えていたら 'new-mail' を送信。
@@ -89,13 +113,18 @@ export default defineEventHandler(async event => {
   try {
     await client.connect();
     lock = await client.getMailboxLock(parsed.data.folder);
-    const mailbox = await client.mailboxOpen(parsed.data.folder);
-    existsCount = mailbox.exists;
+    // getMailboxLock が内部で SELECT するため mailboxOpen は不要
+    const mb = client.mailbox;
+    existsCount = mb ? mb.exists : 0;
 
     client.on('exists', onExists);
 
-    // IDLE ループをバックグラウンドで回し続ける
-    const idleLoop = async () => {
+    // IDLE ループ: idle() はサーバーが IDLE を終了するまでブロックし、
+    // 終了後（新着検知 or サーバー側タイムアウト）即座に次の idle() へ。
+    // disableAutoIdle: true により auto-IDLE との競合がないため、
+    // idle() から返った瞬間に EXISTS が確実にハンドルされた状態で
+    // 次の idle() に入れる。
+    void (async () => {
       while (!closed) {
         try {
           await client.idle();
@@ -105,9 +134,7 @@ export default defineEventHandler(async event => {
           }
         }
       }
-    };
-
-    void idleLoop();
+    })();
   } catch (error) {
     // 初期化に失敗した場合はリソースをクリーンアップしてエラー返却
     clearInterval(heartbeat);
