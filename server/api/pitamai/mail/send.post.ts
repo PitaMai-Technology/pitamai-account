@@ -1,3 +1,15 @@
+/**
+ * server/api/pitamai/mail/send.post.ts
+ *
+ * SMTP 経由でメールを送信するエンドポイント。
+ * フロントエンドから送信内容を受け取り、
+ * - 宛先の正規化
+ * - 添付ファイルのバッファ変換
+ * - GPG 署名・暗号化（オプション）
+ * - SMTP 送信および送信済みフォルダへの保存
+ *
+ * エラーハンドリングとロギングも含む。
+ */
 import { createError, readBody } from 'h3';
 import nodemailer from 'nodemailer';
 import MailComposer from 'nodemailer/lib/mail-composer';
@@ -18,6 +30,10 @@ import {
 } from '~~/server/utils/mail-gpg';
 import prisma from '~~/lib/prisma';
 
+/**
+ * リクエストボディの検証スキーマ。
+ * to/cc/bcc のいずれかが存在しないとエラーになる。
+ */
 const bodySchema = z
   .object({
     to: z.string().optional(),
@@ -53,21 +69,25 @@ const bodySchema = z
   });
 
 export default defineEventHandler(async event => {
+  // アカウント情報・ユーザー情報を並列取得
   const [account, user] = await Promise.all([
     requireMailAccountForUser({ event }),
     requireSessionUser(event),
   ]);
   const body = await readBody(event);
 
+  // バリデーション
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
     throw createError({ statusCode: 422, message: 'Validation Error' });
   }
 
+  // 改行や空白を外した各ヘッダ
   const to = parsed.data.to?.trim() || undefined;
   const cc = parsed.data.cc?.trim() || undefined;
   const bcc = parsed.data.bcc?.trim() || undefined;
 
+  // 文字列をカンマ区切りでパースし、<name@example> 形式にも対応するヘルパー
   const extractEmails = (value?: string) =>
     (value ?? '')
       .split(',')
@@ -78,20 +98,25 @@ export default defineEventHandler(async event => {
         return (matched?.[1] ?? item).trim().toLowerCase();
       });
 
+  // 宛先メールアドレスの重複を排除した配列
   const recipients = Array.from(
     new Set([...extractEmails(to), ...extractEmails(cc), ...extractEmails(bcc)])
   );
 
+  // 添付ファイルの base64 -> Buffer
   const parsedAttachments = (parsed.data.attachments ?? []).map(item => ({
     filename: item.filename,
     contentType: item.contentType,
     content: Buffer.from(item.contentBase64, 'base64'),
   }));
 
+  // GPG を適用するかどうか
   const shouldApplyGpg = Boolean(parsed.data.sign || parsed.data.encrypt);
 
+  // 署名/暗号化対象のプレーンテキスト
   let gpgPayloadText = parsed.data.text ?? '';
 
+  // HTML/添付付きの場合、MailComposer で MIME を構築しテキスト部のみ抽出
   if (shouldApplyGpg) {
     const payloadRaw = await new MailComposer({
       text: parsed.data.text ?? '',
@@ -108,7 +133,7 @@ export default defineEventHandler(async event => {
       .trim();
   }
 
-  // GPG 署名
+  // GPG 署名用の準備
   let finalText = gpgPayloadText;
   let detachedSignature: string | null = null;
   let isSigned = false;
@@ -118,6 +143,7 @@ export default defineEventHandler(async event => {
     parsedAttachments.length > 0 ||
     Boolean(parsed.data.html);
 
+  // multipart/signed エンティティを構築するヘルパー
   function buildMultipartSignedEntity(params: {
     signedEntity: string;
     signature: string;
@@ -139,6 +165,7 @@ export default defineEventHandler(async event => {
     ].join('\r\n');
   }
 
+  // multipart/encrypted 生メールを構築するヘルパー
   function buildMultipartEncryptedRawMail(params: {
     from: string;
     to?: string;
@@ -176,6 +203,7 @@ export default defineEventHandler(async event => {
     return headers.join('\r\n');
   }
 
+  // mimeEntity を与えて生メールヘッダ込み文字列を組み立てるヘルパー
   function buildRawMailFromMimeEntity(params: {
     from: string;
     to?: string;
@@ -198,7 +226,9 @@ export default defineEventHandler(async event => {
     return headers.join('\r\n');
   }
 
+  // GPG 署名処理
   if (parsed.data.sign) {
+    // 自分の秘密鍵を取得
     const gpgRecord = await prisma.userGpgKey.findUnique({
       where: { userId: user.id },
       select: {
@@ -241,7 +271,7 @@ export default defineEventHandler(async event => {
     isSigned = true;
   }
 
-  // GPG 暗号化（受信者公開鍵）
+  // GPG 暗号化処理
   if (parsed.data.encrypt) {
     if (recipients.length === 0) {
       throw createError({
@@ -250,6 +280,7 @@ export default defineEventHandler(async event => {
       });
     }
 
+    // まずデータベースから受信者の公開鍵を取得
     const recipientKeys = await prisma.userGpgKey.findMany({
       where: {
         email: {
@@ -268,6 +299,7 @@ export default defineEventHandler(async event => {
 
     let missingRecipients = recipients.filter(email => !keyMap.has(email));
 
+    // 公開鍵サーバーから解決を試みる
     if (missingRecipients.length > 0) {
       const onlineResolved = await Promise.all(
         missingRecipients.map(async email => {
@@ -292,7 +324,7 @@ export default defineEventHandler(async event => {
       });
     }
 
-    // 送信済みフォルダからも復号できるよう、送信者（自分）の公開鍵も暗号化対象に含める。
+    // 送信者自身の公開鍵も暗号化対象に追加
     const senderKeyRecord = await prisma.userGpgKey.findUnique({
       where: { userId: user.id },
       select: {
@@ -324,6 +356,7 @@ export default defineEventHandler(async event => {
     isEncrypted = true;
   }
 
+  // SMTP 送信用パスワード復号とトランスポーター生成
   const password = decryptMailPassword({
     ciphertext: account.encryptedPassword,
     iv: account.encryptionIv,
@@ -341,8 +374,10 @@ export default defineEventHandler(async event => {
   });
 
   try {
+    // SMTP サーバ接続テスト
     await transporter.verify();
 
+    // 必要であれば rawMail を構築（暗号化 or 署名済み）
     const encryptedRawMail =
       isEncrypted && shouldApplyGpg
         ? buildMultipartEncryptedRawMail({
@@ -373,6 +408,7 @@ export default defineEventHandler(async event => {
 
     const rawMail = encryptedRawMail ?? signedRawMail;
 
+    // 最終的な送信オプション構築
     const mailOptions = {
       from: account.username,
       sender: account.username,
@@ -392,6 +428,7 @@ export default defineEventHandler(async event => {
 
     const result = await transporter.sendMail(mailOptions);
 
+    // SMTP 結果を整理
     const accepted = Array.isArray(result.accepted)
       ? result.accepted.filter(item => !!item)
       : [];
@@ -418,6 +455,7 @@ export default defineEventHandler(async event => {
       });
     }
 
+    // 送信済みフォルダへ格納
     const rawMessage = await new MailComposer(mailOptions).compile().build();
     const sentStoreResult = await appendToSentMailbox({
       account,
@@ -434,6 +472,7 @@ export default defineEventHandler(async event => {
       isEncrypted,
     };
   } catch (error) {
+    // 失敗時にはログ記録して適切なエラーを返す
     logger.error(
       {
         err: error,

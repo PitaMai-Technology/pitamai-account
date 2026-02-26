@@ -30,6 +30,11 @@ import { createError } from 'h3';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 
+/**
+ * 環境変数から暗号化キーを導出します。
+ * @returns {Buffer} 32 バイトの AES-256 キー
+ * @throws {Error} 環境変数が未設定または長さ不足の場合
+ */
 function resolveSecretKey(): Buffer {
   const rawSecret =
     process.env.MAIL_CREDENTIAL_SECRET || process.env.BETTER_AUTH_SECRET;
@@ -64,6 +69,11 @@ export type EncryptedGpgKey = {
   authTag: string;
 };
 
+/**
+ * ARMOR 形式の GPG 秘密鍵を AES-GCM で暗号化します。
+ * @param {string} armoredKey - 暗号化対象の秘密鍵文字列
+ * @returns {EncryptedGpgKey} 暗号化ペイロード
+ */
 export function encryptGpgPrivateKey(armoredKey: string): EncryptedGpgKey {
   const key = resolveSecretKey();
   const iv = randomBytes(IV_LENGTH);
@@ -81,6 +91,12 @@ export function encryptGpgPrivateKey(armoredKey: string): EncryptedGpgKey {
   };
 }
 
+/**
+ * EncryptedGpgKey ペイロードを復号して秘密鍵文字列を取得します。
+ * @param {EncryptedGpgKey} payload - 暗号化された鍵ペイロード
+ * @returns {string} 復号された ARMOR 秘密鍵
+ * @throws {Error} 認証タグ不一致等で復号に失敗した場合
+ */
 export function decryptGpgPrivateKey(payload: EncryptedGpgKey): string {
   const key = resolveSecretKey();
   const iv = Buffer.from(payload.iv, 'base64');
@@ -100,6 +116,11 @@ export function decryptGpgPrivateKey(payload: EncryptedGpgKey): string {
 // 鍵ペア生成
 // --------------------------------------------------------------------------
 
+/**
+ * 新しい GPG 鍵ペアを生成します。
+ * @param {{name:string,email:string}} params - ユーザー名とメールアドレス
+ * @returns {Promise<{publicKey:string,privateKey:string,fingerprint:string}>} 鍵ペアとフィンガープリント
+ */
 export async function generateGpgKeyPair(params: {
   name: string;
   email: string;
@@ -485,6 +506,11 @@ export async function verifyDetachedSignedBinaryMessage(params: {
 // 受信メールが PGP Inline 署名かどうかを判定
 // --------------------------------------------------------------------------
 
+/**
+ * テキストが PGP cleartext 署名形式かどうかを判定します。
+ * @param {string} text - 判定対象のテキスト
+ * @returns {boolean} PGP 署名が含まれている場合 true
+ */
 export function isPgpSignedText(text: string): boolean {
   return text.includes('-----BEGIN PGP SIGNED MESSAGE-----');
 }

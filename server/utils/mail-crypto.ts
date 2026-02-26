@@ -9,7 +9,7 @@
  * 主な役割：
  * - パスワード暗号化（secrets から導出したキーを使用）
  * - パスワード復号化（IV と認証タグで整合性確認）
- * - シークレットキー導出（environment variable から安全に取得）n *
+ * - シークレットキー導出（environment variable から安全に取得）
  * セキュリティ：
  * - 暗号化アルゴリズム: AES-256-GCM（認証付き）
  * - 秘密鍵生成: PBKDF2 相当（scryptSync）

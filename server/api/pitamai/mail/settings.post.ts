@@ -1,9 +1,22 @@
+/**
+ * server/api/pitamai/mail/settings.post.ts
+ *
+ * メールアカウント設定の保存・更新エンドポイント。
+ * 入力値をバリデーションしてから
+ * - 既存レコードがあれば更新
+ * - 無ければ新規作成
+ * を行う。パスワードは AES-256-GCM で暗号化して保存。
+ */
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { encryptMailPassword } from '~~/server/utils/mail-crypto';
 import { requireSessionUser } from '~~/server/utils/mail-account';
 
+/**
+ * リクエストボディ検証スキーマ。
+ * password は任意で、既存レコードが無ければ必須となる。
+ */
 const schema = z.object({
   username: z.string().min(1, 'ユーザー名は必須です'),
   password: z.string().optional(),
@@ -16,9 +29,11 @@ const schema = z.object({
 });
 
 export default defineEventHandler(async event => {
+  // セッションからユーザーを取得
   const user = await requireSessionUser(event);
   const body = await readBody(event);
 
+  // ボディバリデーション
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     throw createError({
@@ -37,6 +52,7 @@ export default defineEventHandler(async event => {
     },
   });
 
+  // 新規登録時はパスワードが必須
   if (!existing && !parsed.data.password) {
     throw createError({
       statusCode: 422,
@@ -44,6 +60,7 @@ export default defineEventHandler(async event => {
     });
   }
 
+  // パスワードがあれば暗号化（設定が間違っていると例外）
   let encrypted: ReturnType<typeof encryptMailPassword> | null = null;
   if (parsed.data.password) {
     try {
@@ -57,6 +74,7 @@ export default defineEventHandler(async event => {
     }
   }
 
+  // DB 更新/作成用ペイロード
   const payload = {
     emailAddress: user.email,
     username: parsed.data.username,
@@ -75,6 +93,7 @@ export default defineEventHandler(async event => {
       : {}),
   };
 
+  // 既存があれば update、なければ create
   const account = existing
     ? await prisma.mailAccount.update({
         where: { id: existing.id },
@@ -121,6 +140,7 @@ export default defineEventHandler(async event => {
         },
       });
 
+  // 結果を返却
   return {
     ok: true,
     account,

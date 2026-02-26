@@ -1,8 +1,16 @@
+/**
+ * server/api/pitamai/mail/attachment.get.ts
+ *
+ * メールメッセージの添付ファイルを取り出し、バイナリとして返すエンドポイント。
+ * クエリでフォルダ・UID・添付インデックスを受け取り、対応するデータを
+ * IMAPサーバーから取得して適切なヘッダを付与して返却する。
+ */
 import { createError, getQuery, setHeader } from 'h3';
 import { z } from 'zod';
 import { getMessageAttachment } from '~~/server/utils/imap';
 import { requireMailAccountForUser } from '~~/server/utils/mail-account';
 
+// クエリパラメータの検証スキーマ。accountId はマルチアカウント対応のオプション。
 const querySchema = z.object({
   accountId: z.string().min(1).optional(),
   folder: z.string().min(1),
@@ -11,6 +19,7 @@ const querySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
+  // クエリ検証
   const parsed = querySchema.safeParse(getQuery(event));
 
   if (!parsed.success) {
@@ -20,11 +29,13 @@ export default defineEventHandler(async event => {
     });
   }
 
+  // 認証とアカウント取得
   const account = await requireMailAccountForUser({
     event,
     accountId: parsed.data.accountId,
   });
 
+  // 添付ファイルを取得
   const attachment = await getMessageAttachment({
     account,
     folder: parsed.data.folder,
@@ -32,9 +43,11 @@ export default defineEventHandler(async event => {
     index: parsed.data.index,
   });
 
+  // ファイル名エンコード
   const filename = attachment.filename ?? 'attachment';
   const safeFilename = encodeURIComponent(filename).replace(/%20/g, '+');
 
+  // 適切なレスポンスヘッダを設定
   setHeader(
     event,
     'Content-Type',
@@ -46,5 +59,6 @@ export default defineEventHandler(async event => {
     `inline; filename*=UTF-8''${safeFilename}`
   );
 
+  // バイナリを返す
   return attachment.content;
 });

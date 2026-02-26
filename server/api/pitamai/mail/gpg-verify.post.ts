@@ -1,3 +1,10 @@
+/**
+ * server/api/pitamai/mail/gpg-verify.post.ts
+ *
+ * 受信したテキストが PGP 署名されているかを検証するエンドポイント。
+ * inline/脱署名付き/脱署名バイナリ形式に対応し、ローカルDB または
+ * キーサーバーから公開鍵を取得して検証を行う。
+ */
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
@@ -10,6 +17,7 @@ import {
   fetchPublicKeyFromKeyServer,
 } from '~~/server/utils/mail-gpg';
 
+// リクエストボディのスキーマ
 const bodySchema = z.object({
   text: z.string().min(1),
   senderEmail: z.string().email(),
@@ -19,6 +27,7 @@ const bodySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
+  // セッションユーザー取得
   const user = await requireSessionUser(event);
 
   const body = await readBody(event);
@@ -28,6 +37,7 @@ export default defineEventHandler(async event => {
     throw createError({ statusCode: 422, message: 'Validation Error' });
   }
 
+  // インライン署名か脱署名かを判定
   const isInlineSigned = isPgpSignedText(parsed.data.text);
   const hasDetachedSignature =
     typeof parsed.data.detachedSignature === 'string' &&
@@ -37,8 +47,7 @@ export default defineEventHandler(async event => {
     return { verified: false, reason: 'PGP 署名が含まれていません' };
   }
 
-  // 送信済みメールでは SMTP の From とログインユーザーのメールが一致しない場合があるため、
-  // useOwnKey=true のときは現在ユーザーの鍵を優先して検証します。
+  // 署名鍵選択ロジック
   const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
   let gpgRecord: {
@@ -48,6 +57,7 @@ export default defineEventHandler(async event => {
   } | null = null;
 
   if (parsed.data.useOwnKey) {
+    // 自分の鍵を優先
     gpgRecord = await prisma.userGpgKey.findUnique({
       where: { userId: user.id },
       select: { publicKey: true, fingerprint: true, email: true },
@@ -62,7 +72,7 @@ export default defineEventHandler(async event => {
       records.find(record => normalizeEmail(record.email) === targetEmail) ??
       null;
 
-    // ローカルDBに無い場合は keyserver から公開鍵を取得して検証する
+    // ローカルに無ければキーサーバーから取得
     if (!gpgRecord) {
       const keyFromServer = await fetchPublicKeyFromKeyServer(targetEmail);
       if (keyFromServer) {
@@ -83,6 +93,7 @@ export default defineEventHandler(async event => {
     };
   }
 
+  // 実際の署名検証
   const result = isInlineSigned
     ? await verifySignedMessage({
         signedText: parsed.data.text,

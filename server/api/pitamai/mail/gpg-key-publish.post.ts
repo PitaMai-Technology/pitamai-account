@@ -1,3 +1,10 @@
+/**
+ * server/api/pitamai/mail/gpg-key-publish.post.ts
+ *
+ * ユーザーの公開 GPG 鍵を指定されたキーサーバーへアップロードし、
+ * 必要であれば確認メール送信リクエストを行う処理。
+ * 複数フォーマットでの登録を試み、結果を返す。
+ */
 import { createError } from 'h3';
 import prisma from '~~/lib/prisma';
 import {
@@ -29,11 +36,13 @@ export default defineEventHandler(async event => {
     });
   }
 
+  // 使用する鍵サーバーの設定。環境変数で上書き可能。
   const keyServerBaseUrl =
     process.env.PITAMAI_GPG_KEYSERVER_URL || 'https://keys.openpgp.org';
 
   const uploadUrl = `${keyServerBaseUrl.replace(/\/$/, '')}/vks/v1/upload`;
 
+  // 各種フォーマットでアップロードを試みるヘルパー
   const uploadAsJson = async () => {
     return fetch(uploadUrl, {
       method: 'POST',
@@ -72,6 +81,8 @@ export default defineEventHandler(async event => {
     });
   };
 
+  // アップロード試行ループ。複数フォーマットを順にトライし、
+  // OK が返るまで継続する。
   let response: Response | null = null;
   let raw = '';
   try {
@@ -109,6 +120,7 @@ export default defineEventHandler(async event => {
     });
   }
 
+  // いずれの試行でも成功しなかった場合エラーを返す
   if (!response || !response.ok) {
     logger.warn(
       {
@@ -136,6 +148,7 @@ export default defineEventHandler(async event => {
     >;
   };
 
+  // サーバーからのレスポンスを JSON 解析する試み
   let uploadResult: UploadResult | null = null;
   try {
     uploadResult = JSON.parse(raw) as UploadResult;
@@ -166,6 +179,7 @@ export default defineEventHandler(async event => {
     });
   }
 
+  // 必要であれば確認メール送信リクエストも実行
   let verifyRaw = '';
   if (token && targetAddresses.length > 0) {
     let verifyResponse: Response;
@@ -211,6 +225,7 @@ export default defineEventHandler(async event => {
     }
   }
 
+  // 監査ログに記録（失敗しても無視）
   try {
     await logAuditWithSession(event, {
       action: 'GPG_KEY_PUBLISH_REQUEST',
@@ -228,6 +243,7 @@ export default defineEventHandler(async event => {
     logger.warn({ err: error }, 'Audit logging failed for GPG key publish');
   }
 
+  // レスポンスを返却
   return {
     ok: true,
     message:

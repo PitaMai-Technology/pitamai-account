@@ -1,9 +1,17 @@
+/**
+ * server/api/pitamai/mail/settings.get.ts
+ *
+ * ログインユーザーのメールアカウント設定を返すエンドポイント。
+ * 設定が存在するかどうかのフラグと、ユーザー情報を同梱して返却。
+ */
 import prisma from '~~/lib/prisma';
 import { requireSessionUser } from '~~/server/utils/mail-account';
 
 export default defineEventHandler(async event => {
+  // 認証ユーザーを取得
   const user = await requireSessionUser(event);
 
+  // DB から設定をロード
   const setting = await prisma.mailAccount.findUnique({
     where: {
       userId_emailAddress: { userId: user.id, emailAddress: user.email },
@@ -21,6 +29,7 @@ export default defineEventHandler(async event => {
     },
   });
 
+  // 結果を返却
   return {
     hasSetting: !!setting,
     user: {
