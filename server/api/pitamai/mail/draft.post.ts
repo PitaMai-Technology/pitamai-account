@@ -72,7 +72,7 @@ export default defineEventHandler(async event => {
   if (!result.stored) {
     throw createError({
       statusCode: 400,
-      message: '下書きフォルダ(draft)が見つかりませんでした。作成してください',
+      message: '下書きフォルダ(draft)が見つかりませんでした。',
     });
   }
 
