@@ -80,8 +80,7 @@ export const auth = betterAuth({
         admins,
         member,
       },
-      bannedUserMessage:
-        'あなたは、管理者によってアカウントが停止(BAN)されています。',
+      bannedUserMessage: 'あなたのアカウントは停止(BAN)されています。',
     }),
     magicLink({
       disableSignUp: true,

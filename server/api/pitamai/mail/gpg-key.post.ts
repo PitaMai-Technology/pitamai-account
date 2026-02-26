@@ -1,3 +1,11 @@
+/**
+ * server/api/pitamai/mail/gpg-key.post.ts
+ *
+ * ユーザーの GPG 鍵を生成またはインポートし、データベースに保存する処理。
+ * - action = 'generate': ランダム鍵ペア生成
+ * - action = 'import': 提供された鍵を検証して登録
+ * 秘密鍵は AES-GCM で暗号化されて保存される。
+ */
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
@@ -11,6 +19,7 @@ import {
 } from '~~/server/utils/mail-gpg';
 import * as openpgp from 'openpgp';
 
+// リクエストボディは generate か import の二種類を受け付け
 const bodySchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('generate'),
@@ -24,11 +33,13 @@ const bodySchema = z.discriminatedUnion('action', [
 ]);
 
 export default defineEventHandler(async event => {
+  // ユーザー・アカウント情報を取得
   const user = await requireSessionUser(event);
   const account = await requireMailAccountForUser({ event });
   const gpgIdentityEmail = account.username.trim();
   const body = await readBody(event);
 
+  // バリデーション
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
     throw createError({
@@ -42,6 +53,7 @@ export default defineEventHandler(async event => {
   let fingerprint: string;
 
   if (parsed.data.action === 'generate') {
+    // 鍵ペア生成
     const kp = await generateGpgKeyPair({
       name: parsed.data.name,
       email: gpgIdentityEmail,
@@ -50,7 +62,7 @@ export default defineEventHandler(async event => {
     privateKey = kp.privateKey;
     fingerprint = kp.fingerprint;
   } else {
-    // インポート: 公開鍵からフィンガープリントを取得
+    // インポート処理: 公開鍵と秘密鍵のフォーマットチェック
     try {
       const pubKey = await openpgp.readKey({
         armoredKey: parsed.data.publicKey,
@@ -76,8 +88,10 @@ export default defineEventHandler(async event => {
     privateKey = parsed.data.privateKey;
   }
 
+  // 秘密鍵を暗号化
   const encrypted = encryptGpgPrivateKey(privateKey);
 
+  // DB に upsert
   const record = await prisma.userGpgKey.upsert({
     where: { userId: user.id },
     create: {

@@ -2,10 +2,23 @@ import type { Ref } from 'vue';
 import type { MailFolder } from '~/stores/mail';
 import { useMailApi } from '~/composable/useMailApi';
 
-// ==============================================================================
-// IMAP フォルダ管理と表示制御
-// ==============================================================================
-// 役割: フォルダ一覧の取得・表示、CRUD操作、保護フォルダ判定
+/**
+ * IMAP フォルダ管理と表示制御コンポーザブル
+ *
+ * サーバーからフォルダ一覧を取得し Vue の反応性ステートへ格納、
+ * フォルダの作成・名称変更・削除などの CRUD 操作を実装します。
+ * 保護フォルダ判定機能により重要フォルダの編集を制限します。
+ *
+ * @param {Ref<boolean>} hasMailSetting - メール設定の有無
+ * @param {Ref<string>} activeFolderPath - 現在アクティブなフォルダパス
+ * @param {Ref<MailFolder[]>} folders - 現在のフォルダ一覧
+ * @param {Ref<boolean>} isLoading - フォルダ読み込み中フラグ
+ * @param {Ref<boolean>} creatingFolder - フォルダ作成中フラグ
+ * @param {Ref<boolean>} folderActionLoading - 編集操作中フラグ
+ * @param {Ref<string>} newFolderName - 新規フォルダ名入力文字列
+ * @param {(items: MailFolder[]) => void} setFolders - フォルダ一覧更新関数
+ * @param {(path: string) => void} setActiveFolder - アクティブフォルダ設定関数
+ */
 type UseMailFoldersParams = {
   hasMailSetting: Ref<boolean>;
   activeFolderPath: Ref<string>;
@@ -22,10 +35,16 @@ export function useMailFolders(params: UseMailFoldersParams) {
   const toast = useToast();
   const mailApi = useMailApi();
 
+  // フォルダパスを比較しやすく正規化
   function normalizeFolderPath(path: string) {
     return path.trim().toLowerCase();
   }
 
+  /**
+   * フォルダオブジェクトを human-readable な表示情報に変換
+   * @param {MailFolder} folder
+   * @returns {{label:string,icon:string,protected:boolean}}
+   */
   function getFolderDisplay(folder: MailFolder) {
     // 日本語コメント: IMAPの specialUse を最優先に評価し、サーバー実装差分で path 名が揺れても表示を安定させます。
     const normalizedPath = normalizeFolderPath(folder.path);
@@ -133,6 +152,7 @@ export function useMailFolders(params: UseMailFoldersParams) {
     );
   });
 
+  // フォルダ一覧を API から読み込み、状態を更新
   async function loadFolders() {
     if (!params.hasMailSetting.value) return;
 

@@ -1,10 +1,19 @@
+/**
+ * server/api/pitamai/mail/gpg-key.get.ts
+ *
+ * ログインユーザーの GPG 鍵情報を取得するエンドポイント。
+ * 公開鍵と復号済み秘密鍵を返し、メールアドレスが変更された場合は
+ * レコードも更新する。
+ */
 import prisma from '~~/lib/prisma';
 import { requireSessionUser } from '~~/server/utils/mail-account';
 import { decryptGpgPrivateKey } from '~~/server/utils/mail-gpg';
 
 export default defineEventHandler(async event => {
+  // セッションユーザー確認
   const user = await requireSessionUser(event);
 
+  // 優先メールアドレスを決定（アカウントの username かユーザーの email）
   const mailAccount = await prisma.mailAccount.findFirst({
     where: { userId: user.id },
     select: {
@@ -14,6 +23,7 @@ export default defineEventHandler(async event => {
 
   const preferredEmail = (mailAccount?.username || user.email || '').trim();
 
+  // GPG 鍵レコードを取得
   const record = await prisma.userGpgKey.findUnique({
     where: { userId: user.id },
     select: {
@@ -33,6 +43,7 @@ export default defineEventHandler(async event => {
     return { hasKey: false, key: null };
   }
 
+  // メールアドレスが現在の優先値と異なる場合は更新
   if (preferredEmail && record.email !== preferredEmail) {
     await prisma.userGpgKey.update({
       where: { id: record.id },
@@ -40,6 +51,7 @@ export default defineEventHandler(async event => {
     });
   }
 
+  // 秘密鍵を復号
   const armoredPrivateKey = decryptGpgPrivateKey({
     ciphertext: record.encryptedPrivateKey,
     iv: record.encryptionIv,

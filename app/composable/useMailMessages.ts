@@ -2,15 +2,29 @@ import { useMailApi } from '~/composable/useMailApi';
 import { useErrorMessage } from '~/composable/useErrorMessage';
 import type { MailDetail, MailListItem } from '~/stores/mail';
 
-// ==============================================================================
+/**
+ * メール一覧・詳細取得とスレッド化処理コンポーザブル
+ *
+ * - メール一覧を読み込み・キャッシュ
+ * - スレッド化（返信統合）ロジック
+ * - メール詳細取得・既読フラグ更新
+ * - SSE からの新着通知ハンドリング
+ */
+// ================================================================================
 // メール一覧・詳細取得とスレッド化処理
-// ==============================================================================
+// ================================================================================
 // 役割: メール一覧の取得・キャッシュ・自動スレッド化、詳細取得・既読管理
 type MailGroup = {
   key: string;
   sender: string;
   messages: MailListItem[];
 };
+
+// parameters passed into useMailMessages composable
+// hasMailSetting: whether mail account exists
+// activeFolderPath: current folder
+// mailList/currentMail/selectedUid/etc: reactive state from store
+// setMailList etc: callbacks to update store
 
 type UseMailMessagesParams = {
   hasMailSetting: Ref<boolean>;
@@ -70,6 +84,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
   // - Re: / Re[n]: の返信件名パターンのみ抽出
   // - 転送（Fwd: など）や通常件名は対象外にして誤グループ化を防ぎます
   // - 返信判定が成功した場合のみスレッド化ロジックへ進みます
+  // 件名が reply 系かどうか判断
   function isReplySubject(subject: string | null) {
     if (!subject) return false;
     return /^re(\[\d+\])?\s*:/i.test(subject.trim());
@@ -131,6 +146,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
   // - スレッド化条件: sender + 返信判定 + 時間枠が全て揃ってはじめてグループ対象
   // - 条件を満たさないメールは単独グループとして表示（スレッド化されない）
   // - グループ化により、返信メールを収束表示して一覧を見やすくします
+  // メール一覧をスレッド化してグループ配列を生成
   const groupedMailList = computed<MailGroup[]>(() => {
     const groups: MailGroup[] = [];
     const threadGroupIndex = new Map<string, number>();
@@ -235,6 +251,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
     return groups;
   });
 
+  // 新着通知トーストを必要に応じて表示
   function maybeNotifyNewMail() {
     const now = Date.now();
     if (now - lastRealtimeToastAt.value < 5000) {
@@ -249,6 +266,12 @@ export function useMailMessages(params: UseMailMessagesParams) {
     });
   }
 
+  /**
+   * 指定 uid のメール詳細を開く。キャッシュ利用と既読更新を管理。
+   * @param uid - メッセージ UID
+   * @param markAsRead - 詳細開封時に既読化するか
+   * @param folderPath - optional フォルダパス
+   */
   async function openMessage(
     uid: number,
     markAsRead = true,
@@ -347,6 +370,13 @@ export function useMailMessages(params: UseMailMessagesParams) {
   // - notifyIfNew=true: SSE接続から新着が来た場合、トースト通知を表示
   // - markOpenedAsRead: 詳細表示時のみ既読化（通常は既読化しない）
   // - 新着メール（UUID > 前回最大ID）を検知する簡易ロジック
+  /**
+   * メール一覧を読み込む
+   * options:
+   * - markOpenedAsRead: 詳細表示時に既読化
+   * - notifyIfNew: 新着通知を表示
+   * - forceSync: キャッシュを無視して IMAP 同期
+   */
   async function loadMessages(options?: {
     markOpenedAsRead?: boolean;
     notifyIfNew?: boolean;
@@ -481,6 +511,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
     }
   }
 
+  // 選択中メールの既読/未読状態をトグル
   async function onToggleSeen() {
     if (!hasSelectedMail.value || selectedSeen.value === null) return;
 

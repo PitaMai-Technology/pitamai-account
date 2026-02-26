@@ -1,3 +1,12 @@
+/**
+ * server/utils/mail-sync.ts
+ *
+ * IMAP とローカルキャッシュ間のメッセージ同期ロジック。
+ *
+ * - フォルダごとに新着差分を取得し DB キャッシュを更新する
+ * - キャッシュのみで十分な場合はリモート問い合わせを最小化
+ * - フォールバック用にキャッシュのみを返すヘルパー関数も提供
+ */
 import type { MailAccount } from '@prisma/client';
 import {
   getCachedMessageCount,
@@ -13,6 +22,18 @@ import {
   listMessagesSinceUid,
 } from '~~/server/utils/imap';
 
+/**
+ * IMAP 接続に必要な MailAccount サブセット。
+ * @typedef {object} MailAccountConnection
+ * @property {string} id
+ * @property {string} imapHost
+ * @property {number} imapPort
+ * @property {boolean} imapSecure
+ * @property {string} username
+ * @property {string} encryptedPassword
+ * @property {string} encryptionIv
+ * @property {string} encryptionAuthTag
+ */
 type MailAccountConnection = Pick<
   MailAccount,
   | 'id'
@@ -25,6 +46,17 @@ type MailAccountConnection = Pick<
   | 'encryptionAuthTag'
 >;
 
+/**
+ * 指定フォルダのメッセージを同期し、結果と使用した戦略を返す。
+ *
+ * 戦略:
+ * - full: キャッシュが空で、最大UIDが取得できない場合に全件取得
+ * - diff: キャッシュとリモート両方を更新し最新一覧を返却
+ * - diff-cache: 差分なしかつ件数一致の場合、キャッシュを再利用して最小限のフラグのみ更新
+ *
+ * @param {{account: MailAccountConnection, folder: string, limit: number}} params
+ * @returns {Promise<{strategy: 'full'|'diff'|'diff-cache'; messages: any[]}>}
+ */
 export async function syncFolderMessages(params: {
   account: MailAccountConnection;
   folder: string;
@@ -140,6 +172,12 @@ export async function syncFolderMessages(params: {
   };
 }
 
+/**
+ * キャッシュを読み込みつつ同期を試み、失敗した場合はキャッシュのみを返す。
+ *
+ * @param {{account: MailAccountConnection, folder: string, limit: number}} params
+ * @returns {Promise<{source: 'imap'|'cache', strategy: string, messages: any[], cachedCount: number}>}
+ */
 export async function getMessagesWithCacheFallback(params: {
   account: MailAccountConnection;
   folder: string;

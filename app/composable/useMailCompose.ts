@@ -6,10 +6,21 @@ import type {
 } from '~/stores/mail';
 import { useMailApi } from '~/composable/useMailApi';
 
-// ==============================================================================
-// メール作成・下書き・送信ロジック
-// ==============================================================================
-// 役割: 作成モーダルの状態管理とビジネスロジック、宛先フィールド管理、送受信処理
+/**
+ * メール作成・下書き・送信ロジック
+ *
+ * 作成モーダルの状態管理とビジネスロジック、宛先フィールド管理、送受信処理を担う
+ * コンポーザブル。
+ *
+ * @param {ComposeState} composeState - フォーム入力状態
+ * @param {Ref<ComposeRecipientType>} recipientType - 現在選択中の宛先タイプ
+ * @param {Ref<boolean>} composeOpen - モーダル開閉フラグ
+ * @param {Ref<boolean>} sending - 送信中フラグ
+ * @param {Ref<boolean>} draftSaving - 下書き保存中フラグ
+ * @param {Ref<MailDetail|null>} currentMail - 編集中の下書きメール詳細
+ * @param {() => void} resetComposeState - フォームのリセット関数
+ */
+
 type UseMailComposeParams = {
   composeState: ComposeState;
   recipientType: Ref<ComposeRecipientType>;
@@ -30,10 +41,12 @@ export function useMailCompose(params: UseMailComposeParams) {
     { label: 'Bcc', value: 'bcc' },
   ];
 
+  // CC フィールドを追加（最低1行は常に維持）
   function addCcField() {
     params.composeState.ccList.push('');
   }
 
+  // 指定インデックスの CC フィールドを削除
   function removeCcField(index: number) {
     if (params.composeState.ccList.length <= 1) {
       params.composeState.ccList[0] = '';
@@ -42,10 +55,12 @@ export function useMailCompose(params: UseMailComposeParams) {
     params.composeState.ccList.splice(index, 1);
   }
 
+  // BCC フィールドを追加
   function addBccField() {
     params.composeState.bccList.push('');
   }
 
+  // 指定インデックスの BCC フィールドを削除
   function removeBccField(index: number) {
     if (params.composeState.bccList.length <= 1) {
       params.composeState.bccList[0] = '';
@@ -54,6 +69,10 @@ export function useMailCompose(params: UseMailComposeParams) {
     params.composeState.bccList.splice(index, 1);
   }
 
+  /**
+   * カンマ区切り文字列を配列に変換。空文字列は [''] を返す。
+   * 下書き時にフィールド数を保持するためのユーティリティ。
+   */
   function splitRecipientList(value: string | null) {
     // 日本語コメント: 下書き復元時に空入力でもUIを壊さないため、最低1行を維持します。
     if (!value) return [''];
@@ -66,10 +85,11 @@ export function useMailCompose(params: UseMailComposeParams) {
     return items.length > 0 ? items : [''];
   }
 
+  // 下書きを編集モードで開く
   function onUseDraftForCompose() {
     if (!params.currentMail.value) return;
 
-    // 日本語コメント: 下書き再編集時は宛先/件名/本文を一括復元し、送信モーダルへ確実に引き継ぎます。
+    // 下書き再編集時は宛先/件名/本文を一括復元し、送信モーダルへ確実に引き継ぎます。
     params.composeState.to = params.currentMail.value.to ?? '';
     params.composeState.ccList = splitRecipientList(
       params.currentMail.value.cc
@@ -83,6 +103,11 @@ export function useMailCompose(params: UseMailComposeParams) {
     params.composeOpen.value = true;
   }
 
+  /**
+   * File を base64 文字列に変換するユーティリティ
+   * @param file - 読み込み対象ファイル
+   * @returns Promise<string> base64 (先頭データURL部分除去)
+   */
   async function toBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -97,6 +122,13 @@ export function useMailCompose(params: UseMailComposeParams) {
     });
   }
 
+  /**
+   * メール送信処理。
+   * - 宛先検証
+   * - 添付ファイル base64 変換
+   * - API 呼び出し
+   * - 成功/失敗トースト表示
+   */
   async function onSendMail() {
     if (params.sending.value) return;
 
@@ -156,7 +188,7 @@ export function useMailCompose(params: UseMailComposeParams) {
       }
 
       params.resetComposeState();
-      // 日本語コメント: 送信完了後は誤再送を防ぐため入力状態をリセットしてモーダルを閉じます。
+      // 送信完了後は誤再送を防ぐため入力状態をリセットしてモーダルを閉じます。
       params.composeOpen.value = false;
     } catch (error) {
       toast.add({
@@ -170,6 +202,9 @@ export function useMailCompose(params: UseMailComposeParams) {
     }
   }
 
+  /**
+   * 下書き保存処理。同様にファイルを base64 変換し、API を呼ぶ。
+   */
   async function onSaveDraft() {
     if (params.draftSaving.value) return;
 

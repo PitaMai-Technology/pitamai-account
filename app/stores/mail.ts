@@ -1,9 +1,19 @@
+/**
+ * メールボックス（フォルダ）の型。
+ * - path: IMAP パス
+ * - name: 表示用の名称
+ * - specialUse: IMAP SPECIAL-USE 属性（\"\" なら通常フォルダ）
+ */
 export type MailFolder = {
   path: string;
   name: string;
   specialUse: string | null;
 };
 
+/**
+ * メール一覧の各行に相当するアイテム。
+ * UID はフォルダ内で一意の識別子。
+ */
 export type MailListItem = {
   uid: number;
   subject: string | null;
@@ -16,6 +26,9 @@ export type MailListItem = {
   seen: boolean;
 };
 
+/**
+ * メール本文内添付ファイルの情報。
+ */
 export type MailAttachment = {
   filename: string | null;
   contentType: string;
@@ -23,6 +36,9 @@ export type MailAttachment = {
   contentDisposition: string;
 };
 
+/**
+ * メール詳細ビューで使用される型。
+ */
 export type MailDetail = {
   uid: number;
   subject: string | null;
@@ -40,8 +56,14 @@ export type MailDetail = {
   pgpEncryptedMessage: string | null;
 };
 
+/**
+ * 作成画面で選択されている宛先タイプ
+ */
 export type ComposeRecipientType = 'to' | 'cc' | 'bcc';
 
+/**
+ * メール作成フォームの状態
+ */
 export type ComposeState = {
   to: string;
   ccList: string[];
@@ -53,6 +75,9 @@ export type ComposeState = {
   encrypt: boolean;
 };
 
+/**
+ * GPG 検証結果をキャッシュするための型
+ */
 export type GpgVerifyCacheItem = {
   status: 'valid' | 'invalid' | 'unknown';
   detail: string;
@@ -68,6 +93,7 @@ type MailDetailTimedCacheMap = Record<string, TimedCacheEntry<MailDetail>>;
 const MAIL_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAIL_CACHE_MAX_ITEMS = 500;
 
+// 作成フォームの初期状態を生成するヘルパー
 function createInitialComposeState(): ComposeState {
   return {
     to: '',
@@ -160,10 +186,12 @@ export const useMailStore = defineStore('mail', () => {
     shiftDragSelectedUids.value = [];
   }
 
+  // キャッシュ用のキーを生成
   function buildMailDetailCacheKey(folderPath: string, uid: number) {
     return `${folderPath}:${uid}`;
   }
 
+  // キャッシュ項目が上限を超えたとき、古いものから削除
   function trimCacheEntries<T>(target: Record<string, TimedCacheEntry<T>>) {
     const entries = Object.entries(target);
     if (entries.length <= MAIL_CACHE_MAX_ITEMS) {
@@ -178,10 +206,12 @@ export const useMailStore = defineStore('mail', () => {
       });
   }
 
+  // キャッシュが期限切れかチェック
   function isExpired(cachedAt: number) {
     return Date.now() - cachedAt > MAIL_CACHE_TTL_MS;
   }
 
+  // フォルダに対してキャッシュ済みリストを取得（期限内のみ）
   function getCachedMailList(folderPath: string): MailListItem[] | null {
     const entry = mailListCache.value[folderPath];
     if (!entry) {
@@ -196,6 +226,7 @@ export const useMailStore = defineStore('mail', () => {
     return entry.value;
   }
 
+  // フォルダ用リストをキャッシュに保存
   function setCachedMailList(folderPath: string, items: MailListItem[]) {
     mailListCache.value[folderPath] = {
       value: items,
@@ -204,6 +235,7 @@ export const useMailStore = defineStore('mail', () => {
     trimCacheEntries(mailListCache.value);
   }
 
+  // UID とフォルダ組み合わせで詳細キャッシュ取得
   function getCachedMailDetail(
     folderPath: string,
     uid: number
@@ -222,6 +254,7 @@ export const useMailStore = defineStore('mail', () => {
     return entry.value;
   }
 
+  // UID に対応する詳細をキャッシュ
   function setCachedMailDetail(folderPath: string, mail: MailDetail) {
     mailDetailCache.value[buildMailDetailCacheKey(folderPath, mail.uid)] = {
       value: mail,

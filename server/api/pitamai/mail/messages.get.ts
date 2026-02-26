@@ -1,3 +1,10 @@
+/**
+ * server/api/pitamai/mail/messages.get.ts
+ *
+ * 指定フォルダのメッセージ一覧を取得する API。
+ * キャッシュ付き or 強制同期モードを選択できる。
+ * 結果には使用した戦略とキャッシュ件数が含まれる。
+ */
 import { createError, getQuery } from 'h3';
 import { z } from 'zod';
 import { requireMailAccountForUser } from '~~/server/utils/mail-account';
@@ -6,6 +13,7 @@ import {
   syncFolderMessages,
 } from '~~/server/utils/mail-sync';
 
+// クエリパラメータ: forceSync を true にするとキャッシュを無視して IMAP 直接同期
 const querySchema = z.object({
   accountId: z.string().min(1).optional(),
   folder: z.string().min(1).default('INBOX'),
@@ -14,6 +22,7 @@ const querySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
+  // パラメータ検証
   const parsed = querySchema.safeParse(getQuery(event));
 
   if (!parsed.success) {
@@ -23,11 +32,13 @@ export default defineEventHandler(async event => {
     });
   }
 
+  // アカウント解決
   const account = await requireMailAccountForUser({
     event,
     accountId: parsed.data.accountId,
   });
 
+  // forceSync による振り分け
   const result = parsed.data.forceSync
     ? await (async () => {
         const synced = await syncFolderMessages({
@@ -49,6 +60,7 @@ export default defineEventHandler(async event => {
         limit: parsed.data.limit,
       });
 
+  // 結果返却
   return {
     accountId: account.id,
     folder: parsed.data.folder,
