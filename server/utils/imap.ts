@@ -5,6 +5,17 @@ import { simpleParser } from 'mailparser';
 import { decryptMailPassword } from '~~/server/utils/mail-crypto';
 import { logger } from '~~/server/utils/logger';
 
+/**
+ * IMAP / メール処理ユーティリティ
+ *
+ * このファイルは IMAP サーバーとのやり取り（ImapFlow）をラップし、
+ * メッセージ一覧取得、メッセージ詳細取得、添付取得、フラグ更新、フォルダ操作など
+ * メールクライアントが必要とする低レベル処理を提供します。
+ *
+ * また PGP/MIME（multipart/signed / multipart/encrypted）の解析や、
+ * Message-Id / In-Reply-To / References などスレッド化に必要なヘッダ抽出機能も含みます。
+ */
+
 type MailAccountConnection = Pick<
   MailAccount,
   | 'id'
@@ -62,6 +73,16 @@ function extractMultipartSignedParts(source: Buffer): {
   detachedSignature: string | null;
   signedDataBase64: string | null;
 } {
+  /**
+   * extractMultipartSignedParts
+   *
+   * multipart/signed の生データを解析し、署名本体（detached signature）と
+   * 署名対象部分（signed part）を抽出するユーティリティです。
+   *
+   * 戻り値:
+   * - detachedSignature: 署名テキスト（armored）または null
+   * - signedDataBase64: 署名対象パートを base64 化した文字列または null
+   */
   const sourceText = source.toString('latin1');
 
   const headerEndCRLF = sourceText.indexOf('\r\n\r\n');
@@ -176,6 +197,10 @@ function extractMultipartSignedParts(source: Buffer): {
   };
 }
 
+/**
+ * multipart/encrypted の生データ（Buffer）を解析し、
+ * PGP 暗号化されたメッセージ本文（-----BEGIN PGP MESSAGE-----）を抽出します。
+ */
 function extractMultipartEncryptedMessage(source: Buffer): string | null {
   const sourceText = source.toString('latin1');
 
@@ -287,6 +312,10 @@ type MessageAttachmentContent = {
   content: Buffer;
 };
 
+/**
+ * envelope などのアドレス配列から最初の 1 件を取得し、
+ * "Name <address>" 形式の文字列で返します。
+ */
 function resolveFirstAddress(
   value: Array<{ name?: string | null; address?: string | null }> | undefined
 ) {
@@ -300,6 +329,10 @@ function resolveFirstAddress(
   return first.address ?? first.name ?? null;
 }
 
+/**
+ * 生ヘッダーテキストから、指定したフィールド名（fieldName）の値を
+ * 折返しを解除した状態で取得します。
+ */
 function extractHeaderFieldValue(headersText: string, fieldName: string) {
   const unfolded = headersText.replace(/\r?\n[ \t]+/g, ' ');
   const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -308,6 +341,9 @@ function extractHeaderFieldValue(headersText: string, fieldName: string) {
   return matched?.[1]?.trim() ?? null;
 }
 
+/**
+ * References ヘッダーなどの文字列から、<id> 形式の ID 群を抽出します。
+ */
 function extractHeaderMessageIds(value: string | null): string[] {
   if (!value) {
     return [];
@@ -327,6 +363,10 @@ function extractHeaderMessageIds(value: string | null): string[] {
     .filter(item => item.length > 0);
 }
 
+/**
+ * メールのソース（Buffer）から、スレッド化に不可欠な
+ * Message-Id, In-Reply-To, References を抽出します。
+ */
 function extractThreadHeadersFromSource(source: Buffer | null | undefined): {
   messageId: string | null;
   inReplyTo: string | null;
@@ -366,6 +406,10 @@ function extractThreadHeadersFromSource(source: Buffer | null | undefined): {
   };
 }
 
+/**
+ * simpleParser でパースされた宛先オブジェクト（To/Cc など）を
+ * カンマ区切りの文字列に変換します。
+ */
 function resolveParsedToAddress(value: unknown): string | null {
   if (!value) return null;
 
@@ -394,6 +438,10 @@ function resolveParsedToAddress(value: unknown): string | null {
   return null;
 }
 
+/**
+ * bodyStructure ノードを再帰的に探索し、
+ * コンテンツが 'attachment' であるパート（添付ファイル）があるか判定します。
+ */
 function hasAttachmentBody(node: unknown): boolean {
   if (!node || typeof node !== 'object') return false;
 
@@ -413,6 +461,10 @@ function hasAttachmentBody(node: unknown): boolean {
   return candidate.childNodes.some(child => hasAttachmentBody(child));
 }
 
+/**
+ * 指定されたパース済みメール情報から、
+ * それが PGP（GPG）署名済みである可能性が高いかを判定します。
+ */
 function isLikelyGpgSignedMessage(parsed: {
   text?: string | null;
   attachments?: Array<{
@@ -456,6 +508,9 @@ function isLikelyGpgSignedMessage(parsed: {
   );
 }
 
+/**
+ * 渡されたアカウント設定を用いて ImapFlow インスタンスを作成します。
+ */
 export function createImapClient(account: MailAccountConnection): ImapFlow {
   const password = decryptMailPassword({
     ciphertext: account.encryptedPassword,
@@ -475,6 +530,10 @@ export function createImapClient(account: MailAccountConnection): ImapFlow {
   });
 }
 
+/**
+ * IMAP クライアントの接続、操作（handler）、ログアウトをひとまとめに実行する
+ * 高階関数です。エラー時の共通ログ出力も含みます。
+ */
 export async function withImapClient<T>(
   account: MailAccountConnection,
   handler: (client: ImapFlow) => Promise<T>
@@ -510,6 +569,9 @@ export async function withImapClient<T>(
   }
 }
 
+/**
+ * 利用可能なメールボックス（フォルダ）一覧を取得します。
+ */
 export async function listMailboxes(account: MailAccountConnection) {
   return withImapClient(account, async client => {
     const mailboxes = await client.list();
@@ -524,6 +586,9 @@ export async function listMailboxes(account: MailAccountConnection) {
   });
 }
 
+/**
+ * 指定されたフォルダ内のメール一覧を、最新の日付順で取得します。
+ */
 export async function listMessages(params: {
   account: MailAccountConnection;
   folder: string;
@@ -595,6 +660,9 @@ export async function listMessages(params: {
   });
 }
 
+/**
+ * フォルダ内の最新メッセージのフラグ（既読状態のみなど）を軽量に取得します。
+ */
 export async function listLatestMessageFlags(params: {
   account: MailAccountConnection;
   folder: string;
@@ -630,6 +698,9 @@ export async function listLatestMessageFlags(params: {
   });
 }
 
+/**
+ * 特定の UID (afterUid) よりも大きい（新しい）メッセージを同期するために取得します。
+ */
 export async function listMessagesSinceUid(params: {
   account: MailAccountConnection;
   folder: string;
@@ -700,6 +771,9 @@ export async function listMessagesSinceUid(params: {
   });
 }
 
+/**
+ * フォルダの STATUS を確認し、存在する総メッセージ数を返します。
+ */
 export async function getMailboxMessageCount(params: {
   account: MailAccountConnection;
   folder: string;
@@ -712,6 +786,7 @@ export async function getMailboxMessageCount(params: {
 
 type SpecialFolderKind = 'trash' | 'archive' | 'inbox' | 'sent' | 'drafts';
 
+// システム予約語（フォルダ名）のリスト。
 const PROTECTED_FOLDER_EXACT_NAMES = [
   'inbox',
   'draft',
@@ -732,10 +807,17 @@ const PROTECTED_FOLDER_EXACT_NAMES = [
   'アーカイブ',
 ];
 
+/**
+ * フォルダ名を小文字化・トリムして比較しやすくします。
+ */
 function normalizeMailboxPath(path: string) {
   return path.trim().toLowerCase();
 }
 
+/**
+ * システム予約フォルダ（ゴミ箱、下書き等）や
+ * specialUse でマークされた特別なフォルダかどうかを判定します。
+ */
 function isProtectedMailbox(mailbox: {
   path: string;
   specialUse?: string | null;
@@ -762,6 +844,10 @@ function isProtectedMailbox(mailbox: {
   return false;
 }
 
+/**
+ * 送信済み、ゴミ箱、アーカイブなど、役割に応じた
+ * IMAP フォルダパスを判定・解決します。
+ */
 function resolveSpecialFolderPath(
   mailboxes: Array<{ path: string; specialUse?: string | null }>,
   kind: SpecialFolderKind
@@ -821,6 +907,9 @@ function resolveSpecialFolderPath(
   return byName?.path ?? null;
 }
 
+/**
+ * メッセージの \Seen フラグを追加または削除（既読/未読切り替え）します。
+ */
 export async function updateSeenFlag(params: {
   account: MailAccountConnection;
   folder: string;
@@ -840,6 +929,9 @@ export async function updateSeenFlag(params: {
   });
 }
 
+/**
+ * ゴミ箱移動やアーカイブなど、定義済みの SpecialFolderKind への移動を行います。
+ */
 export async function moveMessage(params: {
   account: MailAccountConnection;
   folder: string;
@@ -900,6 +992,9 @@ export async function moveMessage(params: {
   });
 }
 
+/**
+ * メッセージを特定のフォルダパス（toFolder）へ移動します。
+ */
 export async function moveMessageToFolder(params: {
   account: MailAccountConnection;
   fromFolder: string;
@@ -927,6 +1022,9 @@ export async function moveMessageToFolder(params: {
   });
 }
 
+/**
+ * 送信済みメールを IMAP の送信済みフォルダに保存（APPEND）します。
+ */
 export async function appendToSentMailbox(params: {
   account: MailAccountConnection;
   rawMessage: Buffer;
@@ -951,6 +1049,9 @@ export async function appendToSentMailbox(params: {
   });
 }
 
+/**
+ * 作成中のメールを下書きフォルダに保存（APPEND）します。
+ */
 export async function appendToDraftMailbox(params: {
   account: MailAccountConnection;
   rawMessage: Buffer;
@@ -980,6 +1081,9 @@ export async function appendToDraftMailbox(params: {
   });
 }
 
+/**
+ * 任意の名称で新規フォルダ（メールボックス）を作成します。
+ */
 export async function createCustomMailbox(params: {
   account: MailAccountConnection;
   name: string;
@@ -1012,6 +1116,9 @@ export async function createCustomMailbox(params: {
   });
 }
 
+/**
+ * フォルダの名称を変更（RENAME）します。
+ */
 export async function renameCustomMailbox(params: {
   account: MailAccountConnection;
   path: string;
@@ -1061,6 +1168,9 @@ export async function renameCustomMailbox(params: {
   });
 }
 
+/**
+ * フォルダを削除します。重要フォルダ（受信トレイ等）は削除できません。
+ */
 export async function deleteCustomMailbox(params: {
   account: MailAccountConnection;
   path: string;
@@ -1101,6 +1211,11 @@ export async function deleteCustomMailbox(params: {
   });
 }
 
+/**
+ * 特定のメールの詳細情報（本文、添付メタデータ、PGP署名/暗号状況、下書きメタ等）を取得します。
+ * 本文のパースには mailparser (simpleParser) を使用し、
+ * PGP/MIME 構造は独自パーサ（extractMultipart...）で補完します。
+ */
 export async function getMessageDetail(params: {
   account: MailAccountConnection;
   folder: string;
@@ -1137,7 +1252,10 @@ export async function getMessageDetail(params: {
       });
     }
 
+    // MIME メッセージの基本構造を解析
     const parsed = await simpleParser(Buffer.from(source));
+
+    // PGP 暗号化パケットの抽出 (multipart/encrypted または添付ファイル形式)
     const multipartEncryptedMessage = extractMultipartEncryptedMessage(
       Buffer.from(source)
     );
@@ -1185,6 +1303,7 @@ export async function getMessageDetail(params: {
         ? pgpEncryptedAttachmentBody
         : null);
 
+    // PGP 署名情報の抽出 (multipart/signed)
     const multipartSignedParts = extractMultipartSignedParts(
       Buffer.from(source)
     );
@@ -1192,6 +1311,8 @@ export async function getMessageDetail(params: {
       multipartSignedParts.detachedSignature ?? pgpDetachedSignature;
     const detachedSignedDataBase64 =
       multipartSignedParts.signedDataBase64 ?? null;
+
+    // 下書き復元用の独自ヘッダー (x-pitamai-draft-recipients等) の取得
     const recipientMetaHeader = parsed.headers.get(
       'x-pitamai-draft-recipients'
     );
@@ -1234,6 +1355,7 @@ export async function getMessageDetail(params: {
 
     return {
       uid: message.uid,
+
       subject: parsed.subject ?? message.envelope?.subject ?? null,
       from: parsed.from?.text ?? resolveFirstAddress(message.envelope?.from),
       to:
@@ -1272,6 +1394,9 @@ export async function getMessageDetail(params: {
   });
 }
 
+/**
+ * メール内の特定の添付ファイルの内容（Buffer）を取得します。
+ */
 export async function getMessageAttachment(params: {
   account: MailAccountConnection;
   folder: string;

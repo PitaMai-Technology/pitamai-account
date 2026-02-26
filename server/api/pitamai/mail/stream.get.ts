@@ -59,7 +59,7 @@ export default defineEventHandler(async event => {
     } catch (error) {
       logger.error(
         { err: error, accountId: account.id },
-        'SSE exists handler failed'
+        'SSEイベントの処理中にエラーが発生'
       );
     }
   };
@@ -96,7 +96,7 @@ export default defineEventHandler(async event => {
 
     logger.error(
       { err: error, accountId: account.id },
-      'Failed to initialize SSE stream'
+      'リアルタイム接続の初期化に失敗しました'
     );
     throw createError({
       statusCode: 400,

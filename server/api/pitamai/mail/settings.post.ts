@@ -52,7 +52,7 @@ export default defineEventHandler(async event => {
       throw createError({
         statusCode: 500,
         message:
-          '暗号化キーが未設定です。.env に MAIL_CREDENTIAL_SECRET（16文字以上）を設定してください。',
+          '管理者側での暗号化キーが未設定です。.env に MAIL_CREDENTIAL_SECRET（16文字以上）を設定してください。',
       });
     }
   }

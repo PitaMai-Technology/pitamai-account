@@ -10,9 +10,7 @@ import { logger } from '~~/server/utils/logger';
 export default defineEventHandler(async event => {
   const user = await requireSessionUser(event);
   const account = await requireMailAccountForUser({ event });
-  const preferredEmail = (account.username || account.emailAddress)
-    .trim()
-    .toLowerCase();
+  const preferredEmail = account.username.trim().toLowerCase();
 
   const gpgKey = await prisma.userGpgKey.findUnique({
     where: { userId: user.id },
@@ -98,7 +96,7 @@ export default defineEventHandler(async event => {
           keyServer: keyServerBaseUrl,
           body: raw,
         },
-        'GPG key publish attempt failed'
+        '公開鍵の登録申請の試行に失敗'
       );
 
       // 4xx/5xx でも他フォーマットで成功する場合があるため継続
@@ -118,7 +116,7 @@ export default defineEventHandler(async event => {
         keyServer: keyServerBaseUrl,
         body: raw,
       },
-      'GPG key publish failed'
+      '公開鍵の登録申請に失敗'
     );
 
     throw createError({
@@ -201,7 +199,7 @@ export default defineEventHandler(async event => {
           keyServer: keyServerBaseUrl,
           body: verifyRaw,
         },
-        'GPG key request-verify failed'
+        '公開鍵確認メール送信リクエストに失敗'
       );
 
       throw createError({
@@ -235,7 +233,7 @@ export default defineEventHandler(async event => {
     message:
       targetAddresses.length > 0
         ? '公開鍵サーバーへ公開申請を送信しました。確認メールのリンクを開いて公開を完了してください。'
-        : '公開鍵は既に公開済み、またはメールアカウント用アドレスが確認済みです。',
+        : '公開鍵は既に公開済み、またはメールアカウント用アドレスが確認済みです。ですので、追加の操作は不要です。',
     keyServer: keyServerBaseUrl,
     fingerprint: gpgKey.fingerprint,
     uploadResponse: uploadResult ?? raw,
