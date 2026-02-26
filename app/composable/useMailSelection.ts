@@ -51,7 +51,7 @@ export function useMailSelection(params: UseMailSelectionParams) {
 
   /**
    * メール項目クリックハンドラ。
-   * shiftKey 再時は選択トグル、通常クリックは全解除。
+   * shiftKey の時は選択トグル、通常クリックは全解除。
    */
   function onMailItemClick(payload: { uid: number; shiftKey: boolean }) {
     // 日本語コメント: 通常クリックは選択解除、Shiftクリックのみトグル追加として挙動を明確化します。

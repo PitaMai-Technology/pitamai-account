@@ -31,7 +31,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (!turnstileToken.value) {
     toast.add({
       title: '確認が必要です',
-      description: 'ロボットではありませんの認証を完了してください。',
+      description: '「ロボットではありません」の認証を完了してください。',
       color: 'warning',
     });
     return;

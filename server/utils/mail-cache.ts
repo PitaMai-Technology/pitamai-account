@@ -77,7 +77,7 @@ type UpsertMessageInput = {
  * 名前とアドレスに分離します。
  *
  * 例：
- * - "Alice <alice@example.com" → { fromName: "Alice", fromAddress: "alice@example.com" }
+ * - "Alice alice@example.com" → { fromName: "Alice", fromAddress: "alice@example.com" }
  * - "alice@example.com" → { fromName: null, fromAddress: "alice@example.com" }
  * - null → { fromName: null, fromAddress: null }
  *

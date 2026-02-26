@@ -309,6 +309,24 @@ export type GpgVerifyResult =
   | { valid: true; fingerprint: string; signerEmail: string | null }
   | { valid: false; reason: string };
 
+/**
+ * cleartext 署名形式（-----BEGIN PGP SIGNED MESSAGE-----）のメール本文を検証します。
+ *
+ * 役割：
+ * - OpenPGP cleartext メール（署名と本文が一体化）の署名を検証
+ * - 署名者の公開鍵を用いて改ざんチェック
+ *
+ * パラメータ：
+ * - signedText: cleartext 署名メール本体
+ * - armoredPublicKey: 署名者の公開鍵（armored）
+ *
+ * 戻り値：
+ * - GpgVerifyResult（成功時は fingerprint + signerEmail、失敗時は reason）
+ *
+ * 使用シーン：
+ * - 受信メール表示時に署名を自動検証
+ * - imap.ts の getMessageDetail などから呼び出し
+ */
 export async function verifySignedMessage(params: {
   signedText: string;
   armoredPublicKey: string;
@@ -352,24 +370,8 @@ export async function verifySignedMessage(params: {
     };
   }
 }
+
 /**
- * cleartext 署名形式（-----BEGIN PGP SIGNED MESSAGE-----）のメール本文を検証します。
- *
- * 役割：
- * - OpenPGP cleartext メール（署名と本文が一体化）の署名を検証
- * - 署名者の公開鍵を用いて改ざんチェック
- *
- * パラメータ：
- * - signedText: cleartext 署名メール本体
- * - armoredPublicKey: 署名者の公開鍵（armored）
- *
- * 戻り値：
- * - GpgVerifyResult（成功時は fingerprint + signerEmail、失敗時は reason）
- *
- * 使用シーン：
- * - 受信メール表示時に署名を自動検証
- * - imap.ts の getMessageDetail などから呼び出し
- *//**
  * detached 署名形式（署名と本文が分離）のメール本文を検証します。
  *
  * 役割：
@@ -532,7 +534,7 @@ export function isPgpEncryptedText(text: string): boolean {
  * 役割：
  * - 宛先メールアドレスの公開鍵をネットワークから検索
  * - DB に登録されていない受信者への暗号化メール送信を実現
- * - Windows キーサーバーを使用（プライバシー重視、プロトコル HKP）
+ * - openpgp.orgのキーサーバーを使用（プライバシー重視、プロトコル HKP）
  *
  * パラメータ：
  * - email: 検索対象のメールアドレス（例：alice@example.com）
