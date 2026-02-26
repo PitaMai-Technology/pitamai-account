@@ -1,10 +1,17 @@
 import type { Ref } from 'vue';
 
-// ==============================================================================
-// SSE（Server-Sent Events）リアルタイム接続管理
-// ==============================================================================
-// 役割: IMAP IDLE を SSE でラップ、新着検知、自動再接続（指数バックオフ）
-// 再接続戦争: 500ms * (attempt+1)で段階的に遅延、最大5秒で抑制
+/**
+ * SSE（Server-Sent Events）リアルタイム接続管理
+ *
+ * IMAP IDLE をサーバー側で維持し、SSE でクライアントへ新着通知を
+ * プッシュする仕組みを扱うコンポーザブル。
+ * 自動再接続は指数バックオフを採用し、連続エラーによるスパム防止。
+ *
+ * @param {Ref<boolean>} hasMailSetting - メールアカウントの有無
+ * @param {string} realtimeFolderPath - 監視フォルダパス
+ * @param {(folder:string)=>string} createStreamUrl - SSE URL 生成関数
+ * @param {() => Promise<void>} onNewMail - 新着メール時に呼び出すコールバック
+ */
 type UseMailRealtimeParams = {
   hasMailSetting: Ref<boolean>;
   realtimeFolderPath: string;
@@ -19,8 +26,12 @@ export function useMailRealtime(params: UseMailRealtimeParams) {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectAttempt = 0;
 
+  /**
+   * SSE 接続を開始する。
+   * SSR 環境やメーリング設定なしの場合は何もしない。
+   */
   function startRealtimeStream() {
-    // 日本語コメント: クライアント実行時のみ接続し、SSRや二重接続を避けます。
+    // クライアント実行時のみ接続し、SSRや二重接続を避ける
     if (!import.meta.client) return;
     if (!params.hasMailSetting.value) return;
     if (stream) return;
@@ -45,6 +56,7 @@ export function useMailRealtime(params: UseMailRealtimeParams) {
       await params.onNewMail();
     });
 
+    // エラー発生時は接続を閉じ、再接続タイマーを設定
     stream.addEventListener('error', () => {
       streamConnected.value = false;
       if (stream) {
@@ -69,6 +81,9 @@ export function useMailRealtime(params: UseMailRealtimeParams) {
     });
   }
 
+  /**
+   * 現在の SSE 接続を停止し、再接続タイマーをクリアする。
+   */
   function stopRealtimeStream() {
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
