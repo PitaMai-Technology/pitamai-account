@@ -38,7 +38,7 @@ const sanitizedHtml = computed(() => {
     </div>
     <div v-else-if="sanitizedHtml" v-html="sanitizedHtml" />
     <pre v-else-if="text"
-      class="whitespace-pre-wrap rounded border border-gray-200 bg-gray-50 p-3 text-sm">{{ text }}</pre>
+      class="whitespace-pre-wrap rounded border border-gray-200 bg-gray-50 p-3 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100">{{ text }}</pre>
     <p v-else class="text-sm text-gray-500">本文がありません。</p>
   </div>
 </template>

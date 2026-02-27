@@ -323,7 +323,8 @@ watch(
   <UCard class="lg:col-span-7">
     <template #header>
       <div class="flex gap-2 mb-2">
-        <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail" @click="emit('toggleSeen')">
+        <UButton size="xs" :icon="selectedSeen ? 'i-lucide-eye-off' : 'i-lucide-eye'" color="neutral" variant="outline"
+          :disabled="!hasSelectedMail" @click="emit('toggleSeen')">
           {{ selectedSeen ? '未読にする' : '既読にする' }}
         </UButton>
         <UButton size="xs" icon="i-lucide-archive" color="neutral" variant="outline" :disabled="!hasSelectedMail"

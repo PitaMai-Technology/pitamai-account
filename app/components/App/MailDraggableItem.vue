@@ -57,18 +57,18 @@ function onPointerDown(event: PointerEvent) {
 const className = computed(() => {
   // 複数選択状態でこのアイテムも選択されている場合は強調表示
   if (props.multiSelected) {
-    return 'border-primary-400 bg-primary-50';
+    return 'border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-900';
   }
 
   // 選択中のアイテムは特別なスタイル
   if (props.selectedUid === props.message.uid) {
-    return 'border-gray-400 bg-gray-50';
+    return 'border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-800';
   }
 
   // 既読/未読でスタイルを分ける
   return props.message.seen
-    ? 'border-gray-200 bg-white'
-    : 'border-emerald-400 bg-white';
+    ? 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+    : 'border-emerald-400 bg-white dark:border-emerald-500 dark:bg-gray-900';
 });
 
 const isDisabled = computed(() => props.openingUid === props.message.uid);
@@ -115,11 +115,17 @@ const { elementRef, handleDragStart, isDragging } = useDraggable({
     <!-- 未読メッセージのインジケータ -->
     <UChip v-if="!message.seen" color="success" size="sm" class="absolute left-2.5 bottom-[105%]" position="top-right"
       inset />
-    <p class="truncate text-sm font-medium">{{ message.subject || '(件名なし)' }}</p>
-    <p class="truncate text-xs text-gray-600">{{ message.from || '-' }}</p>
-    <p class="text-xs text-gray-500">{{ message.date ? new Date(message.date).toLocaleString('ja-JP') : '-' }}</p>
+    <p class="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+      {{ message.subject || '(件名なし)' }}
+    </p>
+    <p class="truncate text-xs text-gray-600 dark:text-gray-300">
+      {{ message.from || '-' }}
+    </p>
+    <p class="text-xs text-gray-500 dark:text-gray-400">
+      {{ message.date ? new Date(message.date).toLocaleString('ja-JP') : '-' }}
+    </p>
     <UBadge color="neutral" variant="outline" v-if="multiSelected && (selectedCount ?? 0) > 1"
-      class="text-xs text-primary-700 absolute top-1 right-2">
+      class="text-xs text-primary-700 dark:text-primary-200 absolute top-1 right-2">
       {{ selectedCount }}件選択中
     </UBadge>
   </button>
