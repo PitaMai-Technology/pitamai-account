@@ -4,12 +4,11 @@ import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
 import { usePageLeaveGuard } from '~/composable/usePageLeaveGuard';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
-import { useErrorMessage } from '~/composable/useErrorMessage';
 
 definePageMeta({ layout: 'the-app' });
 
 const toast = useToast();
-const { getErrorMessage } = useErrorMessage();
+const serverError = useError();
 
 // セッション取得
 interface UserInfo {
@@ -65,7 +64,7 @@ async function onSendVerificationEmail() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, '認証メール送信に失敗しました'),
+      description: `${serverError.value?.message} 認証メール送信に失敗しました`,
       color: 'error',
     });
   } finally {
@@ -150,7 +149,7 @@ async function loadMailServerSetting() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, 'メールサーバー設定の取得に失敗しました'),
+      description: `${serverError.value?.message} メールサーバー設定の取得に失敗しました`,
       color: 'error',
     });
   }
@@ -190,7 +189,7 @@ async function onSubmitMailServer() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, 'メールサーバー設定の保存に失敗しました'),
+      description: `${serverError.value?.message} メールサーバー設定の保存に失敗しました`,
       color: 'error',
     });
   } finally {
@@ -212,7 +211,7 @@ async function onTestImapConnection() {
   } catch (err: unknown) {
     toast.add({
       title: '接続失敗',
-      description: getErrorMessage(err, 'IMAPサーバー接続テストに失敗しました'),
+      description: `${serverError.value?.message} IMAPサーバー接続テストに失敗しました`,
       color: 'error',
     });
   } finally {
@@ -234,7 +233,7 @@ async function onTestSmtpConnection() {
   } catch (err: unknown) {
     toast.add({
       title: '接続失敗',
-      description: getErrorMessage(err, 'SMTPサーバー接続テストに失敗しました'),
+      description: `${serverError.value?.message} SMTPサーバー接続テストに失敗しました`,
       color: 'error',
     });
   } finally {
@@ -261,7 +260,7 @@ async function loadGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, 'GPG鍵の取得に失敗しました'),
+      description: `${serverError.value?.message} GPG鍵の取得に失敗しました`,
       color: 'error',
     });
   }
@@ -307,7 +306,7 @@ async function onSaveGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, 'GPG鍵の保存に失敗しました'),
+      description: `${serverError.value?.message} GPG鍵の保存に失敗しました`,
       color: 'error',
     });
   } finally {
@@ -337,7 +336,7 @@ async function onDeleteGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, 'GPG鍵の削除に失敗しました'),
+      description: `${serverError.value?.message} GPG鍵の削除に失敗しました`,
       color: 'error',
     });
   } finally {
@@ -371,7 +370,7 @@ async function onPublishGpgKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, '公開申請に失敗しました'),
+      description: `${serverError.value?.message} 公開申請に失敗しました`,
       color: 'error',
     });
   } finally {
@@ -393,7 +392,7 @@ async function onCopyGpgPublicKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, '公開鍵のコピーに失敗しました'),
+      description: `${serverError.value?.message} 公開鍵のコピーに失敗しました`,
       color: 'error',
     });
   }
@@ -415,7 +414,7 @@ async function onCopyGpgPrivateKey() {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, '秘密鍵のコピーに失敗しました'),
+      description: `${serverError.value?.message} 秘密鍵のコピーに失敗しました`,
       color: 'error',
     });
   }
@@ -455,7 +454,7 @@ async function onSubmitProfile(event?: FormSubmitEvent<UserUpdate>) {
   if (!parsed.success) {
     toast.add({
       title: '入力エラー',
-      description: getErrorMessage(parsed.error, 'プロフィール入力内容が不正です'),
+      description: `${serverError.value?.message} プロフィール入力内容が不正です`,
       color: 'error',
     });
     return;
@@ -483,7 +482,7 @@ async function onSubmitProfile(event?: FormSubmitEvent<UserUpdate>) {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, 'プロフィール更新に失敗しました'),
+      description: `${serverError.value?.message} プロフィール更新に失敗しました`,
       color: 'error',
     });
   } finally {
@@ -503,7 +502,7 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
   if (!parsed.success) {
     toast.add({
       title: '入力エラー',
-      description: getErrorMessage(parsed.error, 'メールアドレス入力内容が不正です'),
+      description: `${serverError.value?.message} メールアドレス入力内容が不正です`,
       color: 'error',
     });
     return;
@@ -534,7 +533,7 @@ async function onSubmitEmail(event?: FormSubmitEvent<UserChangeEmailSettings>) {
   } catch (err: unknown) {
     toast.add({
       title: 'エラー',
-      description: getErrorMessage(err, 'メール変更に失敗しました'),
+      description: `${serverError.value?.message} メール変更に失敗しました`,
       color: 'error',
     });
   } finally {

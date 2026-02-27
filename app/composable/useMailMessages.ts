@@ -1,5 +1,4 @@
 import { useMailApi } from '~/composable/useMailApi';
-import { useErrorMessage } from '~/composable/useErrorMessage';
 import type { MailDetail, MailListItem } from '~/stores/mail';
 
 /**
@@ -43,10 +42,11 @@ type UseMailMessagesParams = {
   setCachedMailDetail: (folderPath: string, mail: MailDetail) => void;
 };
 
+const serverError = useError();
+
 export function useMailMessages(params: UseMailMessagesParams) {
   const toast = useToast();
   const mailApi = useMailApi();
-  const { getErrorMessage } = useErrorMessage();
 
   const lastRealtimeToastAt = ref(0);
   const lastKnownTopUid = ref<number | null>(null);
@@ -347,7 +347,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
 
       toast.add({
         title: 'エラー',
-        description: getErrorMessage(error, 'メール詳細取得に失敗しました'),
+        description: serverError.value?.message || '不明なエラーが発生しました',
         color: 'error',
       });
     } finally {
@@ -497,7 +497,8 @@ export function useMailMessages(params: UseMailMessagesParams) {
 
       toast.add({
         title: 'エラー',
-        description: getErrorMessage(error, 'メール一覧取得に失敗しました'),
+        description:
+          serverError.value?.message || 'メール一覧の取得に失敗しました',
         color: 'error',
       });
     } finally {
@@ -544,7 +545,7 @@ export function useMailMessages(params: UseMailMessagesParams) {
     } catch (error) {
       toast.add({
         title: 'エラー',
-        description: getErrorMessage(error, '既読更新に失敗しました'),
+        description: serverError.value?.message || '既読更新に失敗しました',
         color: 'error',
       });
     }
