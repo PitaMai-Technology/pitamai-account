@@ -175,8 +175,8 @@ export async function getCachedMessages(params: {
     from: joinFrom(row.fromName, row.fromAddress),
     date: row.internalDate ? row.internalDate.toISOString() : null,
     messageId: row.messageId,
-    inReplyTo: null,
-    references: [],
+    inReplyTo: row.inReplyTo,
+    references: row.threadRefs,
     hasAttachment: row.hasAttachment,
     seen: false,
   }));
@@ -289,6 +289,8 @@ export async function upsertMessagesToCache(params: {
           folder: params.folder,
           uid: message.uid,
           messageId: message.messageId,
+          inReplyTo: message.inReplyTo,
+          threadRefs: message.references,
           subject: message.subject,
           fromName: split.fromName,
           fromAddress: split.fromAddress,
@@ -298,6 +300,8 @@ export async function upsertMessagesToCache(params: {
         },
         update: {
           messageId: message.messageId,
+          inReplyTo: message.inReplyTo,
+          threadRefs: message.references,
           subject: message.subject,
           fromName: split.fromName,
           fromAddress: split.fromAddress,
