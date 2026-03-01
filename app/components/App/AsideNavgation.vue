@@ -156,7 +156,12 @@ const {
 // フォルダ選択ハンドラー（別ページにいても自動的にメールページへ遷移）
 async function onSelectFolder(folderPath: string) {
   mailStore.setActiveFolder(folderPath);
-  await navigateTo('/apps/mail');
+  await navigateTo({
+    path: '/apps/mail',
+    query: {
+      f: folderPath,
+    },
+  });
 }
 
 // メール移動ハンドラー
