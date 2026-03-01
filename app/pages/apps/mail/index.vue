@@ -169,15 +169,16 @@ function getQueryFolderParam() {
   return normalized.length > 0 ? normalized : null;
 }
 
-function applyFolderFromQuery() {
+function applyFolderFromQuery(): boolean {
   const queryFolder = getQueryFolderParam();
-  if (!queryFolder) return;
+  if (!queryFolder) return false;
 
   const exists = folders.value.some(folder => folder.path === queryFolder);
-  if (!exists) return;
-  if (activeFolderPath.value === queryFolder) return;
+  if (!exists) return false;
+  if (activeFolderPath.value === queryFolder) return false;
 
   mailStore.setActiveFolder(queryFolder);
+  return true;
 }
 
 function extractReplyToAddress(fromValue: string | null) {
@@ -489,8 +490,10 @@ watch(hasMailSetting, async enabled => {
 
   await checkMailConnectivity();
   await loadFolders();
-  applyFolderFromQuery();
-  await loadMessages({ markOpenedAsRead: false, notifyIfNew: false });
+  const folderSwitchedFromQuery = applyFolderFromQuery();
+  if (!folderSwitchedFromQuery) {
+    await loadMessages({ markOpenedAsRead: false, notifyIfNew: false });
+  }
   startRealtimeStream();
 }, { immediate: true });
 
