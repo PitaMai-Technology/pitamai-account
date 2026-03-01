@@ -511,8 +511,10 @@ function isLikelyGpgSignedMessage(parsed: {
 /**
  * 渡されたアカウント設定を用いて ImapFlow インスタンスを作成します。
  */
-export function createImapClient(account: MailAccountConnection): ImapFlow {
-  const password = decryptMailPassword({
+export async function createImapClient(
+  account: MailAccountConnection
+): Promise<ImapFlow> {
+  const password = await decryptMailPassword({
     ciphertext: account.encryptedPassword,
     iv: account.encryptionIv,
     authTag: account.encryptionAuthTag,
@@ -538,7 +540,7 @@ export async function withImapClient<T>(
   account: MailAccountConnection,
   handler: (client: ImapFlow) => Promise<T>
 ): Promise<T> {
-  const client = createImapClient(account);
+  const client = await createImapClient(account);
 
   try {
     await client.connect();

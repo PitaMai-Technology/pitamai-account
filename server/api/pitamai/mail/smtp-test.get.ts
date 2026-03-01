@@ -14,7 +14,7 @@ export default defineEventHandler(async event => {
   const account = await requireMailAccountForUser({ event });
 
   // データベース上の暗号化パスワードを復号
-  const password = decryptMailPassword({
+  const password = await decryptMailPassword({
     ciphertext: account.encryptedPassword,
     iv: account.encryptionIv,
     authTag: account.encryptionAuthTag,

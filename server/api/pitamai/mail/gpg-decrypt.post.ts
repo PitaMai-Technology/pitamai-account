@@ -64,7 +64,7 @@ export default defineEventHandler(async event => {
 
   try {
     // 秘密鍵復号
-    const armoredPrivateKey = decryptGpgPrivateKey({
+    const armoredPrivateKey = await decryptGpgPrivateKey({
       ciphertext: gpgRecord.encryptedPrivateKey,
       iv: gpgRecord.encryptionIv,
       authTag: gpgRecord.encryptionAuthTag,

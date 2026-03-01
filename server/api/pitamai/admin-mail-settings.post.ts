@@ -60,10 +60,10 @@ export default defineEventHandler(async event => {
     });
   }
 
-  let encrypted: ReturnType<typeof encryptMailPassword> | null = null;
+  let encrypted: Awaited<ReturnType<typeof encryptMailPassword>> | null = null;
   if (parsed.data.password) {
     try {
-      encrypted = encryptMailPassword(parsed.data.password);
+      encrypted = await encryptMailPassword(parsed.data.password);
     } catch {
       throw createError({
         statusCode: 500,

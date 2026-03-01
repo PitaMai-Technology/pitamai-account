@@ -19,12 +19,6 @@ type MailGroup = {
   messages: MailListItem[];
 };
 
-// parameters passed into useMailMessages composable
-// hasMailSetting: whether mail account exists
-// activeFolderPath: current folder
-// mailList/currentMail/selectedUid/etc: reactive state from store
-// setMailList etc: callbacks to update store
-
 type UseMailMessagesParams = {
   hasMailSetting: Ref<boolean>;
   activeFolderPath: Ref<string>;
@@ -42,9 +36,8 @@ type UseMailMessagesParams = {
   setCachedMailDetail: (folderPath: string, mail: MailDetail) => void;
 };
 
-const serverError = useError();
-
 export function useMailMessages(params: UseMailMessagesParams) {
+  const serverError = useError();
   const toast = useToast();
   const mailApi = useMailApi();
 

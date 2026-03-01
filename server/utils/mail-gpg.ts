@@ -19,23 +19,33 @@
  * - 改ざん検知: GCM 認証タグ + OpenPGP 署名検証
  */
 import * as openpgp from 'openpgp';
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  scryptSync,
-} from 'node:crypto';
 import { createError } from 'h3';
 
-const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
+const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_HASH = 'SHA-256';
+const PBKDF2_SALT = 'pitamai-gpg-salt';
+const TAG_LENGTH = 16;
+const encoder = new TextEncoder();
 
 /**
  * 環境変数から暗号化キーを導出します。
  * @returns {Buffer} 32 バイトの AES-256 キー
  * @throws {Error} 環境変数が未設定または長さ不足の場合
  */
-function resolveSecretKey(): Buffer {
+function getWebCrypto() {
+  const webCrypto = globalThis.crypto;
+  if (!webCrypto?.subtle) {
+    throw createError({
+      statusCode: 500,
+      message: 'Web Crypto API が利用できません',
+    });
+  }
+
+  return webCrypto;
+}
+
+async function resolveSecretKey() {
   const rawSecret =
     process.env.MAIL_CREDENTIAL_SECRET || process.env.BETTER_AUTH_SECRET;
 
@@ -47,7 +57,30 @@ function resolveSecretKey(): Buffer {
     });
   }
 
-  return scryptSync(rawSecret, 'pitamai-gpg-salt', 32) as Buffer;
+  const webCrypto = getWebCrypto();
+  const imported = await webCrypto.subtle.importKey(
+    'raw',
+    encoder.encode(rawSecret),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return webCrypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      hash: PBKDF2_HASH,
+      iterations: PBKDF2_ITERATIONS,
+      salt: encoder.encode(PBKDF2_SALT),
+    },
+    imported,
+    {
+      name: 'AES-GCM',
+      length: 256,
+    },
+    false,
+    ['encrypt', 'decrypt']
+  );
 }
 
 /**
@@ -74,20 +107,32 @@ export type EncryptedGpgKey = {
  * @param {string} armoredKey - 暗号化対象の秘密鍵文字列
  * @returns {EncryptedGpgKey} 暗号化ペイロード
  */
-export function encryptGpgPrivateKey(armoredKey: string): EncryptedGpgKey {
-  const key = resolveSecretKey();
-  const iv = randomBytes(IV_LENGTH);
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+export async function encryptGpgPrivateKey(
+  armoredKey: string
+): Promise<EncryptedGpgKey> {
+  const webCrypto = getWebCrypto();
+  const key = await resolveSecretKey();
+  const iv = webCrypto.getRandomValues(new Uint8Array(IV_LENGTH));
 
-  const encrypted = Buffer.concat([
-    cipher.update(armoredKey, 'utf8'),
-    cipher.final(),
-  ]);
+  const encryptedWithTag = new Uint8Array(
+    await webCrypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+        tagLength: 128,
+      },
+      key,
+      encoder.encode(armoredKey)
+    )
+  );
+
+  const ciphertext = encryptedWithTag.slice(0, -TAG_LENGTH);
+  const authTag = encryptedWithTag.slice(-TAG_LENGTH);
 
   return {
-    ciphertext: encrypted.toString('base64'),
-    iv: iv.toString('base64'),
-    authTag: cipher.getAuthTag().toString('base64'),
+    ciphertext: Buffer.from(ciphertext).toString('base64'),
+    iv: Buffer.from(iv).toString('base64'),
+    authTag: Buffer.from(authTag).toString('base64'),
   };
 }
 
@@ -97,19 +142,29 @@ export function encryptGpgPrivateKey(armoredKey: string): EncryptedGpgKey {
  * @returns {string} 復号された ARMOR 秘密鍵
  * @throws {Error} 認証タグ不一致等で復号に失敗した場合
  */
-export function decryptGpgPrivateKey(payload: EncryptedGpgKey): string {
-  const key = resolveSecretKey();
+export async function decryptGpgPrivateKey(
+  payload: EncryptedGpgKey
+): Promise<string> {
+  const webCrypto = getWebCrypto();
+  const key = await resolveSecretKey();
   const iv = Buffer.from(payload.iv, 'base64');
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  const authTag = Buffer.from(payload.authTag, 'base64');
+  const ciphertext = Buffer.from(payload.ciphertext, 'base64');
+  const encryptedWithTag = new Uint8Array(ciphertext.length + authTag.length);
+  encryptedWithTag.set(ciphertext, 0);
+  encryptedWithTag.set(authTag, ciphertext.length);
 
-  decipher.setAuthTag(Buffer.from(payload.authTag, 'base64'));
+  const decrypted = await webCrypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv,
+      tagLength: 128,
+    },
+    key,
+    encryptedWithTag
+  );
 
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(payload.ciphertext, 'base64')),
-    decipher.final(),
-  ]);
-
-  return decrypted.toString('utf8');
+  return new TextDecoder().decode(decrypted);
 }
 
 // --------------------------------------------------------------------------
