@@ -8,6 +8,7 @@
 import { createError, readBody } from 'h3';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { z } from 'zod';
+import { logger } from '~~/server/utils/logger';
 import { requireMailAccountForUser } from '~~/server/utils/mail-account';
 import { appendToDraftMailbox } from '~~/server/utils/imap';
 
@@ -31,68 +32,80 @@ const bodySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
-  // アカウント取得
-  const account = await requireMailAccountForUser({ event });
-  const body = await readBody(event);
+  try {
+    // アカウント取得
+    const account = await requireMailAccountForUser({ event });
+    const body = await readBody(event);
 
-  // バリデーション
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
-    throw createError({ statusCode: 422, message: 'Validation Error' });
-  }
+    // バリデーション
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw createError({ statusCode: 422, message: 'Validation Error' });
+    }
 
-  // 宛先トリム
-  const to = parsed.data.to?.trim() || undefined;
-  const cc = parsed.data.cc?.trim() || undefined;
-  const bcc = parsed.data.bcc?.trim() || undefined;
+    // 宛先トリム
+    const to = parsed.data.to?.trim() || undefined;
+    const cc = parsed.data.cc?.trim() || undefined;
+    const bcc = parsed.data.bcc?.trim() || undefined;
 
-  // 下書き専用ヘッダ (宛先情報をメタとして保持)
-  const draftHeaders: Record<string, string> = {};
-  const recipientsMeta = Buffer.from(
-    JSON.stringify({ to: to ?? null, cc: cc ?? null, bcc: bcc ?? null }),
-    'utf8'
-  ).toString('base64');
+    // 下書き専用ヘッダ (宛先情報をメタとして保持)
+    const draftHeaders: Record<string, string> = {};
+    const recipientsMeta = Buffer.from(
+      JSON.stringify({ to: to ?? null, cc: cc ?? null, bcc: bcc ?? null }),
+      'utf8'
+    ).toString('base64');
 
-  draftHeaders['X-Pitamai-Draft-Recipients'] = recipientsMeta;
-  if (to) draftHeaders['X-Draft-To'] = to;
-  if (cc) draftHeaders['X-Draft-Cc'] = cc;
-  if (bcc) draftHeaders['X-Draft-Bcc'] = bcc;
+    draftHeaders['X-Pitamai-Draft-Recipients'] = recipientsMeta;
+    if (to) draftHeaders['X-Draft-To'] = to;
+    if (cc) draftHeaders['X-Draft-Cc'] = cc;
+    if (bcc) draftHeaders['X-Draft-Bcc'] = bcc;
 
-  // メールオプション構築
-  const mailOptions = {
-    from: account.username,
-    sender: account.username,
-    to,
-    cc,
-    bcc,
-    headers: draftHeaders,
-    subject: parsed.data.subject,
-    text: parsed.data.text,
-    html: parsed.data.html,
-    attachments: (parsed.data.attachments ?? []).map(item => ({
-      filename: item.filename,
-      contentType: item.contentType,
-      content: Buffer.from(item.contentBase64, 'base64'),
-    })),
-  };
+    // メールオプション構築
+    const mailOptions = {
+      from: account.username,
+      sender: account.username,
+      to,
+      cc,
+      bcc,
+      headers: draftHeaders,
+      subject: parsed.data.subject,
+      text: parsed.data.text,
+      html: parsed.data.html,
+      attachments: (parsed.data.attachments ?? []).map(item => ({
+        filename: item.filename,
+        contentType: item.contentType,
+        content: Buffer.from(item.contentBase64, 'base64'),
+      })),
+    };
 
-  // MIME生成・下書きフォルダに追加
-  const rawMessage = await new MailComposer(mailOptions).compile().build();
-  const result = await appendToDraftMailbox({
-    account,
-    rawMessage,
-  });
-
-  if (!result.stored) {
-    throw createError({
-      statusCode: 400,
-      message: '下書きフォルダ(draft)が見つかりませんでした。',
+    // MIME生成・下書きフォルダに追加
+    const rawMessage = await new MailComposer(mailOptions).compile().build();
+    const result = await appendToDraftMailbox({
+      account,
+      rawMessage,
     });
-  }
 
-  return {
-    ok: true,
-    stored: result.stored,
-    mailbox: result.mailbox,
-  };
+    if (!result.stored) {
+      throw createError({
+        statusCode: 400,
+        message: '下書きフォルダ(draft)が見つかりませんでした。',
+      });
+    }
+
+    return {
+      ok: true,
+      stored: result.stored,
+      mailbox: result.mailbox,
+    };
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      logger.error(e, 'Mail draft save error');
+      throw createError({
+        statusCode: 400,
+        message: '下書き保存に失敗しました',
+        cause: e,
+      });
+    }
+  }
+  throw createError({ statusCode: 500, message: 'Internal Server Error' });
 });

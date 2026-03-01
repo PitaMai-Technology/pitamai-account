@@ -7,6 +7,7 @@
  */
 import { createError, getQuery } from 'h3';
 import { z } from 'zod';
+import { logger } from '~~/server/utils/logger';
 import { requireMailAccountForUser } from '~~/server/utils/mail-account';
 import {
   getMessagesWithCacheFallback,
@@ -22,51 +23,63 @@ const querySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
-  // パラメータ検証
-  const parsed = querySchema.safeParse(getQuery(event));
+  try {
+    // パラメータ検証
+    const parsed = querySchema.safeParse(getQuery(event));
 
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 422,
-      message: 'Validation Error',
+    if (!parsed.success) {
+      throw createError({
+        statusCode: 422,
+        message: 'Validation Error',
+      });
+    }
+
+    // アカウント解決
+    const account = await requireMailAccountForUser({
+      event,
+      accountId: parsed.data.accountId,
     });
-  }
 
-  // アカウント解決
-  const account = await requireMailAccountForUser({
-    event,
-    accountId: parsed.data.accountId,
-  });
+    // forceSync による振り分け
+    const result = parsed.data.forceSync
+      ? await (async () => {
+          const synced = await syncFolderMessages({
+            account,
+            folder: parsed.data.folder,
+            limit: parsed.data.limit,
+          });
 
-  // forceSync による振り分け
-  const result = parsed.data.forceSync
-    ? await (async () => {
-        const synced = await syncFolderMessages({
+          return {
+            source: 'imap' as const,
+            strategy: synced.strategy,
+            messages: synced.messages,
+            cachedCount: 0,
+          };
+        })()
+      : await getMessagesWithCacheFallback({
           account,
           folder: parsed.data.folder,
           limit: parsed.data.limit,
         });
 
-        return {
-          source: 'imap' as const,
-          strategy: synced.strategy,
-          messages: synced.messages,
-          cachedCount: 0,
-        };
-      })()
-    : await getMessagesWithCacheFallback({
-        account,
-        folder: parsed.data.folder,
-        limit: parsed.data.limit,
+    // 結果返却
+    return {
+      accountId: account.id,
+      folder: parsed.data.folder,
+      source: result.source,
+      strategy: result.strategy,
+      cachedCount: result.cachedCount,
+      messages: result.messages,
+    };
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      logger.error(e, 'Mail messages list error');
+      throw createError({
+        statusCode: 400,
+        message: 'メッセージ一覧の取得に失敗しました',
+        cause: e,
       });
-
-  // 結果返却
-  return {
-    accountId: account.id,
-    folder: parsed.data.folder,
-    source: result.source,
-    strategy: result.strategy,
-    cachedCount: result.cachedCount,
-    messages: result.messages,
-  };
+    }
+  }
+  throw createError({ statusCode: 500, message: 'Internal Server Error' });
 });

@@ -6,6 +6,7 @@
  */
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
+import { logger } from '~~/server/utils/logger';
 import { listMailboxes, renameCustomMailbox } from '~~/server/utils/imap';
 import { requireMailAccountForUser } from '~~/server/utils/mail-account';
 
@@ -16,28 +17,40 @@ const bodySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
-  // ユーザーのメールアカウントを取得
-  const account = await requireMailAccountForUser({ event });
-  const body = await readBody(event);
+  try {
+    // ユーザーのメールアカウントを取得
+    const account = await requireMailAccountForUser({ event });
+    const body = await readBody(event);
 
-  // バリデーション
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
-    throw createError({ statusCode: 422, message: 'Validation Error' });
+    // バリデーション
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw createError({ statusCode: 422, message: 'Validation Error' });
+    }
+
+    // フォルダ名変更実行
+    await renameCustomMailbox({
+      account,
+      path: parsed.data.path,
+      newName: parsed.data.newName,
+    });
+
+    // 更新後リストを返す
+    const mailboxes = await listMailboxes(account);
+
+    return {
+      ok: true,
+      mailboxes,
+    };
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      logger.error(e, 'Mail folder rename error');
+      throw createError({
+        statusCode: 400,
+        message: 'フォルダ名変更に失敗しました',
+        cause: e,
+      });
+    }
   }
-
-  // フォルダ名変更実行
-  await renameCustomMailbox({
-    account,
-    path: parsed.data.path,
-    newName: parsed.data.newName,
-  });
-
-  // 更新後リストを返す
-  const mailboxes = await listMailboxes(account);
-
-  return {
-    ok: true,
-    mailboxes,
-  };
+  throw createError({ statusCode: 500, message: 'Internal Server Error' });
 });
