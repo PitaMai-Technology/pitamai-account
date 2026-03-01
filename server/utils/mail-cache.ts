@@ -152,7 +152,6 @@ function joinFrom(fromName: string | null, fromAddress: string | null) {
  * - CachedMailListItem の配列（日付新順）
  *
  * 注意：
- * - inReplyTo と references は常に null/[] を返す（キャッシュでは保有していないため）
  * - seen は常に false（キャッシュの `seen` フラグは未実装）
  */
 export async function getCachedMessages(params: {
