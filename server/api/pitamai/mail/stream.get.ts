@@ -56,12 +56,30 @@ export default defineEventHandler(async event => {
 
   let lock: Awaited<ReturnType<typeof client.getMailboxLock>> | null = null;
   let existsCount = 0;
+  let lastEmittedExistsCount = 0;
   let closed = false;
   let cleanedUp = false;
   let heartbeatInFlight = false;
   let lastExistsAtMs = Date.now();
 
   const emitNewMail = (nextCount: number, previousExists: number) => {
+    // 同じ件数（または過去件数）での重複通知を抑止する。
+    if (nextCount <= lastEmittedExistsCount) {
+      logger.debug(
+        {
+          op: 'mail.sse.new_mail.skip_duplicate',
+          accountId: account.id,
+          folder: parsed.data.folder,
+          nextCount,
+          lastEmittedExistsCount,
+        },
+        'Skip duplicate new-mail emission'
+      );
+      return;
+    }
+
+    lastEmittedExistsCount = nextCount;
+
     const detectedAtIso = new Date().toISOString();
 
     stream.push({
@@ -309,6 +327,7 @@ export default defineEventHandler(async event => {
     // getMailboxLock が内部で SELECT するため mailboxOpen は不要
     const mb = client.mailbox;
     existsCount = mb ? mb.exists : 0;
+    lastEmittedExistsCount = existsCount;
 
     client.on('exists', onExists);
     client.on('close', onClose);
