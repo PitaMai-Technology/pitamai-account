@@ -115,7 +115,7 @@ function broadcast(watcher: Watcher, event: MailRealtimeEvent) {
  * @returns {Promise<void>} 完了時に解決する Promise
  */
 async function runWatcher(watcher: Watcher) {
-  const client = createImapClient(watcher.account);
+  const client = await createImapClient(watcher.account);
   let lock: Awaited<ReturnType<typeof client.getMailboxLock>> | null = null;
 
   try {

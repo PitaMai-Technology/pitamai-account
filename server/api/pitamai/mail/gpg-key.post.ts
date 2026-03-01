@@ -89,7 +89,7 @@ export default defineEventHandler(async event => {
   }
 
   // 秘密鍵を暗号化
-  const encrypted = encryptGpgPrivateKey(privateKey);
+  const encrypted = await encryptGpgPrivateKey(privateKey);
 
   // DB に upsert
   const record = await prisma.userGpgKey.upsert({

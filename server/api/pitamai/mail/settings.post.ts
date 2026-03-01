@@ -61,10 +61,10 @@ export default defineEventHandler(async event => {
   }
 
   // パスワードがあれば暗号化（設定が間違っていると例外）
-  let encrypted: ReturnType<typeof encryptMailPassword> | null = null;
+  let encrypted: Awaited<ReturnType<typeof encryptMailPassword>> | null = null;
   if (parsed.data.password) {
     try {
-      encrypted = encryptMailPassword(parsed.data.password);
+      encrypted = await encryptMailPassword(parsed.data.password);
     } catch {
       throw createError({
         statusCode: 500,

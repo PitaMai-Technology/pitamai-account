@@ -17,15 +17,11 @@
  * - 認証タグ: 改ざん検知
  */
 
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  scryptSync,
-} from 'node:crypto';
-
-// 暗号化アルゴリズムと IV 長を定義
-const ALGORITHM = 'aes-256-gcm';
+const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_HASH = 'SHA-256';
+const PBKDF2_SALT = 'pitamai-mail-credential';
+const TAG_LENGTH = 16;
+const encoder = new TextEncoder();
 
 const IV_LENGTH = 12;
 
@@ -69,7 +65,16 @@ export type EncryptedMailPassword = {
  * - パフォーマンス：毎回 scryptSync が実行されるため、複数呼び出しは避ける
  * - 将来的には、キー導出結果をキャッシュする実装も検討
  */
-function resolveSecretKey(): Buffer {
+function getWebCrypto() {
+  const webCrypto = globalThis.crypto;
+  if (!webCrypto?.subtle) {
+    throw new Error('Web Crypto API is not available in this runtime');
+  }
+
+  return webCrypto;
+}
+
+async function resolveSecretKey() {
   const rawSecret =
     process.env.MAIL_CREDENTIAL_SECRET || process.env.BETTER_AUTH_SECRET;
 
@@ -79,7 +84,30 @@ function resolveSecretKey(): Buffer {
     );
   }
 
-  return scryptSync(rawSecret, 'pitamai-mail-credential', 32);
+  const webCrypto = getWebCrypto();
+  const imported = await webCrypto.subtle.importKey(
+    'raw',
+    encoder.encode(rawSecret),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return webCrypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      hash: PBKDF2_HASH,
+      iterations: PBKDF2_ITERATIONS,
+      salt: encoder.encode(PBKDF2_SALT),
+    },
+    imported,
+    {
+      name: 'AES-GCM',
+      length: 256,
+    },
+    false,
+    ['encrypt', 'decrypt']
+  );
 }
 
 /**
@@ -106,22 +134,31 @@ function resolveSecretKey(): Buffer {
  * - IV はランダムでユニークなため、同じパスワードでも毎回異なる密文が生成
  * - 認証タグにより改ざん検知が可能
  */
-export function encryptMailPassword(
+export async function encryptMailPassword(
   plainPassword: string
-): EncryptedMailPassword {
-  const iv = randomBytes(IV_LENGTH);
-  const key = resolveSecretKey();
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+): Promise<EncryptedMailPassword> {
+  const webCrypto = getWebCrypto();
+  const iv = webCrypto.getRandomValues(new Uint8Array(IV_LENGTH));
+  const key = await resolveSecretKey();
+  const encryptedWithTag = new Uint8Array(
+    await webCrypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+        tagLength: 128,
+      },
+      key,
+      encoder.encode(plainPassword)
+    )
+  );
 
-  const encrypted = Buffer.concat([
-    cipher.update(plainPassword, 'utf8'),
-    cipher.final(),
-  ]);
+  const ciphertext = encryptedWithTag.slice(0, -TAG_LENGTH);
+  const authTag = encryptedWithTag.slice(-TAG_LENGTH);
 
   return {
-    ciphertext: encrypted.toString('base64'),
-    iv: iv.toString('base64'),
-    authTag: cipher.getAuthTag().toString('base64'),
+    ciphertext: Buffer.from(ciphertext).toString('base64'),
+    iv: Buffer.from(iv).toString('base64'),
+    authTag: Buffer.from(authTag).toString('base64'),
   };
 }
 
@@ -148,18 +185,28 @@ export function encryptMailPassword(
  * - 認証タグが一致しない場合（改ざん検知）→ 例外スロー
  * - base64 デコードエラー → 例外スロー
  */
-export function decryptMailPassword(payload: EncryptedMailPassword): string {
-  const key = resolveSecretKey();
+export async function decryptMailPassword(
+  payload: EncryptedMailPassword
+): Promise<string> {
+  const webCrypto = getWebCrypto();
+  const key = await resolveSecretKey();
+
   const iv = Buffer.from(payload.iv, 'base64');
   const authTag = Buffer.from(payload.authTag, 'base64');
-  const encrypted = Buffer.from(payload.ciphertext, 'base64');
+  const ciphertext = Buffer.from(payload.ciphertext, 'base64');
+  const encryptedWithTag = new Uint8Array(ciphertext.length + authTag.length);
+  encryptedWithTag.set(ciphertext, 0);
+  encryptedWithTag.set(authTag, ciphertext.length);
 
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
+  const decrypted = await webCrypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv,
+      tagLength: 128,
+    },
+    key,
+    encryptedWithTag
+  );
 
-  const decrypted = Buffer.concat([
-    decipher.update(encrypted),
-    decipher.final(),
-  ]);
-  return decrypted.toString('utf8');
+  return new TextDecoder().decode(decrypted);
 }

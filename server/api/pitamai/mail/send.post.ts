@@ -246,7 +246,7 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const armoredPrivateKey = decryptGpgPrivateKey({
+    const armoredPrivateKey = await decryptGpgPrivateKey({
       ciphertext: gpgRecord.encryptedPrivateKey,
       iv: gpgRecord.encryptionIv,
       authTag: gpgRecord.encryptionAuthTag,
@@ -357,7 +357,7 @@ export default defineEventHandler(async event => {
   }
 
   // SMTP 送信用パスワード復号とトランスポーター生成
-  const password = decryptMailPassword({
+  const password = await decryptMailPassword({
     ciphertext: account.encryptedPassword,
     iv: account.encryptionIv,
     authTag: account.encryptionAuthTag,

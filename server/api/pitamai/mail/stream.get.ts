@@ -40,7 +40,7 @@ export default defineEventHandler(async event => {
   // デフォルト (false) のままだと、下の idleLoop の明示的 idle() と
   // auto-IDLE が競合し、EXISTS 後の IDLE 再エントリーが
   // サーバー側タイムアウト（30秒〜）待ちなって遅延が生じる。
-  const password = decryptMailPassword({
+  const password = await decryptMailPassword({
     ciphertext: account.encryptedPassword,
     iv: account.encryptionIv,
     authTag: account.encryptionAuthTag,
