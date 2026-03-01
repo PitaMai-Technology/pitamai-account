@@ -30,6 +30,8 @@ model MailCache {
   folder        String
   uid           Int
   messageId     String?
+  inReplyTo     String?
+  threadRefs    String[]    @default([])
   fromName      String?
   fromAddress   String?
   subject       String?
