@@ -1,8 +1,14 @@
-import { createError, defineEventHandler, getHeader, readBody } from 'h3';
+import {
+  createError,
+  defineEventHandler,
+  getHeader,
+  getRequestIP,
+  readBody,
+} from 'h3';
 import { generateId } from 'better-auth';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
-import { logAuditWithSession } from '~~/server/utils/audit';
+import { recordAuditLog } from '~~/server/utils/audit';
 import { logger } from '~~/server/utils/logger';
 
 const setupOwnerSchema = z.object({
@@ -12,26 +18,62 @@ const setupOwnerSchema = z.object({
 
 type TurnstileVerifyResponse = {
   success: boolean;
+  hostname?: string;
+  action?: string;
   'error-codes'?: string[];
 };
 
-async function verifyTurnstileToken(token: string, secretKey: string) {
+async function verifyTurnstileToken(
+  token: string,
+  secretKey: string,
+  remoteIp?: string
+) {
   const form = new URLSearchParams();
   form.set('secret', secretKey);
   form.set('response', token);
+  if (remoteIp) {
+    form.set('remoteip', remoteIp);
+  }
 
-  const response = await $fetch<TurnstileVerifyResponse>(
-    'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-      },
-      body: form.toString(),
+  try {
+    const response = await $fetch<TurnstileVerifyResponse>(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body: form.toString(),
+      }
+    );
+
+    if (!response.success) {
+      logger.warn(
+        {
+          errorCodes: response['error-codes'],
+        },
+        'Turnstile verification failed'
+      );
     }
-  );
 
-  return response.success;
+    return response;
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        token: token.substring(0, 20) + '...',
+      },
+      'Turnstile API call failed'
+    );
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'Turnstile verification upstream failed',
+      data: {
+        reason: 'TURNSTILE_UPSTREAM_ERROR',
+      },
+      cause: error,
+    });
+  }
 }
 
 export default defineEventHandler(async event => {
@@ -53,11 +95,20 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const captchaVerified = await verifyTurnstileToken(captchaToken, secretKey);
-    if (!captchaVerified) {
+    const remoteIp = getRequestIP(event, { xForwardedFor: true }) ?? undefined;
+    const turnstile = await verifyTurnstileToken(
+      captchaToken,
+      secretKey,
+      remoteIp
+    );
+    if (!turnstile.success) {
       throw createError({
         statusCode: 403,
-        message: 'Captcha 検証に失敗しました',
+        statusMessage: 'Captcha verification failed',
+        data: {
+          reason: 'TURNSTILE_VERIFICATION_FAILED',
+          errorCodes: turnstile['error-codes'] ?? [],
+        },
       });
     }
 
@@ -103,13 +154,15 @@ export default defineEventHandler(async event => {
         },
       });
 
-      await logAuditWithSession(event, {
+      await recordAuditLog({
+        userId: updated.id,
         action: 'SETUP_OWNER_UPDATE',
         targetId: updated.id,
         details: {
           email: updated.email,
           created: false,
         },
+        event,
       });
 
       return {
@@ -130,13 +183,15 @@ export default defineEventHandler(async event => {
       },
     });
 
-    await logAuditWithSession(event, {
+    await recordAuditLog({
+      userId: user.id,
       action: 'SETUP_OWNER_CREATE',
       targetId: user.id,
       details: {
         email: user.email,
         created: true,
       },
+      event,
     });
 
     return {
@@ -146,10 +201,22 @@ export default defineEventHandler(async event => {
     };
   } catch (e: unknown) {
     logger.error(e, 'setup owner error');
+    if (
+      e &&
+      typeof e === 'object' &&
+      'statusCode' in e &&
+      typeof (e as { statusCode?: unknown }).statusCode === 'number'
+    ) {
+      throw e;
+    }
+
     if (e instanceof Error) {
       throw createError({
-        statusCode: 400,
-        message: e.message,
+        statusCode: 500,
+        statusMessage: 'Setup owner failed',
+        data: {
+          message: e.message,
+        },
         cause: e,
       });
     }
