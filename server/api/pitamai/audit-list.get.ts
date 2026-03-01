@@ -53,6 +53,9 @@ export default defineEventHandler(async event => {
   // 全体検索: action, targetId, user.email, user.name を対象に検索
   const search = query.search?.trim();
   if (search) {
+    // NOTE: Prisma の `mode: 'insensitive'` は PostgreSQL などでのみサポートされる。
+    // このプロジェクトは SQLite から PostgreSQL に移行済みであり、意図的に
+    // 大文字小文字を区別しない検索を行っている。
     const searchConditions = [
       { action: { contains: search, mode: 'insensitive' as const } },
       { targetId: { contains: search, mode: 'insensitive' as const } },
