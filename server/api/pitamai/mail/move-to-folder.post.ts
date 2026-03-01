@@ -5,6 +5,7 @@
  */
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
+import { logger } from '~~/server/utils/logger';
 import { requireMailAccountForUser } from '~~/server/utils/mail-account';
 import { moveMessageToFolder } from '~~/server/utils/imap';
 
@@ -16,23 +17,35 @@ const bodySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
-  // 認証アカウント取得
-  const account = await requireMailAccountForUser({ event });
-  const body = await readBody(event);
+  try {
+    // 認証アカウント取得
+    const account = await requireMailAccountForUser({ event });
+    const body = await readBody(event);
 
-  // バリデーション
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
-    throw createError({ statusCode: 422, message: 'Validation Error' });
+    // バリデーション
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw createError({ statusCode: 422, message: 'Validation Error' });
+    }
+
+    // フォルダ移動
+    const result = await moveMessageToFolder({
+      account,
+      fromFolder: parsed.data.fromFolder,
+      toFolder: parsed.data.toFolder,
+      uid: parsed.data.uid,
+    });
+
+    return { ok: true, result };
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      logger.error(e, 'Mail message move error');
+      throw createError({
+        statusCode: 400,
+        message: 'メッセージの移動に失敗しました',
+        cause: e,
+      });
+    }
   }
-
-  // フォルダ移動
-  const result = await moveMessageToFolder({
-    account,
-    fromFolder: parsed.data.fromFolder,
-    toFolder: parsed.data.toFolder,
-    uid: parsed.data.uid,
-  });
-
-  return { ok: true, result };
+  throw createError({ statusCode: 500, message: 'Internal Server Error' });
 });

@@ -7,6 +7,7 @@
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
+import { logger } from '~~/server/utils/logger';
 import { requireSessionUser } from '~~/server/utils/mail-account';
 import { simpleParser } from 'mailparser';
 import {
@@ -21,48 +22,48 @@ const bodySchema = z.object({
 });
 
 export default defineEventHandler(async event => {
-  // セッションユーザー取得
-  const user = await requireSessionUser(event);
-  const body = await readBody(event);
-
-  // バリデーション
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
-    throw createError({ statusCode: 422, message: 'Validation Error' });
-  }
-
-  // PGP 暗号化テキストか確認
-  if (!isPgpEncryptedText(parsed.data.text)) {
-    return {
-      decrypted: false,
-      reason: 'PGP 暗号化メッセージではありません',
-      text: parsed.data.text,
-      html: null,
-      hasAttachments: false,
-    };
-  }
-
-  // ユーザー秘密鍵記録を取得
-  const gpgRecord = await prisma.userGpgKey.findUnique({
-    where: { userId: user.id },
-    select: {
-      encryptedPrivateKey: true,
-      encryptionIv: true,
-      encryptionAuthTag: true,
-    },
-  });
-
-  if (!gpgRecord) {
-    return {
-      decrypted: false,
-      reason: '秘密鍵が登録されていないため復号できません',
-      text: parsed.data.text,
-      html: null,
-      hasAttachments: false,
-    };
-  }
-
   try {
+    // セッションユーザー取得
+    const user = await requireSessionUser(event);
+    const body = await readBody(event);
+
+    // バリデーション
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw createError({ statusCode: 422, message: 'Validation Error' });
+    }
+
+    // PGP 暗号化テキストか確認
+    if (!isPgpEncryptedText(parsed.data.text)) {
+      return {
+        decrypted: false,
+        reason: 'PGP 暗号化メッセージではありません',
+        text: parsed.data.text,
+        html: null,
+        hasAttachments: false,
+      };
+    }
+
+    // ユーザー秘密鍵記録を取得
+    const gpgRecord = await prisma.userGpgKey.findUnique({
+      where: { userId: user.id },
+      select: {
+        encryptedPrivateKey: true,
+        encryptionIv: true,
+        encryptionAuthTag: true,
+      },
+    });
+
+    if (!gpgRecord) {
+      return {
+        decrypted: false,
+        reason: '秘密鍵が登録されていないため復号できません',
+        text: parsed.data.text,
+        html: null,
+        hasAttachments: false,
+      };
+    }
+
     // 秘密鍵復号
     const armoredPrivateKey = await decryptGpgPrivateKey({
       ciphertext: gpgRecord.encryptedPrivateKey,
@@ -99,14 +100,15 @@ export default defineEventHandler(async event => {
       html: finalHtml,
       hasAttachments,
     };
-  } catch (e) {
-    // 復号エラーの戻り値
-    return {
-      decrypted: false,
-      reason: e instanceof Error ? e.message : '復号に失敗しました',
-      text: parsed.data.text,
-      html: null,
-      hasAttachments: false,
-    };
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      logger.error(e, 'GPG decrypt error');
+      throw createError({
+        statusCode: 400,
+        message: 'メッセージ復号に失敗しました',
+        cause: e,
+      });
+    }
   }
+  throw createError({ statusCode: 500, message: 'Internal Server Error' });
 });

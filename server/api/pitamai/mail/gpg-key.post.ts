@@ -9,6 +9,7 @@
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
+import { logger } from '~~/server/utils/logger';
 import {
   requireMailAccountForUser,
   requireSessionUser,
@@ -33,92 +34,104 @@ const bodySchema = z.discriminatedUnion('action', [
 ]);
 
 export default defineEventHandler(async event => {
-  // ユーザー・アカウント情報を取得
-  const user = await requireSessionUser(event);
-  const account = await requireMailAccountForUser({ event });
-  const gpgIdentityEmail = account.username.trim();
-  const body = await readBody(event);
+  try {
+    // ユーザー・アカウント情報を取得
+    const user = await requireSessionUser(event);
+    const account = await requireMailAccountForUser({ event });
+    const gpgIdentityEmail = account.username.trim();
+    const body = await readBody(event);
 
-  // バリデーション
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 422,
-      message: '形式(バリデーション)が違います',
-    });
-  }
-
-  let publicKey: string;
-  let privateKey: string;
-  let fingerprint: string;
-
-  if (parsed.data.action === 'generate') {
-    // 鍵ペア生成
-    const kp = await generateGpgKeyPair({
-      name: parsed.data.name,
-      email: gpgIdentityEmail,
-    });
-    publicKey = kp.publicKey;
-    privateKey = kp.privateKey;
-    fingerprint = kp.fingerprint;
-  } else {
-    // インポート処理: 公開鍵と秘密鍵のフォーマットチェック
-    try {
-      const pubKey = await openpgp.readKey({
-        armoredKey: parsed.data.publicKey,
-      });
-      fingerprint = pubKey.getFingerprint().toUpperCase();
-    } catch {
+    // バリデーション
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) {
       throw createError({
         statusCode: 422,
-        message: '公開鍵の形式が正しくありません',
+        message: '形式(バリデーション)が違います',
       });
     }
 
-    try {
-      await openpgp.readPrivateKey({ armoredKey: parsed.data.privateKey });
-    } catch {
-      throw createError({
-        statusCode: 422,
-        message: '秘密鍵の形式が正しくありません',
+    let publicKey: string;
+    let privateKey: string;
+    let fingerprint: string;
+
+    if (parsed.data.action === 'generate') {
+      // 鍵ペア生成
+      const kp = await generateGpgKeyPair({
+        name: parsed.data.name,
+        email: gpgIdentityEmail,
       });
+      publicKey = kp.publicKey;
+      privateKey = kp.privateKey;
+      fingerprint = kp.fingerprint;
+    } else {
+      // インポート処理: 公開鍵と秘密鍵のフォーマットチェック
+      try {
+        const pubKey = await openpgp.readKey({
+          armoredKey: parsed.data.publicKey,
+        });
+        fingerprint = pubKey.getFingerprint().toUpperCase();
+      } catch {
+        throw createError({
+          statusCode: 422,
+          message: '公開鍵の形式が正しくありません',
+        });
+      }
+
+      try {
+        await openpgp.readPrivateKey({ armoredKey: parsed.data.privateKey });
+      } catch {
+        throw createError({
+          statusCode: 422,
+          message: '秘密鍵の形式が正しくありません',
+        });
+      }
+
+      publicKey = parsed.data.publicKey;
+      privateKey = parsed.data.privateKey;
     }
 
-    publicKey = parsed.data.publicKey;
-    privateKey = parsed.data.privateKey;
+    // 秘密鍵を暗号化
+    const encrypted = await encryptGpgPrivateKey(privateKey);
+
+    // DB に upsert
+    const record = await prisma.userGpgKey.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        publicKey,
+        encryptedPrivateKey: encrypted.ciphertext,
+        encryptionIv: encrypted.iv,
+        encryptionAuthTag: encrypted.authTag,
+        fingerprint,
+        email: gpgIdentityEmail,
+      },
+      update: {
+        publicKey,
+        encryptedPrivateKey: encrypted.ciphertext,
+        encryptionIv: encrypted.iv,
+        encryptionAuthTag: encrypted.authTag,
+        fingerprint,
+        email: gpgIdentityEmail,
+      },
+      select: {
+        id: true,
+        fingerprint: true,
+        email: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return { ok: true, key: record };
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      logger.error(e, 'GPG key save error');
+      throw createError({
+        statusCode: 400,
+        message: 'GPG鍵の保存に失敗しました',
+        cause: e,
+      });
+    }
   }
-
-  // 秘密鍵を暗号化
-  const encrypted = await encryptGpgPrivateKey(privateKey);
-
-  // DB に upsert
-  const record = await prisma.userGpgKey.upsert({
-    where: { userId: user.id },
-    create: {
-      userId: user.id,
-      publicKey,
-      encryptedPrivateKey: encrypted.ciphertext,
-      encryptionIv: encrypted.iv,
-      encryptionAuthTag: encrypted.authTag,
-      fingerprint,
-      email: gpgIdentityEmail,
-    },
-    update: {
-      publicKey,
-      encryptedPrivateKey: encrypted.ciphertext,
-      encryptionIv: encrypted.iv,
-      encryptionAuthTag: encrypted.authTag,
-      fingerprint,
-      email: gpgIdentityEmail,
-    },
-    select: {
-      id: true,
-      fingerprint: true,
-      email: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-
-  return { ok: true, key: record };
+  throw createError({ statusCode: 500, message: 'Internal Server Error' });
 });
