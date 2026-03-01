@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
-import { assertHasAnyPermission } from '~~/server/utils/authorize';
 import { AuditListQuerySchema } from '~~/shared/types/audit-list';
 import { auth } from '~~/server/utils/auth';
 
@@ -52,23 +51,22 @@ export default defineEventHandler(async event => {
   }
 
   // 全体検索: action, targetId, user.email, user.name を対象に検索
-  // NOTE: datasource が sqlite のため、Prisma の QueryMode.insensitive は利用できない
   const search = query.search?.trim();
   if (search) {
     const searchConditions = [
-      { action: { contains: search } },
-      { targetId: { contains: search } },
+      { action: { contains: search, mode: 'insensitive' as const } },
+      { targetId: { contains: search, mode: 'insensitive' as const } },
       {
         user: {
           is: {
-            email: { contains: search },
+            email: { contains: search, mode: 'insensitive' as const },
           },
         },
       },
       {
         user: {
           is: {
-            name: { contains: search },
+            name: { contains: search, mode: 'insensitive' as const },
           },
         },
       },

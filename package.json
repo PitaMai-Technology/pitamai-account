@@ -8,8 +8,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "generate:better-auth": "pnpx @better-auth/cli generate --config server/utils/auth.ts",
-    "migration:better-auth": "pnpx @better-auth/cli migrate --config server/utils/auth.ts",
+    "generate:better-auth": "npx @better-auth/cli generate --config server/utils/auth.ts",
+    "migration:better-auth": "npx @better-auth/cli migrate --config server/utils/auth.ts",
     "generate:prisma": "pnpm exec prisma generate --schema ./prisma",
     "migration:prisma": "pnpm exec prisma migrate dev --schema ./prisma",
     "format": "prettier --write .",
@@ -23,9 +23,10 @@
     "@prisma/client": "^6.19.2",
     "@sentry/nuxt": "^10.39.0",
     "@sentry/vite-plugin": "^4.9.1",
+    "@types/nodemailer": "^7.0.11",
     "@vue-dnd-kit/core": "1.7.0",
     "@vueuse/core": "^14.2.1",
-    "better-auth": "^1.4.18",
+    "better-auth": "^1.5.0",
     "better-sqlite3": "^12.6.2",
     "eslint": "^9.39.3",
     "imapflow": "^1.2.10",
@@ -42,8 +43,7 @@
     "uuid": "^13.0.0",
     "vue": "^3.5.28",
     "vue-router": "^4.6.4",
-    "zod": "^4.3.6",
-    "@types/nodemailer": "^7.0.11"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@nuxt/icon": "^2.2.1",
