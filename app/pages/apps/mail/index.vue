@@ -20,6 +20,8 @@ type MailAccountItem = {
 };
 
 const toast = useToast();
+const route = useRoute();
+const router = useRouter();
 const mailStore = useMailStore();
 const mailApi = useMailApi();
 const confirmStore = useConfirmDialogStore();
@@ -159,6 +161,24 @@ const messageCcValue = computed(() => {
   if (currentMail.value?.uid !== selectedUid.value) return '-';
   return currentMail.value?.cc || '-';
 });
+
+function getQueryFolderParam() {
+  const queryFolder = route.query.f;
+  if (typeof queryFolder !== 'string') return null;
+  const normalized = queryFolder.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function applyFolderFromQuery() {
+  const queryFolder = getQueryFolderParam();
+  if (!queryFolder) return;
+
+  const exists = folders.value.some(folder => folder.path === queryFolder);
+  if (!exists) return;
+  if (activeFolderPath.value === queryFolder) return;
+
+  mailStore.setActiveFolder(queryFolder);
+}
 
 function extractReplyToAddress(fromValue: string | null) {
   if (!fromValue) return '';
@@ -469,15 +489,35 @@ watch(hasMailSetting, async enabled => {
 
   await checkMailConnectivity();
   await loadFolders();
+  applyFolderFromQuery();
   await loadMessages({ markOpenedAsRead: false, notifyIfNew: false });
   startRealtimeStream();
 }, { immediate: true });
 
 watch(activeFolderPath, async () => {
   if (!hasMailSetting.value) return;
+
+  const currentQueryFolder = getQueryFolderParam();
+  if (currentQueryFolder !== activeFolderPath.value) {
+    await router.replace({
+      query: {
+        ...route.query,
+        f: activeFolderPath.value,
+      },
+    });
+  }
+
   searchQuery.value = '';
   await loadMessages({ markOpenedAsRead: false, notifyIfNew: false });
 });
+
+watch(
+  () => route.query.f,
+  () => {
+    if (!hasMailSetting.value) return;
+    applyFolderFromQuery();
+  }
+);
 
 onMounted(async () => {
   await loadAccounts();
