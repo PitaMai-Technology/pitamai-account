@@ -261,14 +261,16 @@ export default defineEventHandler(async event => {
       preferredEmail,
     };
   } catch (e: unknown) {
-    if (e instanceof Error) {
-      logger.error(e, 'GPG key publish error');
-      throw createError({
-        statusCode: 400,
-        message: '公開鍵の公開申請に失敗しました',
-        cause: e,
-      });
+    // H3Error（createErrorで作成されたエラー）はそのまま再スロー
+    if (e && typeof e === 'object' && 'statusCode' in e) {
+      throw e;
     }
+    // 予期しないエラーのみログ出力して500を返す
+    logger.error({ err: e }, 'GPG key publish unexpected error');
+    throw createError({
+      statusCode: 500,
+      message: '公開鍵の公開申請中に予期しないエラーが発生しました',
+      cause: e instanceof Error ? e : undefined,
+    });
   }
-  throw createError({ statusCode: 500, message: 'Internal Server Error' });
 });
