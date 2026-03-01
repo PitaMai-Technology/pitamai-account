@@ -113,7 +113,7 @@ const recipientTypeModel = computed({
           <UCheckbox v-model="composeState.sign" label="PGP署名して送信" />
           <p class="text-xs text-gray-500">署名するには設定ページで GPG 鍵ペアを作成してください。</p>
           <UCheckbox v-model="composeState.encrypt" label="受信者公開鍵で暗号化して送信" />
-          <p class="text-xs text-gray-500">暗号化するには、"宛先ユーザー"の公開鍵が外部システム(keys.openpgp.org)に登録されている必要があります。</p>
+          <p class="text-xs text-gray-500">暗号化するには、"宛先ユーザー"の公開鍵が外部システム( keys.openpgp.org )に登録されている必要があります。</p>
         </UPageCard>
       </div>
     </template>

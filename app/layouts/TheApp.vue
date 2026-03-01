@@ -41,10 +41,10 @@ if (import.meta.client) {
     <UDashboardGroup storage="local" storage-key="dashboard-layout">
       <AppPageAside />
 
-      <UDashboardPanel id="standard" class="bg-emerald-50">
+      <UDashboardPanel id="standard" class="bg-emerald-50 dark:bg-gray-800">
         <template #header>
           <UDashboardNavbar class="lg:hidden" />
-          <UDashboardToolbar class="hidden lg:flex bg-white py-6">
+          <UDashboardToolbar class="hidden lg:flex bg-white dark:bg-gray-600 py-6">
             <template #left>
               <UButton icon="i-lucide-home" to="/apps/dashboard" variant="ghost" color="neutral">
                 ダッシュボード
@@ -61,7 +61,7 @@ if (import.meta.client) {
         </template>
 
         <template #body>
-          <div>
+          <div class="dark:text-gray-100">
             <slot />
           </div>
         </template>
@@ -69,11 +69,11 @@ if (import.meta.client) {
     </UDashboardGroup>
 
     <!-- セッションが保留中の場合のオーバーレイローダー -->
-    <div v-if="session.isPending" class="fixed inset-0 z-50 grid place-items-center bg-white/70" aria-busy="true"
-      aria-live="polite">
+    <div v-if="session.isPending" class="fixed inset-0 z-50 grid place-items-center bg-white/70 dark:bg-gray-900/80"
+      aria-busy="true" aria-live="polite">
       <div class="text-center">
         <AppThinkingLoading />
-        <h1 class="text-4xl mt-8 font-bold">読み込み中...</h1>
+        <h1 class="text-4xl mt-8 font-bold dark:text-gray-100">読み込み中...</h1>
       </div>
     </div>
   </div>

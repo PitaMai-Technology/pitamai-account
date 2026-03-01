@@ -323,25 +323,28 @@ watch(
   <UCard class="lg:col-span-7">
     <template #header>
       <div class="flex gap-2 mb-2">
-        <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail" @click="emit('toggleSeen')">
+        <UButton size="xs" :icon="selectedSeen ? 'i-lucide-eye-off' : 'i-lucide-eye'" color="neutral" variant="outline"
+          :disabled="!hasSelectedMail" @click="emit('toggleSeen')">
           {{ selectedSeen ? '未読にする' : '既読にする' }}
         </UButton>
-        <UButton size="xs" color="neutral" variant="outline" :disabled="!hasSelectedMail"
+        <UButton size="xs" icon="i-lucide-archive" color="neutral" variant="outline" :disabled="!hasSelectedMail"
           @click="emit('move', 'archive')">
           アーカイブ
         </UButton>
-        <UButton size="xs" color="error" variant="outline" :disabled="!hasSelectedMail" @click="emit('move', 'trash')">
+        <UButton size="xs" icon="i-lucide-trash-2" color="error" variant="outline" :disabled="!hasSelectedMail"
+          @click="emit('move', 'trash')">
           削除
         </UButton>
-        <UButton v-if="isDraftFolder" size="xs" color="primary" variant="outline" :disabled="!hasSelectedMail"
-          @click="emit('useDraftCompose')">
+        <UButton v-if="isDraftFolder" size="xs" icon="i-lucide-send" color="primary" variant="outline"
+          :disabled="!hasSelectedMail" @click="emit('useDraftCompose')">
           下書きから送信
         </UButton>
-        <UButton v-if="isTrashFolder" size="xs" color="success" variant="outline" :disabled="!hasSelectedMail"
-          @click="emit('move', 'inbox')">
+        <UButton v-if="isTrashFolder" size="xs" icon="i-lucide-arrow-left" color="success" variant="outline"
+          :disabled="!hasSelectedMail" @click="emit('move', 'inbox')">
           戻す
         </UButton>
-        <UButton size="xs" color="primary" variant="outline" :disabled="!hasSelectedMail" @click="emit('reply')">
+        <UButton size="xs" icon="i-lucide-reply" color="primary" variant="outline" :disabled="!hasSelectedMail"
+          @click="emit('reply')">
           返信
         </UButton>
       </div>
