@@ -9,6 +9,7 @@
 export const useConfirmDialogStore = defineStore('confirmDialog', () => {
   const open = ref(false);
   const message = ref('');
+  const title = ref('確認');
 
   // Promise の resolve 関数をストア内に保持（非リアクティブ）
   let resolveFn: ((value: boolean) => void) | null = null;
@@ -16,9 +17,13 @@ export const useConfirmDialogStore = defineStore('confirmDialog', () => {
   /**
    * 確認ダイアログを開き、ユーザーの選択結果を Promise で返します。
    */
-  function confirm(customMessage?: string): Promise<boolean> {
-    if (customMessage) {
-      message.value = customMessage;
+  function confirm(
+    customMessage: string,
+    customTitle?: string
+  ): Promise<boolean> {
+    message.value = customMessage;
+    if (customTitle) {
+      title.value = customTitle;
     }
     open.value = true;
     return new Promise(resolve => {
@@ -36,7 +41,9 @@ export const useConfirmDialogStore = defineStore('confirmDialog', () => {
       resolveFn = null;
     }
     open.value = false;
+    message.value = '';
+    title.value = '確認';
   }
 
-  return { open, message, confirm, resolve };
+  return { open, message, title, confirm, resolve };
 });

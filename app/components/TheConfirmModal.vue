@@ -1,41 +1,29 @@
 <script setup lang="ts">
-const props = defineProps<{
-  open: boolean;
-  title?: string;
-  message: string;
-}>();
-
-const emit = defineEmits<{
-  'update:open': [value: boolean];
-  confirm: [];
-  cancel: [];
-}>();
+const confirmStore = useConfirmDialogStore();
+const { open } = storeToRefs(confirmStore);
 
 const model = computed({
-  get: () => props.open,
+  get: () => open.value,
   set: (value: boolean) => {
-    emit('update:open', value);
     if (!value) {
-      emit('cancel');
+      confirmStore.resolve(false);
     }
   },
 });
 
 function onConfirm() {
-  emit('confirm');
-  emit('update:open', false);
+  confirmStore.resolve(true);
 }
 
 function onCancel() {
-  emit('cancel');
-  emit('update:open', false);
+  confirmStore.resolve(false);
 }
 </script>
 
 <template>
-  <UModal v-model:open="model" :title="title ?? '確認'">
+  <UModal v-model:open="model" :title="confirmStore.title">
     <template #body>
-      {{ message }}
+      {{ confirmStore.message }}
     </template>
     <template #footer>
       <div class="flex items-baseline gap-2 justify-end">

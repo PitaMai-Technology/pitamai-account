@@ -1,6 +1,4 @@
 <script setup lang="ts">
-
-import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
@@ -9,9 +7,6 @@ defineProps<{
 }>();
 
 const confirmStore = useConfirmDialogStore();
-const { open: confirmOpen } = storeToRefs(confirmStore);
-const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
-
 const loading = ref(false);
 const toast = useToast();
 const router = useRouter();
@@ -19,7 +14,7 @@ const router = useRouter();
 const onSignOut = async () => {
   loading.value = true;
 
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmStore.confirm('本当にログアウトしますか？');
   if (!confirmed) {
     loading.value = false;
     return;
@@ -55,6 +50,5 @@ const onSignOut = async () => {
     <span v-if="!iconOnly">ログアウト</span>
   </UButton>
 
-  <TheConfirmModal :open="confirmOpen" title="確認" message="本当にログアウトしますか？" @confirm="() => resolveConfirm(true)"
-    @cancel="() => resolveConfirm(false)" />
+  <TheConfirmModal />
 </template>
