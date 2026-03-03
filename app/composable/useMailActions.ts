@@ -132,6 +132,7 @@ export function useMailActions(params: UseMailActionsParams) {
   async function onOpenAttachment(index: number) {
     const activeMail = params.currentMail.value;
     if (!activeMail) return;
+    const folderPath = params.activeFolderPath.value;
 
     if (params.isSpamFolder.value) {
       toast.add({
@@ -153,7 +154,7 @@ export function useMailActions(params: UseMailActionsParams) {
 
     const uid = activeMail.uid;
 
-    const url = `/api/pitamai/mail/attachment?folder=${encodeURIComponent(params.activeFolderPath.value)}&uid=${uid}&index=${index}`;
+    const url = `/api/pitamai/mail/attachment?folder=${encodeURIComponent(folderPath)}&uid=${uid}&index=${index}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
