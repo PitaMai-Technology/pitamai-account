@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div class="bg-gray-900/80 p-4 m-auto w-fit">
+  <div class="bg-gray-900/80 dark:bg-gray-400/20 p-4 m-auto w-fit">
     <UIcon name="i-lucide-loader-circle" class="h-32 w-32 bg-white animate-spin-fast text-primary" />
   </div>
 </template>

@@ -554,13 +554,13 @@ onMounted(async () => {
       <div class="mt-4 space-y-4">
         <div class="rounded border border-gray-200 p-4">
           <h2 class="text-lg font-semibold">メール認証</h2>
-          <p class="mt-2 text-sm text-gray-600">
+          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
             現在の状態:
             <span class="font-medium" :class="isEmailVerified ? 'text-green-700' : 'text-amber-700'">
               {{ isEmailVerified ? '認証済み' : '未認証' }}
             </span>
           </p>
-          <p v-if="session?.user?.email" class="mt-1 text-xs text-gray-500">
+          <p v-if="session?.user?.email" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
             対象メール: {{ session.user.email }}
           </p>
           <div class="mt-3">
@@ -585,6 +585,13 @@ onMounted(async () => {
           </div>
         </UForm>
 
+        <hr class="my-6" />
+
+        <h2 class="text-xl font-semibold">外観設定</h2>
+
+        <p>ダークモード切り替え</p>
+        <UColorModeSelect />
+
         <hr />
         <h2 class="text-xl font-semibold">アカウントの再設定(メールアドレス)</h2>
         <UForm :schema="userChangeEmailSettingsSchema" :state="emailState" class="space-y-4" @submit="onSubmitEmail">
@@ -597,7 +604,7 @@ onMounted(async () => {
         </UForm>
 
         <hr />
-        <UColorModeSelect />
+
         <h2 class="text-xl font-semibold">メールサーバー設定（個人）</h2>
         <div class="space-y-4">
           <UFormField label="ユーザー名" name="mail.username" required>
@@ -642,20 +649,20 @@ onMounted(async () => {
               SMTP接続テスト
             </UButton>
           </div>
-          <p class="text-xs text-gray-500">接続テストは保存済み設定を使用します。</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">接続テストは保存済み設定を使用します。</p>
         </div>
 
         <hr />
         <h2 class="text-xl font-semibold">メールの GPG 設定(高度な設定)</h2>
         <div class="space-y-4">
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
             メールを PGP 署名して送信するための鍵を管理します。
           </p>
 
           <div v-if="gpgState.hasKey && gpgState.key" class="rounded border border-gray-200 p-3 space-y-2">
             <p class="text-sm font-medium">登録済み鍵</p>
-            <p class="text-xs text-gray-600">Fingerprint: {{ gpgState.key.fingerprint }}</p>
-            <p class="text-xs text-gray-600">Email: {{ gpgState.key.email }}</p>
+            <p class="text-xs text-gray-600 dark:text-gray-400">Fingerprint: {{ gpgState.key.fingerprint }}</p>
+            <p class="text-xs text-gray-600 dark:text-gray-400">Email: {{ gpgState.key.email }}</p>
             <UFormField label="公開鍵">
               <UTextarea :model-value="gpgState.key.publicKey" :rows="6" readonly class="w-fit mb-2" />
             </UFormField>
@@ -689,8 +696,9 @@ onMounted(async () => {
                   </UButton>
                 </div>
               </template>
-              <p v-else class="text-xs text-gray-500">
-                セキュリティのため秘密鍵はデフォルトで非表示です
+              <p v-else class="text-xs text-gray-500 dark:text-gray-400">
+                セキュリティのため秘密鍵はデフォルトで非表示です。
+                右上から「表示」ボタンを押すと内容を確認できますが、取り扱いには十分ご注意ください。
               </p>
             </div>
           </div>

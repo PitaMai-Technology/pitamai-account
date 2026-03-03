@@ -20,8 +20,8 @@ const { role } = storeToRefs(useOrgRoleStore());
     <template #footer="{ collapsed }">
       <div v-if="!collapsed" class="space-y-2">
         <div class="text-sm">
-          <p class="text-gray-600 truncate">{{ session.data?.user.email }}</p>
-          <p class="text-gray-600">
+          <p class="text-gray-600 dark:text-gray-400 truncate">{{ session.data?.user.email }}</p>
+          <p class="text-gray-600 dark:text-gray-400">
             役割: <strong>{{ role || '未所属' }}</strong>
           </p>
         </div>
