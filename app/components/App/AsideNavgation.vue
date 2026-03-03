@@ -243,12 +243,12 @@ async function onDropMailToFolder(uids: number[], toFolderPath: string) {
       <template #mail>
         <UNavigationMenu :collapsed="collapsed" :items="mailItems" orientation="vertical" />
         <USeparator class="mt-2 mb-8" />
-        <template v-if="hasMailSetting && folders.length === 0">
+        <template v-if="hasMailSetting && !isLoading && folders.length === 0">
           <div class="flex flex-col items-center justify-center gap-4 py-12">
             <UButton icon="i-lucide-mail-open" @click="navigateTo('/apps/mail')">メールを開く</UButton>
           </div>
         </template>
-        <template v-if="hasMailSetting && folders.length > 0">
+        <template v-else-if="hasMailSetting && folders.length > 0">
           <AppMailFolderPanel :folders="folders" :active-folder-path="activeFolderPath" :new-folder-name="newFolderName"
             :creating-folder="creatingFolder" :folder-action-loading="folderActionLoading"
             :can-edit-active-folder="canEditActiveFolder" :get-folder-display="getFolderDisplay"
