@@ -353,8 +353,8 @@ watch(
           <h2 class="truncate text-sm font-semibold">
             {{ selectedMessage?.subject || activeMail?.subject || '(件名なし)' }}
           </h2>
-          <p class="text-xs text-gray-600">{{ messageMetaLabel }}: {{ messageMetaValue }}</p>
-          <p v-if="isSentFolder" class="text-xs text-gray-600">Cc: {{ messageCcValue }}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">{{ messageMetaLabel }}: {{ messageMetaValue }}</p>
+          <p v-if="isSentFolder" class="text-xs text-gray-600 dark:text-gray-400">Cc: {{ messageCcValue }}</p>
         </div>
       </div>
       <!-- GPG 署名バッジ -->
@@ -402,9 +402,9 @@ watch(
     </template>
 
     <div v-if="!isBodyLoading && visibleAttachments.length" class="mb-4 space-y-1 rounded border border-gray-200 p-3">
-      <p class="text-xs font-medium text-gray-700">添付ファイル</p>
+      <p class="text-xs font-medium text-gray-700 dark:text-gray-300">添付ファイル</p>
       <div v-for="(attachment, index) in visibleAttachments" :key="`${attachment.filename}-${attachment.size}`"
-        class="flex items-center justify-between gap-3 text-xs text-gray-600">
+        class="flex items-center justify-between gap-3 text-xs text-gray-600 dark:text-gray-400">
         <p>
           {{ attachment.filename || 'unnamed' }} ({{ attachment.size }} bytes)
         </p>
@@ -413,7 +413,7 @@ watch(
           開く
         </UButton>
       </div>
-      <p v-if="isSpamFolder" class="text-xs text-amber-700">
+      <p v-if="isSpamFolder" class="text-xs text-amber-700 dark:text-amber-500">
         迷惑メールでは添付ファイルを開けません。
       </p>
     </div>

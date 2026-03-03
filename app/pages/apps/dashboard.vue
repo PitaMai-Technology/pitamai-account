@@ -17,8 +17,10 @@ const organizations = authClient.useListOrganizations();
         <!-- ユーザー情報 -->
         <div v-if="sessionRef.data" class="space-y-4">
           <!-- 組織リンク -->
-          <div class="rounded-lg bg-white p-6 shadow">
-            <h2 class="mb-4 text-lg font-semibold">所属組織</h2>
+          <UCard>
+            <template #header>
+              <h2 class="text-lg font-semibold">所属組織</h2>
+            </template>
             <div v-if="organizations.isPending" class="flex items-center justify-center py-4">
               <TheLoader />
             </div>
@@ -35,29 +37,30 @@ const organizations = authClient.useListOrganizations();
             <div v-else class="py-4 text-center text-gray-500">
               所属している組織がありません
             </div>
-          </div>
-
-          <div class="rounded-lg bg-white p-6 shadow">
-            <h2 class="mb-4 text-lg font-semibold">ユーザー情報</h2>
+          </UCard>
+          <UCard>
+            <template #header>
+              <h2 class="text-lg font-semibold">ユーザー情報</h2>
+            </template>
             <div class="space-y-2">
               <div class="flex items-center space-x-2">
-                <UIcon name="i-lucide-mail" class="text-gray-400" />
+                <UIcon name="i-lucide-mail" />
                 <span class="font-medium">メール:</span>
-                <span class="text-gray-600">{{
+                <span>{{
                   sessionRef.data.user.email
-                }}</span>
+                  }}</span>
               </div>
               <div v-if="sessionRef.data.user.name" class="flex items-center space-x-2">
-                <UIcon name="i-lucide-user" class="text-gray-400" />
+                <UIcon name="i-lucide-user" />
                 <span class="font-medium">名前:</span>
-                <span class="text-gray-600">{{
+                <span>{{
                   sessionRef.data.user.name
-                }}</span>
+                  }}</span>
               </div>
               <div class="flex items-center space-x-2">
-                <UIcon name="i-lucide-calendar" class="text-gray-400" />
+                <UIcon name="i-lucide-calendar" />
                 <span class="font-medium">登録日:</span>
-                <span class="text-gray-600">
+                <span>
                   {{
                     sessionRef.data.user.createdAt
                       ? new Date(
@@ -68,7 +71,7 @@ const organizations = authClient.useListOrganizations();
                 </span>
               </div>
             </div>
-          </div>
+          </UCard>
         </div>
 
         <div v-else class="py-12 text-center text-gray-500">
