@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useMailApi } from '~/composable/useMailApi';
+import { useMailAccountConnectivity } from '~/composable/useMailAccountConnectivity';
+import { useMailActions } from '~/composable/useMailActions';
 import { useMailCompose } from '~/composable/useMailCompose';
+import { useMailFolderRouteSync } from '~/composable/useMailFolderRouteSync';
 import { useMailFolders } from '~/composable/useMailFolders';
 import { useMailMessages } from '~/composable/useMailMessages';
+import { useMailReplyCompose } from '~/composable/useMailReplyCompose';
 import { useMailRealtime } from '~/composable/useMailRealtime';
+import { useMailSearch } from '~/composable/useMailSearch';
 import { useMailSelection } from '~/composable/useMailSelection';
+import { useRecipientTypeSwitch } from '~/composable/useRecipientTypeSwitch';
 import { useMailStore } from '~/stores/mail';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
@@ -13,19 +19,9 @@ definePageMeta({
   layout: 'the-app',
 });
 
-type MailAccountItem = {
-  id: string;
-  label: string | null;
-  emailAddress: string;
-};
-
-const toast = useToast();
-const route = useRoute();
-const router = useRouter();
 const mailStore = useMailStore();
 const mailApi = useMailApi();
 const confirmStore = useConfirmDialogStore();
-const serverError = useError();
 
 const {
   activeFolderPath,
@@ -49,29 +45,23 @@ const {
 
 const composeState = mailStore.composeState;
 
-const accounts = ref<MailAccountItem[]>([]);
 const hasMailSetting = computed(() => accounts.value.length > 0);
-const imapReachable = ref<boolean | null>(null);
-const smtpReachable = ref<boolean | null>(null);
-let connectivityTimer: ReturnType<typeof setInterval> | null = null;
-
-const showMailSettingAlert = computed(() => {
-  if (!hasMailSetting.value) return true;
-  return imapReachable.value === false || smtpReachable.value === false;
-});
-
-const mailSettingAlertDescription = computed(() => {
-  if (!hasMailSetting.value) {
-    return '個人設定ページで IMAP/SMTP を登録してください。';
-  }
-
-  if (imapReachable.value === false || smtpReachable.value === false) {
-    return 'IMAP/SMTP の疎通に失敗しています。設定を確認してください。';
-  }
-
-  return '個人設定ページで IMAP/SMTP の設定をご確認ください。';
-});
 const realtimeFolderPath = 'INBOX';
+
+const {
+  accounts,
+  selectedAccount,
+  imapReachable,
+  smtpReachable,
+  showMailSettingAlert,
+  mailSettingAlertDescription,
+  loadAccounts,
+  checkMailConnectivity,
+  startConnectivityPolling,
+  stopConnectivityPolling,
+} = useMailAccountConnectivity({
+  hasMailSetting,
+});
 
 const {
   folderOptions,
@@ -90,42 +80,6 @@ const {
   newFolderName,
   setFolders: mailStore.setFolders,
   setActiveFolder: mailStore.setActiveFolder,
-});
-
-const selectedAccount = computed(() => {
-  return accounts.value[0] ?? null;
-});
-
-const searchQuery = ref('');
-const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
-
-const filteredMailList = computed(() => {
-  const query = normalizedSearchQuery.value;
-  if (!query) {
-    return mailList.value;
-  }
-
-  return mailList.value.filter(item => {
-    const subject = (item.subject ?? '').toLowerCase();
-    const from = (item.from ?? '').toLowerCase();
-
-    return subject.includes(query) || from.includes(query);
-  });
-});
-
-const filteredGroupedMailList = computed(() => {
-  const query = normalizedSearchQuery.value;
-  if (!query) {
-    return groupedMailList.value;
-  }
-  const visibleUidSet = new Set(filteredMailList.value.map(item => item.uid));
-
-  return groupedMailList.value
-    .map(group => ({
-      ...group,
-      messages: group.messages.filter(message => visibleUidSet.has(message.uid)),
-    }))
-    .filter(group => group.messages.length > 0);
 });
 
 const selectedMessage = computed(() => {
@@ -161,55 +115,6 @@ const messageCcValue = computed(() => {
   return currentMail.value?.cc || '-';
 });
 
-function getQueryFolderParam() {
-  const queryFolder = route.query.f;
-  if (typeof queryFolder !== 'string') return null;
-  const normalized = queryFolder.trim();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function applyFolderFromQuery(): boolean {
-  const queryFolder = getQueryFolderParam();
-  if (!queryFolder) return false;
-
-  const exists = folders.value.some(folder => folder.path === queryFolder);
-  if (!exists) return false;
-  if (activeFolderPath.value === queryFolder) return false;
-
-  mailStore.setActiveFolder(queryFolder);
-  return true;
-}
-
-function extractReplyToAddress(fromValue: string | null) {
-  if (!fromValue) return '';
-
-  const match = fromValue.match(/<([^>]+)>/);
-  if (match?.[1]) {
-    return match[1].trim();
-  }
-
-  return fromValue.trim();
-}
-
-function buildReplySubject(subject: string | null) {
-  const baseSubject = (subject ?? '').trim();
-  if (!baseSubject) return 'Re:';
-  if (/^re\s*:/i.test(baseSubject)) return baseSubject;
-  return `Re: ${baseSubject}`;
-}
-
-function buildReplyBody(text: string | null) {
-  const sourceText = (text ?? '').trim();
-  if (!sourceText) return '';
-
-  const quoted = sourceText
-    .split('\n')
-    .map(line => `> ${line}`)
-    .join('\n');
-
-  return `\n\n${quoted}`;
-}
-
 // メール一覧と詳細表示ロジック
 const {
   groupedMailList,
@@ -234,6 +139,11 @@ const {
   setCachedMailList: mailStore.setCachedMailList,
   getCachedMailDetail: mailStore.getCachedMailDetail,
   setCachedMailDetail: mailStore.setCachedMailDetail,
+});
+
+const { searchQuery, filteredMailList, filteredGroupedMailList } = useMailSearch({
+  mailList,
+  groupedMailList,
 });
 
 // メール選択ロジック
@@ -284,236 +194,44 @@ const { streamConnected, startRealtimeStream, stopRealtimeStream } = useMailReal
   },
 });
 
-// 宛先種別の表示用マッピング
-const recipientTypeLabel: Record<string, string> = {
-  to: 'To',
-  cc: 'CC',
-  bcc: 'BCC',
-};
+const { handleRecipientTypeChange } = useRecipientTypeSwitch({
+  recipientType,
+  hasRecipientData: mailStore.hasRecipientData,
+  clearRecipientField: mailStore.clearRecipientField,
+  confirm: confirmStore.confirm,
+});
 
-/**
- * 宛先種別を切り替える際に、前のフィールドにデータがあれば確認モーダルを表示
- */
-async function handleRecipientTypeChange(newType: typeof recipientType.value) {
-  const currentType = recipientType.value;
+const { onReplyCompose } = useMailReplyCompose({
+  currentMail,
+  selectedUid,
+  composeState,
+  composeOpen,
+  resetComposeState: mailStore.resetComposeState,
+});
 
-  // 同じ種別への切り替えは何もしない
-  if (currentType === newType) {
-    return;
-  }
+const { applyFolderFromQuery } = useMailFolderRouteSync({
+  hasMailSetting,
+  folders,
+  activeFolderPath,
+  setActiveFolder: mailStore.setActiveFolder,
+  loadMessages: async options => {
+    searchQuery.value = '';
+    await loadMessages(options);
+  },
+});
 
-  // 現在のフィールドにデータがあるかを確認
-  if (mailStore.hasRecipientData(currentType)) {
-    const currentLabel = recipientTypeLabel[currentType];
-    const newLabel = recipientTypeLabel[newType];
-    const message = `${currentLabel}から${newLabel}に切り替えますか？\n既存の${currentLabel}の宛先に記入したものは破棄されます`;
-
-    const confirmed = await confirmStore.confirm(message);
-
-    if (!confirmed) {
-      // キャンセルされた場合は何もしない
-      return;
-    }
-
-    // 確認された場合、現在のフィールドをクリア
-    mailStore.clearRecipientField(currentType);
-  }
-
-  // 新しい種別に切り替え
-  recipientType.value = newType;
-}
-
-async function loadAccounts() {
-  try {
-    const response = await mailApi.getAccounts();
-    accounts.value = response.accounts;
-
-  } catch (error) {
-    toast.add({
-      title: 'エラー',
-      description: `${serverError.value?.message} メールアカウント取得に失敗しました`,
-      color: 'error',
-    });
-  }
-}
-
-async function checkMailConnectivity() {
-  if (!hasMailSetting.value) {
-    imapReachable.value = null;
-    smtpReachable.value = null;
-    return;
-  }
-
-  const [imapResult, smtpResult] = await Promise.allSettled([
-    mailApi.testImapConnection(),
-    mailApi.testSmtpConnection(),
-  ]);
-
-  imapReachable.value = imapResult.status === 'fulfilled';
-  smtpReachable.value = smtpResult.status === 'fulfilled';
-}
-
-function startConnectivityPolling() {
-  if (connectivityTimer) {
-    clearInterval(connectivityTimer);
-  }
-
-  connectivityTimer = setInterval(() => {
-    checkMailConnectivity();
-  }, 12 * 60 * 60 * 1000);
-}
-
-async function onDropMailToFolder(droppedUids: number[], toFolderPath: string) {
-  if (!activeFolderPath.value) return;
-  if (activeFolderPath.value === toFolderPath) return;
-
-  const targetUids =
-    droppedUids.length > 0
-      ? Array.from(new Set(droppedUids))
-      : resolveDropTargetUids(selectedUid.value ?? 0);
-
-  if (targetUids.length === 0) {
-    return;
-  }
-
-  if (targetUids.length > 1) {
-    const confirmed = await confirmStore.confirm(
-      `${targetUids.length}件のメールを「${toFolderPath}」へ移動しますか？`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-  }
-
-  try {
-    for (const targetUid of targetUids) {
-      await mailApi.moveToFolder(targetUid, activeFolderPath.value, toFolderPath);
-    }
-
-    // フォルダ移動後は一覧キャッシュを破棄して再スレッド化を最新データで行う
-    mailStore.clearMailDataCache();
-
-    toast.add({
-      title: '移動しました',
-      description:
-        targetUids.length > 1
-          ? `${targetUids.length}件のメールをフォルダへ移動しました`
-          : 'メールをフォルダへ移動しました',
-      color: 'success',
-    });
-
-    await loadMessages({
-      markOpenedAsRead: false,
-      notifyIfNew: false,
-      forceSync: true,
-    });
-  } catch (error) {
-    toast.add({
-      title: '移動失敗',
-      description: `${serverError.value?.message} メール移動に失敗しました`,
-      color: 'error',
-    });
-  } finally {
-    resetSelectionAfterDrop();
-  }
-}
-
-async function onMove(destination: 'trash' | 'archive' | 'inbox') {
-  if (!hasSelectedMail.value) return;
-
-  const uid = selectedUid.value;
-  if (uid === null) return;
-
-  try {
-    await mailApi.moveMessage(activeFolderPath.value, uid, destination);
-
-    // 重要フォルダ移動後は一覧キャッシュを破棄して整合性を維持
-    mailStore.clearMailDataCache();
-
-    toast.add({
-      title: '成功',
-      description:
-        destination === 'trash'
-          ? 'ゴミ箱へ移動しました'
-          : destination === 'archive'
-            ? 'アーカイブしました'
-            : '受信トレイへ戻しました',
-      color: 'success',
-    });
-
-    await loadMessages({ forceSync: true });
-  } catch (error) {
-    const defaultMsg = destination === 'trash'
-      ? '削除に失敗しました'
-      : destination === 'archive'
-        ? 'アーカイブに失敗しました'
-        : '復元に失敗しました';
-
-    toast.add({
-      title: 'エラー',
-      description: `${serverError.value?.message} ${defaultMsg}`,
-      color: 'error',
-    });
-  }
-}
-
-async function onOpenAttachment(index: number) {
-  if (!currentMail.value) return;
-
-  if (isSpamFolder.value) {
-    toast.add({
-      title: 'ブロックしました',
-      description: '迷惑メールでは添付ファイルを開けません。',
-      color: 'warning',
-    });
-    return;
-  }
-
-  const attachment = currentMail.value.attachments[index];
-  if (!attachment) return;
-
-  const confirmed = await confirmStore.confirm(
-    `添付ファイル「${attachment.filename ?? '名前なし'}」を開きますか？`
-  );
-
-  if (!confirmed) return;
-
-  const uid = selectedUid.value;
-  if (uid === null) return;
-
-  const url = `/api/pitamai/mail/attachment?folder=${encodeURIComponent(activeFolderPath.value)}&uid=${uid}&index=${index}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-function onReplyCompose() {
-  const activeDetail = currentMail.value;
-
-  if (!activeDetail || activeDetail.uid !== selectedUid.value) {
-    toast.add({
-      title: 'エラー',
-      description: '返信対象メールの読み込みが完了していません',
-      color: 'error',
-    });
-    return;
-  }
-
-  const replyTo = extractReplyToAddress(activeDetail.from);
-  if (!replyTo) {
-    toast.add({
-      title: 'エラー',
-      description: '返信先アドレスを特定できませんでした',
-      color: 'error',
-    });
-    return;
-  }
-
-  mailStore.resetComposeState();
-  composeState.to = replyTo;
-  composeState.subject = buildReplySubject(activeDetail.subject);
-  composeState.text = buildReplyBody(activeDetail.text);
-  composeOpen.value = true;
-}
+const { onDropMailToFolder, onMove, onOpenAttachment } = useMailActions({
+  activeFolderPath,
+  selectedUid,
+  currentMail,
+  hasSelectedMail,
+  isSpamFolder,
+  resolveDropTargetUids,
+  resetSelectionAfterDrop,
+  clearMailDataCache: mailStore.clearMailDataCache,
+  confirm: confirmStore.confirm,
+  loadMessages,
+});
 
 watch(hasMailSetting, async enabled => {
   if (!enabled) {
@@ -536,35 +254,6 @@ watch(hasMailSetting, async enabled => {
   startRealtimeStream();
 }, { immediate: true });
 
-watch(activeFolderPath, async () => {
-  if (!hasMailSetting.value) return;
-
-  const currentQueryFolder = getQueryFolderParam();
-  if (currentQueryFolder !== activeFolderPath.value) {
-    await router.replace({
-      query: {
-        ...route.query,
-        f: activeFolderPath.value,
-      },
-    });
-  }
-
-  searchQuery.value = '';
-  await loadMessages({
-    markOpenedAsRead: false,
-    notifyIfNew: false,
-    forceSync: false,
-  });
-});
-
-watch(
-  () => route.query.f,
-  () => {
-    if (!hasMailSetting.value) return;
-    applyFolderFromQuery();
-  }
-);
-
 onMounted(async () => {
   await loadAccounts();
   startConnectivityPolling();
@@ -572,10 +261,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stopRealtimeStream();
-  if (connectivityTimer) {
-    clearInterval(connectivityTimer);
-    connectivityTimer = null;
-  }
+  stopConnectivityPolling();
 });
 </script>
 
