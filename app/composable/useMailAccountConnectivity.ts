@@ -47,9 +47,10 @@ export function useMailAccountConnectivity(
       const response = await mailApi.getAccounts();
       accounts.value = response.accounts;
     } catch (error) {
+      const message = error instanceof Error ? error.message : '不明なエラー';
       toast.add({
         title: 'エラー',
-        description: `${serverError.value?.message} メールアカウント取得に失敗しました`,
+        description: `${message} メールアカウント取得に失敗しました`,
         color: 'error',
       });
     }

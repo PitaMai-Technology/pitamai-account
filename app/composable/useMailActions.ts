@@ -32,6 +32,7 @@ export function useMailActions(params: UseMailActionsParams) {
   ) {
     if (!params.activeFolderPath.value) return;
     if (params.activeFolderPath.value === toFolderPath) return;
+    const fromFolderPath = params.activeFolderPath.value;
 
     const targetUids =
       droppedUids.length > 0
@@ -54,11 +55,7 @@ export function useMailActions(params: UseMailActionsParams) {
 
     try {
       for (const targetUid of targetUids) {
-        await mailApi.moveToFolder(
-          targetUid,
-          params.activeFolderPath.value,
-          toFolderPath
-        );
+        await mailApi.moveToFolder(targetUid, fromFolderPath, toFolderPath);
       }
 
       params.clearMailDataCache();
@@ -78,9 +75,10 @@ export function useMailActions(params: UseMailActionsParams) {
         forceSync: true,
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : '不明なエラー';
       toast.add({
         title: '移動失敗',
-        description: `${serverError.value?.message} メール移動に失敗しました`,
+        description: `${message} メール移動に失敗しました`,
         color: 'error',
       });
     } finally {
@@ -125,14 +123,15 @@ export function useMailActions(params: UseMailActionsParams) {
 
       toast.add({
         title: 'エラー',
-        description: `${serverError.value?.message} ${defaultMsg}`,
+        description: `${error instanceof Error ? error.message : '不明なエラー'} ${defaultMsg}`,
         color: 'error',
       });
     }
   }
 
   async function onOpenAttachment(index: number) {
-    if (!params.currentMail.value) return;
+    const activeMail = params.currentMail.value;
+    if (!activeMail) return;
 
     if (params.isSpamFolder.value) {
       toast.add({
@@ -143,7 +142,7 @@ export function useMailActions(params: UseMailActionsParams) {
       return;
     }
 
-    const attachment = params.currentMail.value.attachments[index];
+    const attachment = activeMail.attachments[index];
     if (!attachment) return;
 
     const confirmed = await params.confirm(
@@ -152,8 +151,7 @@ export function useMailActions(params: UseMailActionsParams) {
 
     if (!confirmed) return;
 
-    const uid = params.selectedUid.value;
-    if (uid === null) return;
+    const uid = activeMail.uid;
 
     const url = `/api/pitamai/mail/attachment?folder=${encodeURIComponent(params.activeFolderPath.value)}&uid=${uid}&index=${index}`;
     window.open(url, '_blank', 'noopener,noreferrer');
