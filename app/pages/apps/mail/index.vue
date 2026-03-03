@@ -118,7 +118,6 @@ const filteredGroupedMailList = computed(() => {
   if (!query) {
     return groupedMailList.value;
   }
-
   const visibleUidSet = new Set(filteredMailList.value.map(item => item.uid));
 
   return groupedMailList.value
@@ -211,10 +210,7 @@ function buildReplyBody(text: string | null) {
   return `\n\n${quoted}`;
 }
 
-const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
-const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
-
-// 
+// メール一覧と詳細表示ロジック
 const {
   groupedMailList,
   selectedSeen,
@@ -288,6 +284,45 @@ const { streamConnected, startRealtimeStream, stopRealtimeStream } = useMailReal
   },
 });
 
+// 宛先種別の表示用マッピング
+const recipientTypeLabel: Record<string, string> = {
+  to: 'To',
+  cc: 'CC',
+  bcc: 'BCC',
+};
+
+/**
+ * 宛先種別を切り替える際に、前のフィールドにデータがあれば確認モーダルを表示
+ */
+async function handleRecipientTypeChange(newType: typeof recipientType.value) {
+  const currentType = recipientType.value;
+
+  // 同じ種別への切り替えは何もしない
+  if (currentType === newType) {
+    return;
+  }
+
+  // 現在のフィールドにデータがあるかを確認
+  if (mailStore.hasRecipientData(currentType)) {
+    const currentLabel = recipientTypeLabel[currentType];
+    const newLabel = recipientTypeLabel[newType];
+    const message = `${currentLabel}から${newLabel}に切り替えますか？\n既存の${currentLabel}の宛先に記入したものは破棄されます`;
+
+    const confirmed = await confirmStore.confirm(message);
+
+    if (!confirmed) {
+      // キャンセルされた場合は何もしない
+      return;
+    }
+
+    // 確認された場合、現在のフィールドをクリア
+    mailStore.clearRecipientField(currentType);
+  }
+
+  // 新しい種別に切り替え
+  recipientType.value = newType;
+}
+
 async function loadAccounts() {
   try {
     const response = await mailApi.getAccounts();
@@ -342,7 +377,7 @@ async function onDropMailToFolder(droppedUids: number[], toFolderPath: string) {
   }
 
   if (targetUids.length > 1) {
-    const confirmed = await confirmDialog(
+    const confirmed = await confirmStore.confirm(
       `${targetUids.length}件のメールを「${toFolderPath}」へ移動しますか？`
     );
 
@@ -438,7 +473,7 @@ async function onOpenAttachment(index: number) {
   const attachment = currentMail.value.attachments[index];
   if (!attachment) return;
 
-  const confirmed = await confirmDialog(
+  const confirmed = await confirmStore.confirm(
     `添付ファイル「${attachment.filename ?? '名前なし'}」を開きますか？`
   );
 
@@ -582,11 +617,10 @@ onBeforeUnmount(() => {
 
     <AppMailComposeModal :compose-open="composeOpen" :recipient-type="recipientType"
       :recipient-type-options="recipientTypeOptions" :compose-state="composeState" :draft-saving="draftSaving"
-      :sending="sending" @update:compose-open="composeOpen = $event" @update:recipient-type="recipientType = $event"
+      :sending="sending" @update:compose-open="composeOpen = $event" @update:recipient-type="handleRecipientTypeChange"
       @add-cc-field="addCcField" @remove-cc-field="removeCcField" @add-bcc-field="addBccField"
       @remove-bcc-field="removeBccField" @save-draft="onSaveDraft" @send-mail="onSendMail" />
 
-    <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
-      @cancel="() => resolveConfirm(false)" />
+    <TheConfirmModal />
   </div>
 </template>

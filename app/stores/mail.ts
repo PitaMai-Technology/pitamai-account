@@ -293,6 +293,35 @@ export const useMailStore = defineStore('mail', () => {
     recipientType.value = 'to';
   }
 
+  /**
+   * 指定した宛先種別にデータが入力されているかを判定
+   */
+  function hasRecipientData(type: ComposeRecipientType): boolean {
+    if (type === 'to') {
+      return composeState.to.trim().length > 0;
+    }
+    if (type === 'cc') {
+      return composeState.ccList.some(cc => cc.trim().length > 0);
+    }
+    if (type === 'bcc') {
+      return composeState.bccList.some(bcc => bcc.trim().length > 0);
+    }
+    return false;
+  }
+
+  /**
+   * 指定した宛先種別のフィールドをクリア
+   */
+  function clearRecipientField(type: ComposeRecipientType) {
+    if (type === 'to') {
+      composeState.to = '';
+    } else if (type === 'cc') {
+      composeState.ccList = [''];
+    } else if (type === 'bcc') {
+      composeState.bccList = [''];
+    }
+  }
+
   function clearViewState() {
     folders.value = [];
     mailList.value = [];
@@ -347,6 +376,8 @@ export const useMailStore = defineStore('mail', () => {
     setGpgVerifyCache,
     clearGpgVerifyCache,
     resetComposeState,
+    hasRecipientData,
+    clearRecipientField,
     clearViewState,
   };
 });
