@@ -282,6 +282,14 @@ async function confirmRemoveMember(member: Member) {
 
 async function onConfirmRemove() {
   if (!pendingRemoveMember) return;
+  if (!state.organizationId) {
+    toast.add({
+      title: 'エラー',
+      description: 'Organization が選択されていません。',
+      color: 'error',
+    });
+    return;
+  }
   try {
     loading.value = true;
     const res = await authClient.organization.removeMember({
