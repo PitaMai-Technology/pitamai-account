@@ -28,7 +28,7 @@
 - 依存関係の更新: `better-auth` を 1.3.34 -> 1.4.1 に更新。`@better-auth/telemetry` と `@better-auth/core` も 1.4.1 に揃えました。
 - `better-call` を 1.0.19 -> 1.1.0 に更新しました。
 - `pita-css` を削除しました（`package.json` / `pnpm-lock.yaml` を更新済み）。
-- サーバー側で新しく追加されたエンドポイント: `/api/pitamai/owner-list`（自分が owner の組織一覧取得）と `/api/pitamai/pre-register`（メール検証付きの事前ユーザー登録）。
+- サーバー側で新しく追加されたエンドポイント: `/api/pitamai/owner-list`（自分が owner の組織一覧取得）。
 - 組織関連スキーマの更新: 組織作成時の `name` は最大 32 文字に制限され、組織削除スキーマでは `organizationName` がオプションになりました。
 - サーバーサイド認証ミドルウェアの適用範囲を制限（`/api/pitamai/*` のみをチェック）しました。
 
@@ -43,38 +43,23 @@
 
 ## 認証関連 (server/api/auth)
 
-### POST /api/auth/sign-in/magic-link
+### POST /api/auth/email-otp/send-verification-otp
 
-- 概要: Magic Link を送信して認証プロセスを開始する
-- 実装ファイル: `server/api/auth/sign-in/magic-link.post.ts`
+- 概要: Email OTP を送信して認証プロセスを開始する（Better Auth 標準エンドポイント）
+- 実装: Better Auth 標準ルート (`/api/auth/*`) を利用
 - リクエスト例:
 
 ```json
 {
   "email": "user@example.com",
-  "callbackURL": "/apps/dashboard",
-  "newUserCallbackURL": "/apps/dashboard?welcome=true",
-  "errorCallbackURL": "/error"
+  "type": "sign-in"
 }
 ```
 
-- レスポンス: 送信成功の情報 or エラー
+### POST /api/auth/sign-in/email-otp
 
-### POST /api/pitamai/pre-register
-
-- 概要: メール検証を行う事前ユーザー登録エンドポイント（`/api/pitamai/pre-register`）
-- 実装ファイル: `server/api/pitamai/pre-register.post.ts`
-- バリデーション: `email` は有効なメール形式（zod を使用）。`name` はオプション。
-- 動作: 同じメールアドレスのユーザーが存在する場合は既存ユーザー情報を返し `created: false` を返します。未登録の場合は新規ユーザーを作成して `created: true` を返します。
-
-リクエスト例:
-
-```json
-{
-  "email": "invitee@example.com",
-  "name": "Invitee Name"
-}
-```
+- 概要: 送信された OTP を検証してログインする（Better Auth 標準エンドポイント）
+- 実装: Better Auth 標準ルート (`/api/auth/*`) を利用
 
 ### GET /api/auth/get-session
 

@@ -2,7 +2,6 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { storeToRefs } from 'pinia';
 import { z } from 'zod';
-import { authClient } from '~/composable/auth-client';
 import { usePageLeaveGuard } from '~/composable/usePageLeaveGuard';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
@@ -41,20 +40,20 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true;
 
   // モーダルで確認
-  const confirmed = await confirmDialog('本当にメールを送信しますか？');
+  const confirmed = await confirmDialog('本当に新規ユーザーを作成しますか？');
   if (!confirmed) {
     loading.value = false;
     return;
   }
 
   try {
-    // 1. User を事前登録
-    const preRegisterRes = await $fetch<{
-      id: string;
-      email: string;
+    const created = await $fetch<{
       created: boolean;
-      message?: string;
-    }>('/api/pitamai/pre-register', {
+      user: {
+        id: string;
+        email: string;
+      };
+    }>('/api/pitamai/admin-create-user', {
       method: 'POST',
       body: {
         email: event.data.email,
@@ -63,39 +62,18 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       },
     });
 
-    console.debug('pre-register response:', preRegisterRes);
-
-    // 既存ユーザーの場合はここで終了（Magic Link は送信しない）
-    if (!preRegisterRes.created) {
-      toast.add({
-        title: '既存ユーザー',
-        description:
-          preRegisterRes.message ??
-          'このメールアドレスは既に登録されています。',
-        color: 'warning',
-      });
-      return;
-    }
-
-    // 2. Magic Link を送信（新規ユーザーのみ）
-    const { error } = await authClient.signIn.magicLink({
-      email: event.data.email,
-      callbackURL: '/apps/dashboard',
-    });
-
-    if (error) {
-      console.error('magic link error:', error);
+    if (!created.created) {
       toast.add({
         title: 'エラー',
-        description: `ログインリンクの送信に失敗しました: ${error.message}`,
+        description: 'ユーザー作成に失敗しました。',
         color: 'error',
       });
       return;
     }
 
     toast.add({
-      title: '送信しました',
-      description: `${event.data.email} 宛にログインリンクを送信しました。メールを確認してください。`,
+      title: '作成しました',
+      description: `${event.data.email} のユーザーを作成しました。対象のユーザーはログイン後に初回パスワード設定が必要です。`,
       color: 'success',
     });
 
@@ -103,7 +81,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     state.name = '';
     state.role = 'member';
   } catch (e: unknown) {
-    console.error('account pre-register error:', e);
+    console.error('account create user error:', e);
     if (e instanceof Error) {
       toast.add({
         title: 'エラー',
@@ -113,7 +91,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     } else {
       toast.add({
         title: 'エラー',
-        description: 'アカウント事前登録中に予期しないエラーが発生しました',
+        description: 'アカウント作成中に予期しないエラーが発生しました',
         color: 'error',
       });
     }
@@ -127,9 +105,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   <div class="container mx-auto p-4">
     <UPageCard class="mx-auto w-full space-y-6">
       <div>
-        <h1 class="text-2xl font-semibold">アカウント事前登録</h1>
+        <h1 class="text-2xl font-semibold">アカウント作成</h1>
         <p class="mt-2 text-sm text-gray-600">
-          メールアドレスを事前登録し、ログイン用のマジックリンクを送信します。
+          管理者権限でユーザーを作成します。初回ログイン後、本人がパスワードを設定します。
         </p>
       </div>
 
@@ -155,7 +133,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
         <div class="pt-2 flex justify-end">
           <UButton type="submit" :loading="loading" :disabled="loading">
-            ログインリンクを送信
+            ユーザー作成
           </UButton>
         </div>
       </UForm>
