@@ -1,4 +1,3 @@
-const otpCodeRegex = /^\d{6}$/;
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { storeToRefs } from 'pinia';
