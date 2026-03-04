@@ -76,13 +76,16 @@ export default defineEventHandler(async event => {
 
     if (e instanceof Error) {
       logger.error(e, 'admin-create-user error');
-      throw createError({
-        statusCode: 400,
-        message: 'ユーザー作成に失敗しました',
-        cause: e,
-      });
     }
 
-    throw createError({ statusCode: 500, message: 'Internal Server Error' });
+    if (e && typeof e === 'object' && 'statusCode' in e) {
+      throw e;
+    }
+
+    throw createError({
+      statusCode: 500,
+      message: 'ユーザー作成に失敗しました',
+      cause: e instanceof Error ? e : undefined,
+    });
   }
 });

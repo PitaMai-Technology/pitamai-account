@@ -27,7 +27,7 @@ const emailOtpFormSchema = z.object({
 });
 
 const emailOtpVerifySchema = z.object({
-  otp: z.string().length(6, '6桁の認証コードを入力してください'),
+  otp: z.string().regex(/^\d{6}$/, '6桁の認証コードを入力してください'),
 });
 
 type SendOtpSchema = z.output<typeof emailOtpFormSchema>;
@@ -77,6 +77,7 @@ async function onSendOtp(event: FormSubmitEvent<SendOtpSchema>) {
 
     emailState.email = event.data.email;
     otpSent.value = true;
+    resetTurnstileToken();
     toast.add({
       title: '送信完了',
       description: '認証コードを送信しました。メールを確認してください。',

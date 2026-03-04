@@ -30,7 +30,7 @@
 `server/utils/auth.ts` にて、以下の設定により新規登録を厳格に禁止しています。
 
 - `emailOTP` プラグインの `disableSignUp: true`
-- `emailAndPassword` の `enabled: false`
+- `emailAndPassword` の `enabled:true`
 
 ### 2. Email OTP の挙動
 

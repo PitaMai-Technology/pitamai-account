@@ -30,6 +30,7 @@ export async function verifyTurnstileToken(
           'content-type': 'application/x-www-form-urlencoded',
         },
         body: form.toString(),
+        timeout: 5000,
       }
     );
 
@@ -47,7 +48,6 @@ export async function verifyTurnstileToken(
     logger.error(
       {
         error,
-        token: token.substring(0, 20) + '...',
       },
       'Turnstile API call failed'
     );

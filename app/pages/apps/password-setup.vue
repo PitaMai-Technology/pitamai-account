@@ -39,7 +39,7 @@ const state = reactive({
 
 const schema = z
   .object({
-    otp: z.string().length(6, '6桁の認証コードを入力してください'),
+    otp: z.string().regex(/^\d{6}$/, '6桁の認証コードを入力してください'),
     password: z.string().min(8, '8文字以上で入力してください'),
     confirmPassword: z.string().min(8, '確認用パスワードを入力してください'),
   })
@@ -83,6 +83,7 @@ async function onSendOtp() {
     }
 
     otpSent.value = true;
+    resetTurnstileToken();
     toast.add({
       title: '送信完了',
       description: 'パスワード設定用の認証コードを送信しました。',

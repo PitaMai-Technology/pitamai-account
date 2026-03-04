@@ -184,6 +184,7 @@ async function onSendPasswordResetOtp() {
     }
 
     passwordResetOtpSent.value = true;
+    resetTurnstileToken();
     toast.add({
       title: '送信完了',
       description: 'パスワード再設定用の認証コードを送信しました。',

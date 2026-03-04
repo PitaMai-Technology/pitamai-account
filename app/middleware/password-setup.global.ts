@@ -29,6 +29,6 @@ export default defineNuxtRouteMiddleware(async to => {
       return navigateTo('/apps/password-setup');
     }
   } catch {
-    return;
+    return navigateTo('/apps/error');
   }
 });

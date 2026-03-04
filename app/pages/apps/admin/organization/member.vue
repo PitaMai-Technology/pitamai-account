@@ -288,6 +288,7 @@ async function onConfirmRemove() {
       description: 'Organization が選択されていません。',
       color: 'error',
     });
+    pendingRemoveMember = null;
     return;
   }
   try {
