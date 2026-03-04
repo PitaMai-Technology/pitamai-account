@@ -57,22 +57,36 @@ export default defineEventHandler(async event => {
       },
     });
 
-    await logAuditWithSession(event, {
-      action: 'ADMIN_CREATE_USER_SUCCESS',
-      targetId: createdUser.id,
-      details: {
-        email: createdUser.email,
-      },
-    });
+    try {
+      await logAuditWithSession(event, {
+        action: 'ADMIN_CREATE_USER_SUCCESS',
+        targetId: createdUser.id,
+        details: {
+          email: createdUser.email,
+        },
+      });
+    } catch (auditErr) {
+      logger.warn(
+        { err: auditErr },
+        'admin-create-user success audit log failed'
+      );
+    }
 
     return {
       created: true,
       user: createdUser,
     };
   } catch (e: unknown) {
-    await logAuditWithSession(event, {
-      action: 'ADMIN_CREATE_USER_FAILURE',
-    });
+    try {
+      await logAuditWithSession(event, {
+        action: 'ADMIN_CREATE_USER_FAILURE',
+      });
+    } catch (auditErr) {
+      logger.warn(
+        { err: auditErr },
+        'admin-create-user failure audit log failed'
+      );
+    }
 
     if (e instanceof Error) {
       logger.error(e, 'admin-create-user error');

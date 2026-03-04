@@ -1,5 +1,7 @@
+import { authClient } from '~/composable/auth-client';
+
 export default defineNuxtRouteMiddleware(async to => {
-  if (!to.path.startsWith('/apps')) {
+  if (!(to.path === '/apps' || to.path.startsWith('/apps/'))) {
     return;
   }
 
@@ -8,27 +10,23 @@ export default defineNuxtRouteMiddleware(async to => {
   }
 
   try {
-    const headers = import.meta.server
-      ? useRequestHeaders(['cookie'])
-      : undefined;
-
-    const session = await $fetch('/api/auth/get-session', { headers }).catch(
-      () => null
-    );
+    const { data: session, error } = await authClient.getSession();
+    if (error || !session?.user) {
+      return;
+    }
 
     if (!session || !session.user) {
       return;
     }
 
     const status = await $fetch<{ mustSetPassword: boolean }>(
-      '/api/pitamai/password/setup-status',
-      { headers }
+      '/api/pitamai/password/setup-status'
     );
 
     if (status.mustSetPassword) {
       return navigateTo('/apps/password-setup');
     }
-  } catch {
+  } catch (error) {
     return navigateTo('/apps/error');
   }
 });

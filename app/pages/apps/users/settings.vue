@@ -1,3 +1,4 @@
+const otpCodeRegex = /^\d{6}$/;
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { storeToRefs } from 'pinia';
@@ -76,7 +77,26 @@ async function onSendVerificationEmail() {
   }
 }
 
+const otpCodeRegex = /^\d{6}$/;
+
 async function onVerifyEmailOtp() {
+  if (!otpCodeRegex.test(emailVerificationOtp.value)) {
+    toast.add({
+      title: '入力エラー',
+      description: '6桁の認証コードを入力してください。',
+      color: 'warning',
+    });
+    return;
+  }
+  if (!otpCodeRegex.test(emailVerificationOtp.value)) {
+    toast.add({
+      title: '入力エラー',
+      description: '6桁の認証コードを入力してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
   if (verifyEmailOtpLoading.value || isEmailVerified.value) return;
   if (!session.value?.user?.email) {
     toast.add({
@@ -203,6 +223,15 @@ async function onSendPasswordResetOtp() {
 }
 
 async function onResetPassword() {
+  if (!otpCodeRegex.test(passwordResetState.otp)) {
+    toast.add({
+      title: '入力エラー',
+      description: '6桁の認証コードを入力してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
   if (passwordResetLoading.value) return;
 
   if (!session.value?.user?.email) {
@@ -773,7 +802,8 @@ onMounted(async () => {
             </UButton>
           </div>
           <div v-if="!isEmailVerified" class="mt-3 space-y-2">
-            <UInput v-model="emailVerificationOtp" placeholder="6桁の認証コード" maxlength="6" />
+            <UInput v-model="emailVerificationOtp" placeholder="6桁の認証コード" maxlength="6" inputmode="numeric"
+              autocomplete="one-time-code" pattern="[0-9]*" />
             <UButton color="primary" :loading="verifyEmailOtpLoading" @click="onVerifyEmailOtp">
               認証コードを確認
             </UButton>
@@ -827,7 +857,8 @@ onMounted(async () => {
 
           <div v-if="passwordResetOtpSent" class="space-y-3">
             <UFormField label="認証コード" required>
-              <UInput v-model="passwordResetState.otp" maxlength="6" placeholder="123456" />
+              <UInput v-model="passwordResetState.otp" maxlength="6" placeholder="123456" inputmode="numeric"
+                autocomplete="one-time-code" pattern="[0-9]*" />
             </UFormField>
             <UFormField label="新しいパスワード" required>
               <UInput v-model="passwordResetState.password" type="password" placeholder="8文字以上" />

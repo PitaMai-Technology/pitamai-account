@@ -266,40 +266,41 @@ const columns: TableColumn<Member>[] = [
 ];
 
 let pendingRemoveMember: Member | null = null;
+type RemoveTarget = {
+  organizationId: string;
+  memberIdOrEmail: string;
+};
 
 async function confirmRemoveMember(member: Member) {
-  pendingRemoveMember = member;
-  const confirmed = await confirmDialog(
-    `${member.user?.email ?? member.userId} を組織から削除しますか？`
-  );
-  if (!confirmed) {
-    pendingRemoveMember = null;
-    return;
-  }
-
-  await onConfirmRemove();
-}
-
-async function onConfirmRemove() {
-  if (!pendingRemoveMember) return;
   if (!state.organizationId) {
     toast.add({
       title: 'エラー',
       description: 'Organization が選択されていません。',
       color: 'error',
     });
-    pendingRemoveMember = null;
     return;
   }
+
+  // await 前に対象を確定（非同期待機中の状態変化を防ぐ）
+  const target: RemoveTarget = {
+    organizationId: state.organizationId,
+    memberIdOrEmail: member.user?.email || member.userId || member.id,
+  };
+
+  const confirmed = await confirmDialog(
+    `${member.user?.email ?? member.userId} を組織から削除しますか？`
+  );
+  if (!confirmed) return;
+
+  await onConfirmRemove(target);
+}
+
+async function onConfirmRemove(target: RemoveTarget) {
   try {
     loading.value = true;
     const res = await authClient.organization.removeMember({
-      // メールを優先し、次に userId、最後に member レコードの id を使用
-      memberIdOrEmail:
-        pendingRemoveMember.user?.email ||
-        pendingRemoveMember.userId ||
-        pendingRemoveMember.id,
-      organizationId: state.organizationId,
+      memberIdOrEmail: target.memberIdOrEmail,
+      organizationId: target.organizationId,
     });
 
     if (res.error) {
@@ -328,7 +329,6 @@ async function onConfirmRemove() {
     });
   } finally {
     loading.value = false;
-    pendingRemoveMember = null;
   }
 }
 
