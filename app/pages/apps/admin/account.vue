@@ -11,6 +11,8 @@ definePageMeta({
 
 
 const toast = useToast();
+const confirmStore = useConfirmDialogStore();
+const { confirm: confirmDialog } = confirmStore;
 
 interface SessionUser {
   id: string;
@@ -377,8 +379,6 @@ watch(
 );
 
 // 削除用のモーダル状態
-const confirmOpen = ref(false);
-const confirmMessage = ref('');
 type ConfirmAction = 'remove' | 'unban';
 const confirmAction = ref<ConfirmAction>('remove');
 let pendingUser: AdminUser | null = null;
@@ -465,10 +465,17 @@ async function revokeAllSessionsForTargetUser() {
 }
 
 function confirmDeleteUser(user: AdminUser) {
-  pendingUser = user;
   confirmAction.value = 'remove';
-  confirmMessage.value = `${user.email ?? user.id} を完全に削除します。よろしいですか？`;
-  confirmOpen.value = true;
+  pendingUser = user;
+  confirmDialog(`${user.email ?? user.id} を完全に削除します。よろしいですか？`).then(
+    confirmed => {
+      if (confirmed) {
+        onConfirmAction();
+      } else {
+        pendingUser = null;
+      }
+    }
+  );
 }
 
 function openBanModal(user: AdminUser) {
@@ -478,10 +485,17 @@ function openBanModal(user: AdminUser) {
 }
 
 function confirmUnbanUser(user: AdminUser) {
-  pendingUser = user;
   confirmAction.value = 'unban';
-  confirmMessage.value = `${user.email ?? user.id} のBANを解除します。よろしいですか？`;
-  confirmOpen.value = true;
+  pendingUser = user;
+  confirmDialog(`${user.email ?? user.id} のBANを解除します。よろしいですか？`).then(
+    confirmed => {
+      if (confirmed) {
+        onConfirmAction();
+      } else {
+        pendingUser = null;
+      }
+    }
+  );
 }
 
 async function onConfirmAction() {
@@ -545,7 +559,6 @@ async function onConfirmAction() {
     });
   } finally {
     loading.value = false;
-    confirmOpen.value = false;
     pendingUser = null;
   }
 }
@@ -658,7 +671,7 @@ async function onSubmit(event?: FormSubmitEvent<{ limit?: number; offset?: numbe
         <UTable :key="users.length" v-model:global-filter="tableFilter" :data="users" :columns="columns"
           :loading="loading" empty="ユーザーが見つかりません。" class="table-fixed" :ui="{ td: 'break-words' }" />
       </div>
-      <TheConfirmModal v-model:open="confirmOpen" :message="confirmMessage" @confirm="onConfirmAction" />
+      <TheConfirmModal />
 
       <UModal v-model:open="sessionsModalOpen" scrollable title="セッション一覧"
         :description="sessionsTargetUser?.email ?? sessionsTargetUser?.id ?? ''" :ui="{ footer: 'justify-end' }"

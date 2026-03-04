@@ -3,6 +3,7 @@ import { h, resolveComponent } from 'vue';
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 import type { z } from 'zod';
 
 // @tanstack/vue-table の型がプロジェクトにインストールされていない環境向けに
@@ -15,6 +16,8 @@ definePageMeta({
 });
 
 const toast = useToast();
+const confirmStore = useConfirmDialogStore();
+const { confirm: confirmDialog } = confirmStore;
 const activeOrganization = useActiveOrg();
 // 管理者以上 (admin, owner) のみをサーバー側でフィルタした組織一覧を取得
 const { data: adminOrganizations, status: adminOrganizationsStatus } = await useFetch(
@@ -262,28 +265,42 @@ const columns: TableColumn<Member>[] = [
   },
 ];
 
-// 削除確認モーダルの状態
-const confirmOpen = ref(false);
-const confirmMessage = ref('');
 let pendingRemoveMember: Member | null = null;
+type RemoveTarget = {
+  organizationId: string;
+  memberIdOrEmail: string;
+};
 
-function confirmRemoveMember(member: Member) {
-  pendingRemoveMember = member;
-  confirmMessage.value = `${member.user?.email ?? member.userId} を組織から削除しますか？`;
-  confirmOpen.value = true;
+async function confirmRemoveMember(member: Member) {
+  if (!state.organizationId) {
+    toast.add({
+      title: 'エラー',
+      description: 'Organization が選択されていません。',
+      color: 'error',
+    });
+    return;
+  }
+
+  // await 前に対象を確定（非同期待機中の状態変化を防ぐ）
+  const target: RemoveTarget = {
+    organizationId: state.organizationId,
+    memberIdOrEmail: member.user?.email || member.userId || member.id,
+  };
+
+  const confirmed = await confirmDialog(
+    `${member.user?.email ?? member.userId} を組織から削除しますか？`
+  );
+  if (!confirmed) return;
+
+  await onConfirmRemove(target);
 }
 
-async function onConfirmRemove() {
-  if (!pendingRemoveMember) return;
+async function onConfirmRemove(target: RemoveTarget) {
   try {
     loading.value = true;
     const res = await authClient.organization.removeMember({
-      // メールを優先し、次に userId、最後に member レコードの id を使用
-      memberIdOrEmail:
-        pendingRemoveMember.user?.email ||
-        pendingRemoveMember.userId ||
-        pendingRemoveMember.id,
-      organizationId: state.organizationId,
+      memberIdOrEmail: target.memberIdOrEmail,
+      organizationId: target.organizationId,
     });
 
     if (res.error) {
@@ -312,8 +329,6 @@ async function onConfirmRemove() {
     });
   } finally {
     loading.value = false;
-    confirmOpen.value = false;
-    pendingRemoveMember = null;
   }
 }
 
@@ -433,7 +448,7 @@ async function onChangeMemberRole(member: Member, newRole: string) {
       <div v-else-if="!loading" class="text-sm text-gray-600">メンバーが見つかりません。</div>
     </AppBackgroundCard>
 
-    <!-- 削除確認モーダル -->
-    <TheConfirmModal v-model:open="confirmOpen" :message="confirmMessage" @confirm="onConfirmRemove" />
+    <!-- 削除確認モーダル（store駆動） -->
+    <TheConfirmModal />
   </div>
 </template>

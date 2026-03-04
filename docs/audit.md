@@ -76,14 +76,14 @@ export const logAuditWithSession = async (
 
 ## 使用例
 
-### 1. pre-register 成功時のログ
+### 1. 管理者ユーザー作成時のログ
 
-ファイル: `server/api/pitamai/pre-register.post.ts`
+ファイル: `app/pages/apps/admin/account-add.vue`（管理者導線）
 
 ```ts
 // 監査ログ記録
 await logAuditWithSession(event, {
-  action: 'USER_PRE_REGISTER_SUCCESS',
+  action: 'ADMIN_CREATE_USER_SUCCESS',
   targetId: user.id,
   details: {
     email: user.email,
@@ -146,7 +146,7 @@ await logAuditWithSession(event, {
 } catch (e: unknown) {
 	if (e instanceof Error) {
 		await logAuditWithSession(event, {
-			action: 'USER_PRE_REGISTER_FAILED',
+			action: 'ADMIN_CREATE_USER_FAILED',
 			details: {
 				errorMessage: e.message,
 				// body があればメールアドレスなども追加可能
@@ -154,7 +154,7 @@ await logAuditWithSession(event, {
 			},
 		});
 
-		logger.error(e, 'Pre-register user error');
+		logger.error(e, 'Create user error');
 		throw createError({ ... });
 	}
 	...

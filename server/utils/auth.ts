@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import { organization, magicLink, admin, captcha } from 'better-auth/plugins';
+import { organization, admin, captcha, emailOTP } from 'better-auth/plugins';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import prisma from '~~/lib/prisma';
@@ -13,9 +13,9 @@ export const auth = betterAuth({
     provider: 'postgresql',
   }),
   emailAndPassword: {
-    enabled: false,
+    enabled: true,
     requireEmailVerification: true,
-    disableSignUp: false,
+    disableSignUp: true,
   },
   user: {
     changeEmail: {
@@ -50,9 +50,9 @@ export const auth = betterAuth({
       try {
         await recordAuditLog({
           userId: newSession.user.id,
-          action: 'ACCOUNT_SIGN_IN_MAGIC_LINK_SUCCESS',
+          action: 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS',
           details: {
-            provider: 'magic-link',
+            provider: 'email-otp',
             path: ctx.path,
           },
         });
@@ -75,15 +75,14 @@ export const auth = betterAuth({
       },
       bannedUserMessage: 'あなたのアカウントは停止(BAN)されています。',
     }),
-    magicLink({
+    emailOTP({
       disableSignUp: true,
-      sendMagicLink: async ({ email, url }) => {
-        const existingUser = await prisma.user.findUnique({
-          where: { email },
-        });
-        if (!existingUser) {
-          console.log(`❌ User not found for email: ${email}`);
-          // ※セキュリティ上の理由（列挙攻撃防止）でサイレント・フェイラーにする場合はここを return のみに変更してください
+      overrideDefaultEmailVerification: true,
+      expiresIn: 300,
+      async sendVerificationOTP({ email, otp, type }) {
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+
+        if (type === 'sign-in' && !existingUser) {
           throw createError({
             statusCode: 400,
             message: 'このメールアドレスは登録されていません。',
@@ -91,34 +90,46 @@ export const auth = betterAuth({
         }
 
         if (process.env.NODE_ENV === 'development') {
-          console.log('🔗 Magic Link (Development Mode)');
+          console.log('🔐 Email OTP (Development Mode)');
           console.log(`To: ${email}`);
-          console.log(`URL: ${url}`);
+          console.log(`Type: ${type}`);
+          console.log(`OTP: ${otp}`);
         }
 
-        try {
-          await sendEmail({
-            to: email,
-            subject: 'ログインリンク - PitaMai',
-            text: `
-              ログインリンク
+        const subject =
+          type === 'sign-in'
+            ? 'ログイン認証コード - PitaMai'
+            : type === 'email-verification'
+              ? 'メール認証コード - PitaMai'
+              : 'パスワード再設定コード - PitaMai';
 
-              こんにちは、
+        const purpose =
+          type === 'sign-in'
+            ? 'ログイン'
+            : type === 'email-verification'
+              ? 'メール認証'
+              : 'パスワード設定';
 
-              以下のリンクをクリックしてログインしてください：
-              ${url}
+        await sendEmail({
+          to: email,
+          subject,
+          text: `${purpose}の認証コード: ${otp}\n\nこのコードは5分間有効です。\nこのメールに心当たりがない場合は無視してください。`,
+        });
 
-              このリンクは5分間有効です。
-
-              このメールに心当たりがない場合は、無視してください。
-            `,
-          });
-        } catch (error) {
-          console.error('❌ Failed to send magic link email:', error);
-          throw new Error('Failed to send magic link email');
-        }
+        await recordAuditLog({
+          userId: existingUser?.id,
+          action:
+            type === 'sign-in'
+              ? 'ACCOUNT_SIGN_IN_EMAIL_OTP_SENT'
+              : type === 'email-verification'
+                ? 'SEND_VERIFICATION_EMAIL_OTP'
+                : 'FORGOT_PASSWORD_EMAIL_OTP_SENT',
+          details: {
+            email,
+            type,
+          },
+        });
       },
-      expiresIn: 300,
     }),
     organization({
       async sendInvitationEmail(data) {

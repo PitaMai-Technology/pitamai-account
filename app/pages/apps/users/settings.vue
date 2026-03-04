@@ -2,6 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
+import { useTurnstile } from '~/composable/useTurnstile';
 import { usePageLeaveGuard } from '~/composable/usePageLeaveGuard';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
@@ -9,6 +10,9 @@ definePageMeta({ layout: 'the-app' });
 
 const toast = useToast();
 const serverError = useError();
+const { config, turnstileToken, resetTurnstileToken } = useTurnstile(
+  'settings-password-reset-turnstile'
+);
 
 // セッション取得
 interface UserInfo {
@@ -32,33 +36,33 @@ const { data: session } = await useFetch<GetSessionResponse>(
 );
 
 const emailVerificationLoading = ref(false);
+const verifyEmailOtpLoading = ref(false);
+const emailVerificationOtp = ref('');
 const isEmailVerified = computed(
   () => Boolean(session.value?.user?.emailVerified)
 );
-
-type SendVerificationResponse = {
-  status: boolean;
-  message: string;
-};
 
 async function onSendVerificationEmail() {
   if (emailVerificationLoading.value || isEmailVerified.value) return;
 
   emailVerificationLoading.value = true;
   try {
-    const response = await $fetch<SendVerificationResponse>(
-      '/api/auth/verification/send',
-      {
-        method: 'POST',
-        body: {
-          callbackURL: '/apps/users/settings',
-        },
-      }
-    );
+    if (!session.value?.user?.email) {
+      throw new Error('メールアドレスを取得できませんでした');
+    }
+
+    const { error } = await authClient.emailOtp.sendVerificationOtp({
+      email: session.value.user.email,
+      type: 'email-verification',
+    });
+
+    if (error) {
+      throw new Error(error.message ?? '認証コード送信に失敗しました');
+    }
 
     toast.add({
       title: '確認',
-      description: response.message,
+      description: '認証コードを送信しました。メールをご確認ください。',
       color: 'success',
     });
   } catch (err: unknown) {
@@ -69,6 +73,70 @@ async function onSendVerificationEmail() {
     });
   } finally {
     emailVerificationLoading.value = false;
+  }
+}
+
+const otpCodeRegex = /^\d{6}$/;
+
+async function onVerifyEmailOtp() {
+  if (!otpCodeRegex.test(emailVerificationOtp.value)) {
+    toast.add({
+      title: '入力エラー',
+      description: '6桁の認証コードを入力してください。',
+      color: 'warning',
+    });
+    return;
+  }
+  if (!otpCodeRegex.test(emailVerificationOtp.value)) {
+    toast.add({
+      title: '入力エラー',
+      description: '6桁の認証コードを入力してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
+  if (verifyEmailOtpLoading.value || isEmailVerified.value) return;
+  if (!session.value?.user?.email) {
+    toast.add({
+      title: 'エラー',
+      description: 'メールアドレスを取得できませんでした',
+      color: 'error',
+    });
+    return;
+  }
+
+  verifyEmailOtpLoading.value = true;
+  try {
+    const { error } = await authClient.emailOtp.verifyEmail({
+      email: session.value.user.email,
+      otp: emailVerificationOtp.value,
+    });
+
+    if (error) {
+      toast.add({
+        title: 'エラー',
+        description: error.message ?? '認証コードの検証に失敗しました',
+        color: 'error',
+      });
+      return;
+    }
+
+    emailVerificationOtp.value = '';
+    await refreshNuxtData('session');
+    toast.add({
+      title: '成功',
+      description: 'メール認証が完了しました。',
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description: `${serverError.value?.message} 認証コードの検証に失敗しました`,
+      color: 'error',
+    });
+  } finally {
+    verifyEmailOtpLoading.value = false;
   }
 }
 
@@ -83,6 +151,169 @@ const profileState = reactive<Partial<UserUpdate>>({
 const emailState = reactive<Partial<UserChangeEmailSettings>>({
   newEmail: '',
 });
+const passwordResetState = reactive({
+  otp: '',
+  password: '',
+  confirmPassword: '',
+});
+const passwordResetOtpSent = ref(false);
+const passwordResetSendLoading = ref(false);
+const passwordResetLoading = ref(false);
+
+async function onSendPasswordResetOtp() {
+  if (passwordResetSendLoading.value) return;
+
+  if (!session.value?.user?.email) {
+    toast.add({
+      title: 'エラー',
+      description: 'メールアドレスを取得できませんでした',
+      color: 'error',
+    });
+    return;
+  }
+
+  if (!turnstileToken.value) {
+    toast.add({
+      title: '確認が必要です',
+      description: '「ロボットではありません」の認証を完了してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
+  passwordResetSendLoading.value = true;
+  try {
+    const { error } = await authClient.emailOtp.requestPasswordReset({
+      email: session.value.user.email,
+      fetchOptions: {
+        headers: {
+          'x-captcha-response': turnstileToken.value,
+        },
+      },
+    });
+
+    if (error) {
+      toast.add({
+        title: 'エラー',
+        description: error.message ?? '認証コード送信に失敗しました',
+        color: 'error',
+      });
+      resetTurnstileToken();
+      return;
+    }
+
+    passwordResetOtpSent.value = true;
+    resetTurnstileToken();
+    toast.add({
+      title: '送信完了',
+      description: 'パスワード再設定用の認証コードを送信しました。',
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description: `${serverError.value?.message} 認証コード送信に失敗しました`,
+      color: 'error',
+    });
+    resetTurnstileToken();
+  } finally {
+    passwordResetSendLoading.value = false;
+  }
+}
+
+async function onResetPassword() {
+  if (!otpCodeRegex.test(passwordResetState.otp)) {
+    toast.add({
+      title: '入力エラー',
+      description: '6桁の認証コードを入力してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
+  if (passwordResetLoading.value) return;
+
+  if (!session.value?.user?.email) {
+    toast.add({
+      title: 'エラー',
+      description: 'メールアドレスを取得できませんでした',
+      color: 'error',
+    });
+    return;
+  }
+
+  if (!turnstileToken.value) {
+    toast.add({
+      title: '確認が必要です',
+      description: '「ロボットではありません」の認証を完了してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
+  if (passwordResetState.password.length < 8) {
+    toast.add({
+      title: '入力エラー',
+      description: '新しいパスワードは8文字以上で入力してください。',
+      color: 'warning',
+    });
+    return;
+  }
+
+  if (passwordResetState.password !== passwordResetState.confirmPassword) {
+    toast.add({
+      title: '入力エラー',
+      description: '確認用パスワードが一致しません。',
+      color: 'warning',
+    });
+    return;
+  }
+
+  passwordResetLoading.value = true;
+  try {
+    const { error } = await authClient.emailOtp.resetPassword({
+      email: session.value.user.email,
+      otp: passwordResetState.otp,
+      password: passwordResetState.password,
+      fetchOptions: {
+        headers: {
+          'x-captcha-response': turnstileToken.value,
+        },
+      },
+    });
+
+    if (error) {
+      toast.add({
+        title: 'エラー',
+        description: error.message ?? 'パスワード再設定に失敗しました',
+        color: 'error',
+      });
+      resetTurnstileToken();
+      return;
+    }
+
+    passwordResetState.otp = '';
+    passwordResetState.password = '';
+    passwordResetState.confirmPassword = '';
+    passwordResetOtpSent.value = false;
+    resetTurnstileToken();
+
+    toast.add({
+      title: '成功',
+      description: 'パスワードを再設定しました。',
+      color: 'success',
+    });
+  } catch (err: unknown) {
+    toast.add({
+      title: 'エラー',
+      description: `${serverError.value?.message} パスワード再設定に失敗しました`,
+      color: 'error',
+    });
+    resetTurnstileToken();
+  } finally {
+    passwordResetLoading.value = false;
+  }
+}
 
 const mailServerState = reactive({
   username: '',
@@ -566,7 +797,14 @@ onMounted(async () => {
           <div class="mt-3">
             <UButton color="primary" variant="outline" :disabled="isEmailVerified" :loading="emailVerificationLoading"
               @click="onSendVerificationEmail">
-              認証メールを送信
+              認証コードを送信
+            </UButton>
+          </div>
+          <div v-if="!isEmailVerified" class="mt-3 space-y-2">
+            <UInput v-model="emailVerificationOtp" placeholder="6桁の認証コード" maxlength="6" inputmode="numeric"
+              autocomplete="one-time-code" pattern="[0-9]*" />
+            <UButton color="primary" :loading="verifyEmailOtpLoading" @click="onVerifyEmailOtp">
+              認証コードを確認
             </UButton>
           </div>
         </div>
@@ -602,6 +840,39 @@ onMounted(async () => {
             <UButton type="submit" color="primary" :loading="loading">メールアドレスを更新</UButton>
           </div>
         </UForm>
+
+        <hr />
+        <h2 class="text-xl font-semibold">パスワード再設定</h2>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            現在のメールアドレス宛に認証コードを送信し、新しいパスワードを設定します。
+          </p>
+          <div class="flex gap-2">
+            <UButton color="primary" variant="outline" :loading="passwordResetSendLoading"
+              @click="onSendPasswordResetOtp">
+              再設定コードを送信
+            </UButton>
+          </div>
+
+          <div v-if="passwordResetOtpSent" class="space-y-3">
+            <UFormField label="認証コード" required>
+              <UInput v-model="passwordResetState.otp" maxlength="6" placeholder="123456" inputmode="numeric"
+                autocomplete="one-time-code" pattern="[0-9]*" />
+            </UFormField>
+            <UFormField label="新しいパスワード" required>
+              <UInput v-model="passwordResetState.password" type="password" placeholder="8文字以上" />
+            </UFormField>
+            <UFormField label="新しいパスワード（確認）" required>
+              <UInput v-model="passwordResetState.confirmPassword" type="password" placeholder="確認用" />
+            </UFormField>
+            <UButton color="primary" :loading="passwordResetLoading" @click="onResetPassword">
+              パスワードを再設定
+            </UButton>
+          </div>
+
+          <div v-if="config.public.TURNSTILE_SITE_KEY" id="settings-password-reset-turnstile"
+            class="mt-2 flex justify-center" />
+        </div>
 
         <hr />
 
