@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import { useTurnstile } from '~/composable/useTurnstile';
+import { meta } from 'zod/v4/core';
 
 definePageMeta({
   layout: 'the-app',
@@ -20,8 +21,10 @@ const { data: status, refresh } = await useFetch<{
   key: 'password-setup-status',
 });
 
-if (status.value && !status.value.mustSetPassword) {
-  await navigateTo('/apps/dashboard');
+if (import.meta.server) {
+  if (status.value && !status.value.mustSetPassword) {
+    await navigateTo('/apps/dashboard');
+  }
 }
 
 const otpSending = ref(false);
@@ -133,11 +136,19 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       return;
     }
 
-    await $fetch('/api/pitamai/password/setup-complete', {
-      method: 'POST',
-    });
-
-    await refresh();
+    try {
+      await $fetch('/api/pitamai/password/setup-complete', {
+        method: 'POST',
+      });
+    } catch (setupError: unknown) {
+      console.error('setup-complete failed:', setupError);
+      // パスワードは変更済みなので、警告を表示してダッシュボードへ
+      toast.add({
+        title: '警告',
+        description: 'パスワードは設定されましたが、状態の更新に失敗しました。',
+        color: 'warning',
+      });
+    }
 
     toast.add({
       title: '設定完了',

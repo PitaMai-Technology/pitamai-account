@@ -129,6 +129,7 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
         description: error.message ?? '認証に失敗しました。コードを確認してください。',
         color: 'error',
       });
+      resetTurnstileToken();
       return;
     }
 
@@ -147,6 +148,7 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
       description: errorMessage,
       color: 'error',
     });
+    resetTurnstileToken();
   } finally {
     loading.value = false;
   }

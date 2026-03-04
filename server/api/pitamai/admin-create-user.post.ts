@@ -30,7 +30,7 @@ export default defineEventHandler(async event => {
     const { email, name, role } = parsed.data;
     const temporaryPassword = `${randomUUID()}!aA1`;
 
-    await auth.api.createUser({
+    const createdFromAuth = (await auth.api.createUser({
       body: {
         email,
         name: name ?? email,
@@ -38,10 +38,18 @@ export default defineEventHandler(async event => {
         password: temporaryPassword,
       },
       headers: event.headers,
-    });
+    })) as { user?: { id?: string } };
+
+    const createdUserId = createdFromAuth.user?.id;
+    if (!createdUserId) {
+      throw createError({
+        statusCode: 500,
+        message: 'ユーザー作成結果の取得に失敗しました',
+      });
+    }
 
     const createdUser = await prisma.user.update({
-      where: { email },
+      where: { id: createdUserId },
       data: { mustSetPassword: true },
       select: {
         id: true,

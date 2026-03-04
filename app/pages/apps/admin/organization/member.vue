@@ -3,6 +3,7 @@ import { h, resolveComponent } from 'vue';
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
+import { useConfirmDialogStore } from '~/stores/confirmDialog';
 import type { z } from 'zod';
 
 // @tanstack/vue-table の型がプロジェクトにインストールされていない環境向けに
@@ -15,6 +16,8 @@ definePageMeta({
 });
 
 const toast = useToast();
+const confirmStore = useConfirmDialogStore();
+const { confirm: confirmDialog } = confirmStore;
 const activeOrganization = useActiveOrg();
 // 管理者以上 (admin, owner) のみをサーバー側でフィルタした組織一覧を取得
 const { data: adminOrganizations, status: adminOrganizationsStatus } = await useFetch(
@@ -262,15 +265,19 @@ const columns: TableColumn<Member>[] = [
   },
 ];
 
-// 削除確認モーダルの状態
-const confirmOpen = ref(false);
-const confirmMessage = ref('');
 let pendingRemoveMember: Member | null = null;
 
-function confirmRemoveMember(member: Member) {
+async function confirmRemoveMember(member: Member) {
   pendingRemoveMember = member;
-  confirmMessage.value = `${member.user?.email ?? member.userId} を組織から削除しますか？`;
-  confirmOpen.value = true;
+  const confirmed = await confirmDialog(
+    `${member.user?.email ?? member.userId} を組織から削除しますか？`
+  );
+  if (!confirmed) {
+    pendingRemoveMember = null;
+    return;
+  }
+
+  await onConfirmRemove();
 }
 
 async function onConfirmRemove() {
@@ -312,7 +319,6 @@ async function onConfirmRemove() {
     });
   } finally {
     loading.value = false;
-    confirmOpen.value = false;
     pendingRemoveMember = null;
   }
 }
@@ -433,7 +439,7 @@ async function onChangeMemberRole(member: Member, newRole: string) {
       <div v-else-if="!loading" class="text-sm text-gray-600">メンバーが見つかりません。</div>
     </AppBackgroundCard>
 
-    <!-- 削除確認モーダル -->
-    <TheConfirmModal v-model:open="confirmOpen" :message="confirmMessage" @confirm="onConfirmRemove" />
+    <!-- 削除確認モーダル（store駆動） -->
+    <TheConfirmModal />
   </div>
 </template>
