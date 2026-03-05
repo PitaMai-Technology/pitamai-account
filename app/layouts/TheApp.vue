@@ -49,9 +49,6 @@ if (import.meta.client) {
               <UButton icon="i-lucide-home" to="/apps/dashboard" variant="ghost" color="neutral">
                 ダッシュボード
               </UButton>
-              <UButton icon="i-lucide-mail" to="/apps/mail" variant="ghost" color="neutral">
-                メール
-              </UButton>
             </template>
 
             <template #right>

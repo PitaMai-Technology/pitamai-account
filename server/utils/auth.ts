@@ -1,5 +1,12 @@
 import { betterAuth } from 'better-auth';
-import { organization, admin, captcha, emailOTP } from 'better-auth/plugins';
+import {
+  organization,
+  admin,
+  captcha,
+  emailOTP,
+  jwt,
+} from 'better-auth/plugins';
+import { oauthProvider } from '@better-auth/oauth-provider';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import prisma from '~~/lib/prisma';
@@ -12,10 +19,48 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
+  advanced: {
+    cookiePrefix: process.env.BETTER_AUTH_COOKIE_PREFIX ?? 'pitamai-auth',
+  },
+  // セキュリティ強化: Cookie 設定
+  // HttpOnly: JavaScript からアクセス不可（XSS 対策）
+  // Secure: HTTPS のみで送信
+  // SameSite: CSRF 対策（Strict = 同一サイトのみ）
+  // maxAge: セッション 7 日間（必要に応じて調整）
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
     disableSignUp: true,
+    sendResetPassword: async ({ user, url, token }) => {
+      const config = useRuntimeConfig();
+      const resetLink = `${config.public.BETTER_AUTH_URL}/reset-password?token=${token}`;
+      console.log(`🔔 sendResetPassword called for ${user.email}`);
+      console.log(`🔗 password reset url: ${resetLink}`);
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: 'PitaMai - パスワード再設定',
+          text: `パスワード再設定のためのリンク: ${resetLink}\n\nこのリンクは有効期限があります。\nこのメールに心当たりがない場合は無視してください。`,
+        });
+      } catch (err) {
+        console.error('❌ sendResetPassword failed:', err);
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+
+      await recordAuditLog({
+        userId: user.id,
+        action: 'FORGOT_PASSWORD_EMAIL_SENT',
+        details: {
+          email: user.email,
+        },
+      });
+    },
   },
   user: {
     changeEmail: {
@@ -60,6 +105,7 @@ export const auth = betterAuth({
     }),
   },
   plugins: [
+    jwt(),
     captcha({
       provider: 'cloudflare-turnstile', // or google-recaptcha, hcaptcha, captchafox
       secretKey: process.env.TURNSTILE_SECRET_KEY!,
@@ -160,6 +206,28 @@ export const auth = betterAuth({
         admins,
         member,
       },
+    }),
+    oauthProvider({
+      loginPage: '/login',
+      consentPage: '/consent',
+      scopes: ['openid', 'profile', 'email', 'offline_access'],
+      validAudiences: [
+        process.env.OAUTH_DEFAULT_AUDIENCE ?? process.env.BETTER_AUTH_URL ?? '',
+      ].filter(Boolean),
+      clientReference: ({ session }) => {
+        const activeOrganizationId = session?.activeOrganizationId;
+        return typeof activeOrganizationId === 'string'
+          ? activeOrganizationId
+          : undefined;
+      },
+      // リダイレクトURI バリデーション設定
+      // 開発環境：http://localhost のリダイレクトURIを許可
+      // 本番環境：HTTPS のリダイレクトURIのみ許可（allowInsecureRedirectUris: false）
+      allowInsecureRedirectUris: process.env.NODE_ENV !== 'production',
+      // セキュリティ強化: PKCE 必須化（Authorization Code Flow のコード盗聴対策）
+      requirePKCE: true,
+      // Refresh Token Rotation を明示的に有効化（トークンリプレイ攻撃対策）
+      disableRefreshTokenRotation: true,
     }),
   ],
 });

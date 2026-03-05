@@ -242,3 +242,56 @@
 
 - 認証が必要なエンドポイント: リクエスト時に Cookie/セッションヘッダを付与
 - 組織切り替え: `/api/auth/organization/set-active` を呼んだ後、クライアント側の activeOrganization を更新して UI を再レンダリング
+
+---
+
+## OIDC / OAuth Provider エンドポイント
+
+Better Auth OAuth Provider プラグインにより、認可サーバーとして以下のエンドポイントを提供します。
+
+### Well-known (Discovery)
+
+- `GET /api/auth/.well-known/openid-configuration`
+  - OpenID Connect Discovery（issuer path 版）
+- `GET /.well-known/oauth-authorization-server/api/auth`
+  - OAuth Authorization Server Metadata（RFC8414 / issuer path 版）
+
+互換性のため、次の補助パスも公開しています。
+
+- `GET /.well-known/openid-configuration`
+- `GET /.well-known/oauth-authorization-server`
+- `GET /api/auth/.well-known/oauth-authorization-server`
+
+### OAuth2 / OIDC 本体（Better Auth handler）
+
+以下は `server/api/[...all].ts` の Better Auth handler で提供されます。
+
+- `GET /api/auth/oauth2/authorize`
+- `POST /api/auth/oauth2/token`
+- `POST /api/auth/oauth2/consent`
+- `POST /api/auth/oauth2/continue`
+- `POST /api/auth/oauth2/introspect`
+- `POST /api/auth/oauth2/revoke`
+- `GET /api/auth/oauth2/userinfo`
+- `POST /api/auth/oauth2/end-session`
+
+クライアント管理系:
+
+- `GET /api/auth/oauth2/get-client`
+- `GET /api/auth/oauth2/public-client`
+- `GET /api/auth/oauth2/get-clients`
+- `POST /api/auth/oauth2/create-client`
+- `POST /api/auth/oauth2/update-client`
+- `POST /api/auth/oauth2/delete-client`
+- `POST /api/auth/oauth2/client/rotate-secret`
+
+### 管理画面からの操作
+
+管理画面 `/apps/admin/oauth-clients` は独自 API を経由せず、
+`authClient.oauth2.*`（Better Auth OAuth Provider 公式API）を直接利用します。
+
+### 関連UI
+
+- ログイン画面: `/login`
+- 同意画面: `/consent`
+- 管理画面（owner限定）: `/apps/admin/oauth-clients`

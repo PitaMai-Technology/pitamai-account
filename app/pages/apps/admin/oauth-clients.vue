@@ -1,0 +1,409 @@
+<script setup lang="ts">
+import type { FormSubmitEvent } from '@nuxt/ui';
+import { z } from 'zod';
+import { authClient } from '~/composable/auth-client';
+
+definePageMeta({
+  layout: 'the-app',
+  middleware: ['only-owner'],
+});
+
+const toast = useToast();
+const loading = ref(false);
+const clients = ref<
+  Array<{
+    client_id: string;
+    client_name?: string;
+    redirect_uris?: string[];
+    require_pkce?: boolean;
+    editable_name: string;
+    editable_redirect_uri: string;
+    editable_require_pkce: boolean;
+    token_endpoint_auth_method?: string;
+    scope?: string;
+    editable_scope_text: string;
+    disabled?: boolean;
+  }>
+>([]);
+
+const justIssuedSecret = ref<string | null>(null);
+
+const schema = z.object({
+  clientName: z.string().trim().min(1, 'クライアント名は必須です'),
+  redirectUri: z.url('有効なリダイレクトURIを入力してください'),
+  scopesText: z.string().trim().min(1, 'スコープを1つ以上入力してください'),
+  isPublicClient: z.boolean().default(false),
+  requirePkce: z.boolean().default(true),
+});
+
+type Schema = z.output<typeof schema>;
+
+const state = reactive<Schema>({
+  clientName: '',
+  redirectUri: '',
+  scopesText: 'openid profile email',
+  isPublicClient: false,
+  requirePkce: true,
+});
+
+function parseScopes(scopesText: string) {
+  return scopesText
+    .split(/[\s,]+/)
+    .map(scope => scope.trim())
+    .filter(Boolean);
+}
+
+function normalizeScopeText(item: unknown) {
+  const record = item as { scope?: string; scopes?: string[] };
+  if (typeof record.scope === 'string' && record.scope.trim().length > 0) {
+    return record.scope.trim();
+  }
+
+  if (Array.isArray(record.scopes)) {
+    return record.scopes.filter(Boolean).join(' ').trim();
+  }
+
+  return '';
+}
+
+async function refreshClients() {
+  loading.value = true;
+  try {
+    const { data, error } = await authClient.oauth2.getClients();
+
+    if (error) {
+      const description =
+        error.status === 401
+          ? 'セッションが無効です。再ログイン後に再読み込みしてください。'
+          : error.message;
+      toast.add({
+        title: '取得に失敗しました(GetClients)',
+        description,
+        color: 'error',
+      });
+      return;
+    }
+
+    const list = Array.isArray(data) ? data : [];
+    clients.value = list.map(item => ({
+      client_id:
+        (item as { client_id?: string; clientId?: string }).client_id ??
+        (item as { client_id?: string; clientId?: string }).clientId ??
+        '',
+      client_name:
+        (item as { client_name?: string; clientName?: string }).client_name ??
+        (item as { client_name?: string; clientName?: string }).clientName,
+      redirect_uris:
+        (item as { redirect_uris?: string[]; redirectUris?: string[] })
+          .redirect_uris ??
+        (item as { redirect_uris?: string[]; redirectUris?: string[] })
+          .redirectUris,
+      require_pkce:
+        (item as { require_pkce?: boolean; requirePKCE?: boolean }).require_pkce ??
+        (item as { require_pkce?: boolean; requirePKCE?: boolean }).requirePKCE,
+      editable_name:
+        (item as { client_name?: string; clientName?: string }).client_name ??
+        (item as { client_name?: string; clientName?: string }).clientName ??
+        '',
+      editable_redirect_uri:
+        (item as { redirect_uris?: string[]; redirectUris?: string[] })
+          .redirect_uris?.[0] ??
+        (item as { redirect_uris?: string[]; redirectUris?: string[] })
+          .redirectUris?.[0] ??
+        '',
+      editable_require_pkce:
+        (item as { require_pkce?: boolean; requirePKCE?: boolean }).require_pkce ??
+        (item as { require_pkce?: boolean; requirePKCE?: boolean }).requirePKCE ??
+        true,
+      token_endpoint_auth_method: (item as { token_endpoint_auth_method?: string })
+        .token_endpoint_auth_method,
+      scope: normalizeScopeText(item),
+      editable_scope_text: normalizeScopeText(item),
+      disabled: (item as { disabled?: boolean }).disabled,
+    }));
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function onCreateClient(event: FormSubmitEvent<Schema>) {
+  if (loading.value) return;
+
+  loading.value = true;
+  justIssuedSecret.value = null;
+
+  try {
+    const scopes = parseScopes(event.data.scopesText);
+    if (scopes.length === 0) {
+      toast.add({
+        title: '入力エラー',
+        description: 'スコープを1つ以上入力してください',
+        color: 'warning',
+      });
+      return;
+    }
+    const scope = scopes.join(' ');
+
+    const { data, error } = await authClient.oauth2.createClient({
+      client_name: event.data.clientName,
+      redirect_uris: [event.data.redirectUri],
+      scope,
+      token_endpoint_auth_method: event.data.isPublicClient
+        ? 'none'
+        : 'client_secret_post',
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+    });
+
+    if (error) {
+      toast.add({
+        title: '作成に失敗しました',
+        description: error.message,
+        color: 'error',
+      });
+      return;
+    }
+
+    justIssuedSecret.value =
+      (data as { client_secret?: string } | null)?.client_secret ?? null;
+
+    toast.add({
+      title: 'OAuthクライアントを作成しました',
+      color: 'success',
+    });
+
+    state.clientName = '';
+    state.redirectUri = '';
+    state.scopesText = 'openid profile email';
+    state.isPublicClient = false;
+    state.requirePkce = true;
+
+    await refreshClients();
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function onDeleteClient(clientId: string) {
+  if (!clientId || loading.value) return;
+
+  loading.value = true;
+  try {
+    const { error } = await authClient.oauth2.deleteClient({
+      client_id: clientId,
+    });
+
+    if (error) {
+      toast.add({
+        title: '削除に失敗しました',
+        description: error.message,
+        color: 'error',
+      });
+      return;
+    }
+
+    toast.add({
+      title: 'OAuthクライアントを削除しました',
+      color: 'success',
+    });
+
+    await refreshClients();
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function onRotateSecret(clientId: string) {
+  if (!clientId || loading.value) return;
+
+  loading.value = true;
+  justIssuedSecret.value = null;
+
+  try {
+    const { data, error } = await authClient.oauth2.client.rotateSecret({
+      client_id: clientId,
+    });
+
+    if (error) {
+      toast.add({
+        title: 'シークレット再発行に失敗しました',
+        description: error.message,
+        color: 'error',
+      });
+      return;
+    }
+
+    justIssuedSecret.value =
+      (data as { client_secret?: string } | null)?.client_secret ?? null;
+
+    toast.add({
+      title: 'シークレットを再発行しました',
+      color: 'success',
+    });
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function onUpdateClient(client: {
+  client_id: string;
+  editable_name: string;
+  editable_redirect_uri: string;
+  editable_scope_text: string;
+  editable_require_pkce: boolean;
+}) {
+  if (!client.client_id || loading.value) return;
+
+  if (!client.editable_name.trim()) {
+    toast.add({
+      title: '入力エラー',
+      description: 'クライアント名を入力してください',
+      color: 'warning',
+    });
+    return;
+  }
+
+  if (!z.url().safeParse(client.editable_redirect_uri).success) {
+    toast.add({
+      title: '入力エラー',
+      description: '有効なリダイレクトURIを入力してください',
+      color: 'warning',
+    });
+    return;
+  }
+
+  const scopes = parseScopes(client.editable_scope_text);
+  if (scopes.length === 0) {
+    toast.add({
+      title: '入力エラー',
+      description: 'スコープを1つ以上入力してください',
+      color: 'warning',
+    });
+    return;
+  }
+  const scope = scopes.join(' ');
+
+  loading.value = true;
+  try {
+    const { error } = await authClient.oauth2.updateClient({
+      client_id: client.client_id,
+      update: {
+        client_name: client.editable_name.trim(),
+        redirect_uris: [client.editable_redirect_uri],
+        scope,
+      },
+    });
+
+    if (error) {
+      toast.add({
+        title: '更新に失敗しました',
+        description: error.message,
+        color: 'error',
+      });
+      return;
+    }
+
+    toast.add({
+      title: 'OAuthクライアントを更新しました',
+      color: 'success',
+    });
+
+    await refreshClients();
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(async () => {
+  await refreshClients();
+});
+</script>
+
+<template>
+  <AppBackgroundCard>
+    <div class="space-y-6">
+      <div>
+        <h1 class="text-xl font-semibold">OAuthクライアント管理</h1>
+        <p class="text-sm text-neutral-500 mt-1">
+          OIDC連携用クライアントを作成・管理します。
+        </p>
+      </div>
+
+      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onCreateClient">
+        <UFormField label="クライアント名" name="clientName" required>
+          <UInput v-model="state.clientName" placeholder="example-web-client" />
+        </UFormField>
+
+        <UFormField label="リダイレクトURI" name="redirectUri" required>
+          <UInput v-model="state.redirectUri" placeholder="https://client.example.com/callback" />
+        </UFormField>
+
+        <UFormField label="許可スコープ" name="scopesText" required>
+          <UInput v-model="state.scopesText" placeholder="openid profile email" />
+        </UFormField>
+        <p class="text-xs text-neutral-500">
+          スペースまたはカンマ区切りで入力します（例: openid profile email）。
+        </p>
+
+        <UCheckbox v-model="state.isPublicClient" label="Public Client (client_secretなし)" />
+        <UCheckbox v-model="state.requirePkce" :disabled="state.isPublicClient" label="PKCE 必須（推奨）" />
+        <p class="text-xs text-neutral-500">
+          Public Client は常に PKCE 必須です。PKCE未対応クライアントを使う場合のみ無効化してください。
+        </p>
+        <UButton type="submit" :loading="loading">クライアント作成</UButton>
+      </UForm>
+
+      <UAlert v-if="justIssuedSecret" color="warning" variant="soft" title="client_secret はこの表示時のみ確認できます"
+        :description="justIssuedSecret" />
+
+      <USeparator />
+
+      <div class="space-y-3">
+        <h2 class="text-lg font-semibold">登録済みクライアント</h2>
+
+        <div v-for="client in clients" :key="client.client_id" class="rounded border border-neutral-200 p-4 space-y-2">
+          <p class="font-medium">{{ client.client_name || '(名称未設定)' }}</p>
+          <p class="text-xs break-all text-neutral-500">client_id: {{ client.client_id }}</p>
+          <p class="text-xs text-neutral-500">
+            auth_method: {{ client.token_endpoint_auth_method || '-' }}
+          </p>
+          <UFormField label="クライアント名" size="sm">
+            <UInput v-model="client.editable_name" />
+          </UFormField>
+          <UFormField label="リダイレクトURI" size="sm">
+            <UInput v-model="client.editable_redirect_uri" />
+          </UFormField>
+          <UFormField label="許可スコープ" size="sm">
+            <UInput v-model="client.editable_scope_text" />
+          </UFormField>
+          <UCheckbox v-model="client.editable_require_pkce" :disabled="client.token_endpoint_auth_method === 'none'"
+            label="PKCE 必須" />
+          <p class="text-xs text-neutral-500">
+            redirect_uris: {{ (client.redirect_uris || []).join(', ') || '-' }}
+          </p>
+          <p class="text-xs text-neutral-500">
+            scope: {{ client.scope || '-' }}
+          </p>
+
+          <div class="flex gap-2">
+            <UButton color="primary" variant="outline" size="xs" :loading="loading" @click="onUpdateClient(client)">
+              更新
+            </UButton>
+            <UButton color="neutral" variant="outline" size="xs" :loading="loading"
+              @click="onRotateSecret(client.client_id)">
+              シークレット再発行
+            </UButton>
+            <UButton color="error" variant="outline" size="xs" :loading="loading"
+              @click="onDeleteClient(client.client_id)">
+              削除
+            </UButton>
+          </div>
+        </div>
+
+        <p v-if="!loading && clients.length === 0" class="text-sm text-neutral-500">
+          クライアントはまだ登録されていません。
+        </p>
+      </div>
+    </div>
+  </AppBackgroundCard>
+</template>

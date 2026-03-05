@@ -40,9 +40,28 @@ export default defineEventHandler(event => {
   const start = Date.now();
   const method = req.method;
   const url = req.url;
+  const isOauthConsent =
+    method === 'POST' && url?.startsWith('/api/auth/oauth2/consent');
 
   // リクエスト開始ログ（必要であれば有効化、ノイズになる場合はコメントアウト）
   logger.debug({ method, url }, 'Incoming request');
+
+  if (isOauthConsent) {
+    const hasCookie = !!getHeader(req.headers as any, 'cookie');
+    const origin = getHeader(req.headers as any, 'origin');
+    const referer = getHeader(req.headers as any, 'referer');
+    logger.info(
+      {
+        event: 'oauth_consent_request_start',
+        method,
+        url,
+        hasCookie,
+        origin,
+        referer,
+      },
+      'OAuth consent request started'
+    );
+  }
 
   // レスポンス終了時のログ
   res.on('finish', () => {
@@ -74,6 +93,13 @@ export default defineEventHandler(event => {
       traceId,
       httpRequest,
       durationMs: duration,
+      oauthConsent: isOauthConsent
+        ? {
+            hasCookie: !!getHeader(req.headers as any, 'cookie'),
+            origin: getHeader(req.headers as any, 'origin'),
+            referer: getHeader(req.headers as any, 'referer'),
+          }
+        : undefined,
     };
 
     if (statusCode >= 500) {

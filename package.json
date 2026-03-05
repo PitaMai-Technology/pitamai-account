@@ -16,6 +16,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "^1.5.0",
     "@nuxt/eslint": "^1.15.1",
     "@nuxt/ui": "^4.4.0",
     "@nuxtjs/mdc": "0.19.2",
@@ -31,7 +32,7 @@
     "eslint": "^9.39.3",
     "imapflow": "^1.2.10",
     "import-in-the-middle": "^2.0.6",
-    "isomorphic-dompurify": "^2.36.0",
+    "isomorphic-dompurify": "^3.0.0",
     "mailparser": "^3.9.3",
     "nodemailer": "^7.0.13",
     "nuxt": "^4.3.1",
@@ -65,9 +66,8 @@
     },
     "onlyBuiltDependencies": [
       "@prisma/client",
-      "@prisma/engines",
-      "better-sqlite3",
-      "prisma"
+      "@sentry/cli",
+      "argon2"
     ]
   }
 }

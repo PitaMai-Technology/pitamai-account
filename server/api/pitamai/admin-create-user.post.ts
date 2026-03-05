@@ -1,6 +1,5 @@
 import { createError, readBody } from 'h3';
 import { z } from 'zod';
-import { randomUUID } from 'node:crypto';
 import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
@@ -28,7 +27,7 @@ export default defineEventHandler(async event => {
     }
 
     const { email, name, role } = parsed.data;
-    const temporaryPassword = `${randomUUID()}!aA1`;
+    const temporaryPassword = `${globalThis.crypto.randomUUID()}!aA1`;
 
     const createdFromAuth = (await auth.api.createUser({
       body: {

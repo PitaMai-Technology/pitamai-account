@@ -12,6 +12,7 @@ const toast = useToast();
 const loading = ref(false);
 const otpSent = ref(false);
 const session = authClient.useSession();
+const route = useRoute();
 const { config, turnstileToken, resetTurnstileToken } = useTurnstile('login-turnstile');
 
 const emailState = reactive({
@@ -112,17 +113,26 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
 
   loading.value = true;
   try {
-    const { error } = await authClient.signIn.emailOtp({
+    const isOAuthFlow =
+      route.query.oauth_query !== undefined ||
+      route.query.sig !== undefined ||
+      (route.query.client_id !== undefined && route.query.response_type === 'code');
+    const signInPayload: Parameters<typeof authClient.signIn.emailOtp>[0] = {
       email: emailState.email,
       otp: event.data.otp,
-      callbackURL: '/apps/dashboard',
-      errorCallbackURL: '/error',
       fetchOptions: {
         headers: {
           'x-captcha-response': turnstileToken.value,
         },
       },
-    });
+    };
+
+    if (!isOAuthFlow) {
+      signInPayload.callbackURL = '/apps/dashboard';
+      signInPayload.errorCallbackURL = '/error';
+    }
+
+    const { error } = await authClient.signIn.emailOtp(signInPayload);
 
     if (error) {
       toast.add({
@@ -134,11 +144,21 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
       return;
     }
 
+    if (isOAuthFlow) {
+      await navigateTo({
+        path: '/consent',
+        query: route.query,
+      });
+      return;
+    }
+
     toast.add({
       title: 'ログイン成功',
       description: 'ダッシュボードへ移動します。',
       color: 'success',
     });
+
+    await navigateTo('/apps/dashboard');
   } catch (err) {
     const errorMessage =
       err instanceof Error
@@ -172,7 +192,7 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
         </div>
       </UPageCard>
     </div>
-    <div class="flex items-center justify-center p-4">
+    <div v-else class="flex items-center justify-center p-4">
       <UPageCard class="w-full max-w-md">
         <div class="space-y-4">
           <div>

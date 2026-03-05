@@ -73,7 +73,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
     toast.add({
       title: '作成しました',
-      description: `${event.data.email} のユーザーを作成しました。対象のユーザーはログイン後に初回パスワード設定が必要です。`,
+      description: `${event.data.email} のユーザーを作成しました。`,
       color: 'success',
     });
 

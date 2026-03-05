@@ -16,10 +16,14 @@ export default defineNuxtRouteMiddleware(async to => {
   }
 
   // グローバル権限がない場合、アクティブ組織での自分のロールを取得
+  // アクティブ組織が未設定の場合、エラーページにリダイレクト
   const { data, error } = await authClient.organization.getActiveMemberRole({});
 
-  // ロールが取れない（組織に属していない or activeOrg 未設定など）は権限なし扱い
-  if (error || !data?.role) {
+  if (error) {
+    return navigateTo('/apps/error');
+  }
+
+  if (!data?.role) {
     return navigateTo('/apps/error');
   }
 

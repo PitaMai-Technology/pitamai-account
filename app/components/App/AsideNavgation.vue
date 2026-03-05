@@ -1,27 +1,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useOrgRoleStore } from '~/stores/orgRole';
-import { useMailStore } from '~/stores/mail';
-import { useConfirmDialogStore } from '~/stores/confirmDialog';
-import { useMailApi } from '~/composable/useMailApi';
-import { useMailFolders } from '~/composable/useMailFolders';
 
 defineProps<{
   collapsed?: boolean;
 }>();
-
-const tabs = [
-  {
-    label: 'メール',
-    icon: 'i-lucide-mail',
-    slot: 'mail',
-  },
-  {
-    label: '設定',
-    icon: 'i-lucide-user',
-    slot: 'settings',
-  }
-];
 
 const items = ref([
   {
@@ -35,14 +18,6 @@ const items = ref([
     to: '/apps/users/settings',
   },
 ]);
-
-const mailItems = [
-  {
-    label: 'メール',
-    icon: 'i-lucide-inbox',
-    to: '/apps/mail',
-  },
-]
 
 const adminItems = [
   [
@@ -106,123 +81,17 @@ const adminItems = [
           icon: 'i-lucide-mail',
           to: '/apps/admin/user-change-email',
         },
+        {
+          label: 'OAuthクライアント管理',
+          icon: 'i-lucide-key-round',
+          to: '/apps/admin/oauth-clients',
+        },
       ],
     },
   ],
 ];
 
 const { canAccessAdmin } = storeToRefs(useOrgRoleStore());
-
-// メールフォルダパネル用のstate
-const mailStore = useMailStore();
-const mailApi = useMailApi();
-const toast = useToast();
-const confirmStore = useConfirmDialogStore();
-const { open: confirmOpen, message: confirmMessage } = storeToRefs(confirmStore);
-const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
-
-const {
-  activeFolderPath,
-  folders,
-  selectedUid,
-  isLoading,
-  creatingFolder,
-  folderActionLoading,
-  newFolderName,
-} = storeToRefs(mailStore);
-
-const hasMailSetting = computed(() => !!activeFolderPath.value);
-
-// フォルダ関連ロジック
-const {
-  canEditActiveFolder,
-  getFolderDisplay,
-  loadFolders,
-  onCreateFolder,
-  onRenameFolder,
-  onDeleteFolder,
-} = useMailFolders({
-  hasMailSetting,
-  activeFolderPath,
-  folders,
-  isLoading,
-  creatingFolder,
-  folderActionLoading,
-  newFolderName,
-  setFolders: mailStore.setFolders,
-  setActiveFolder: mailStore.setActiveFolder,
-});
-
-// フォルダ選択ハンドラー（別ページにいても自動的にメールページへ遷移）
-async function onSelectFolder(folderPath: string) {
-  mailStore.setActiveFolder(folderPath);
-  await navigateTo({
-    path: '/apps/mail',
-    query: {
-      f: folderPath,
-    },
-  });
-}
-
-// メール移動ハンドラー
-async function onDropMailToFolder(uids: number[], toFolderPath: string) {
-  if (!activeFolderPath.value) return;
-  if (activeFolderPath.value === toFolderPath) return;
-
-  const fromFolderPath = activeFolderPath.value;
-  const targetUids = Array.from(new Set(uids));
-
-  if (targetUids.length === 0) return;
-
-  if (targetUids.length > 1) {
-    const confirmed = await confirmDialog(
-      `${targetUids.length}件のメールを「${toFolderPath}」へ移動しますか？`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-  }
-
-  try {
-    for (const uid of targetUids) {
-      await mailApi.moveToFolder(uid, fromFolderPath, toFolderPath);
-    }
-
-    // 移動後はメール一覧キャッシュを破棄し、スレッド表示の不整合を防止
-    mailStore.clearMailDataCache();
-
-    const response = await mailApi.getMessages({
-      folder: fromFolderPath,
-      limit: 50,
-      forceSync: true,
-    });
-
-    mailStore.setMailList(response.messages);
-
-    if (selectedUid.value !== null && targetUids.includes(selectedUid.value)) {
-      mailStore.selectUid(null);
-      mailStore.setCurrentMail(null);
-    }
-
-    toast.add({
-      title: '移動しました',
-      description:
-        targetUids.length > 1
-          ? `${targetUids.length}件のメールをフォルダへ移動しました`
-          : 'メールをフォルダへ移動しました',
-      color: 'success',
-    });
-  } catch (error) {
-    toast.add({
-      title: '移動失敗',
-      description: error instanceof Error ? error.message : 'メール移動に失敗しました',
-      color: 'error',
-    });
-  }
-}
-
-
 </script>
 
 <template>
@@ -230,36 +99,11 @@ async function onDropMailToFolder(uids: number[], toFolderPath: string) {
     <div class="mb-6">
       <AppOrganaizationCheck />
     </div>
-    <UTabs :items="tabs" class="gap-5" variant="link" color="info">
-      <template #settings>
-        <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
+    <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
 
-        <template v-if="canAccessAdmin">
-          <USeparator class="my-4" label="管理者のみ" />
-          <UNavigationMenu :collapsed="collapsed" :items="adminItems" orientation="vertical" />
-        </template>
-
-      </template>
-      <template #mail>
-        <UNavigationMenu :collapsed="collapsed" :items="mailItems" orientation="vertical" />
-        <USeparator class="mt-2 mb-8" />
-        <template v-if="hasMailSetting && !isLoading && folders.length === 0">
-          <div class="flex flex-col items-center justify-center gap-4 py-12">
-            <UButton icon="i-lucide-mail-open" @click="navigateTo('/apps/mail')">メールを開く</UButton>
-          </div>
-        </template>
-        <template v-else-if="hasMailSetting && folders.length > 0">
-          <AppMailFolderPanel :folders="folders" :active-folder-path="activeFolderPath" :new-folder-name="newFolderName"
-            :creating-folder="creatingFolder" :folder-action-loading="folderActionLoading"
-            :can-edit-active-folder="canEditActiveFolder" :get-folder-display="getFolderDisplay"
-            @select="onSelectFolder" @drop-mail="onDropMailToFolder" @create-folder="onCreateFolder"
-            @rename-folder="onRenameFolder" @delete-folder="onDeleteFolder"
-            @update:new-folder-name="newFolderName = $event" />
-        </template>
-      </template>
-    </UTabs>
+    <template v-if="canAccessAdmin">
+      <USeparator class="my-4" label="管理者のみ" />
+      <UNavigationMenu :collapsed="collapsed" :items="adminItems" orientation="vertical" />
+    </template>
   </div>
-
-  <LazyTheConfirmModal :open="confirmOpen" title="確認" :message="confirmMessage" @confirm="() => resolveConfirm(true)"
-    @cancel="() => resolveConfirm(false)" />
 </template>
