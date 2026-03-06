@@ -2,9 +2,23 @@
 import nodemailer from 'nodemailer';
 
 const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+const smtpSecure = process.env.SMTP_SECURE === 'true';
+const smtpConnectionTimeout = parseInt(
+  process.env.SMTP_CONNECTION_TIMEOUT || '10000'
+);
+const smtpGreetingTimeout = parseInt(
+  process.env.SMTP_GREETING_TIMEOUT || '10000'
+);
+const smtpSocketTimeout = parseInt(process.env.SMTP_SOCKET_TIMEOUT || '20000');
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: smtpPort,
+  secure: smtpSecure,
+  requireTLS: !smtpSecure,
+  connectionTimeout: smtpConnectionTimeout,
+  greetingTimeout: smtpGreetingTimeout,
+  socketTimeout: smtpSocketTimeout,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -18,7 +32,7 @@ export async function sendEmail({
   subject,
   text,
   html,
-  from = process.env.SMTP_FROM || 'noreply@example.com',
+  from = process.env.SMTP_FROM,
 }: {
   to: string;
   subject: string;
@@ -37,7 +51,11 @@ export async function sendEmail({
       smtpConfig: {
         host: process.env.SMTP_HOST,
         port: smtpPort,
+        secure: smtpSecure,
         user: process.env.SMTP_USER,
+        connectionTimeout: smtpConnectionTimeout,
+        greetingTimeout: smtpGreetingTimeout,
+        socketTimeout: smtpSocketTimeout,
       },
     });
     throw new Error('Failed to send email');
