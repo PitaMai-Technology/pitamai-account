@@ -62,5 +62,9 @@
       "@prisma/client",
       "@sentry/cli"
     ]
+  },
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
   }
 }
