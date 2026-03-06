@@ -42,6 +42,7 @@ export const auth = betterAuth({
       enabled: true,
       maxAge: 5 * 60, // Cache duration in seconds
     },
+    storeSessionInDatabase: true,
   },
   emailAndPassword: {
     enabled: true,
