@@ -178,8 +178,12 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
 
 <template>
   <div>
-    <div v-if="session.data" class="flex items-center justify-center p-4">
-      <UPageCard class="w-full max-w-md">
+    <div class="flex items-center justify-center gap-4">
+      <img src="/pitamai-only-logo.png" class="h-12" alt="PitaMai Logo" />
+      <p class="text-xl font-semibold">共通のアカウント</p>
+    </div>
+    <div v-if="session.data" class="flex items-center justify-center p-4 w-full">
+      <UPageCard class="w-max max-w-md">
         <div class="flex flex-col items-center space-y-4 py-8">
           <UIcon name="i-lucide-check-circle" class="h-16 w-16 text-success" />
           <h2 class="text-xl font-semibold">ログイン済みです</h2>
@@ -193,8 +197,9 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
       </UPageCard>
     </div>
     <div v-else class="flex items-center justify-center p-4">
-      <UPageCard class="w-full max-w-md">
-        <div class="space-y-4">
+      <!-- w-maxをつけないと、overflowする -->
+      <UPageCard class="w-max max-w-md">
+        <div class="space-y-4 w-full">
           <div>
             <h2 class="text-xl font-semibold">ログイン</h2>
             <p class="mt-1 text-sm text-gray-600">

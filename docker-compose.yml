@@ -1,14 +1,15 @@
 services:
-  db:
+  db-account:
     image: postgres:18
+    container_name: pitamai-account-postgres
     environment:
       POSTGRES_USER: maimai
       POSTGRES_PASSWORD: maimai
-      POSTGRES_DB: maimai_dev
+      POSTGRES_DB: maimai_dev_account
     ports:
       - '5432:5432'
     volumes:
-      - pgdata:/var/lib/postgresql
+      - pitamai-account-pgdata:/var/lib/postgresql
 
 volumes:
-  pgdata:
+  pitamai-account-pgdata:
