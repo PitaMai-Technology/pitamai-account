@@ -33,16 +33,11 @@ const onSignOut = async () => {
 </script>
 
 <template>
-  <UHeader title="MaiMai Hub">
+  <UHeader title="PitaMaiアカウント">
     <template #right>
       <template v-if="session.data">
         <UButton to="/apps/dashboard" target="_blank">ダッシュボード</UButton>
-        <UButton
-          icon="i-lucide-log-out"
-          @click="onSignOut"
-          color="error"
-          size="xs"
-        >
+        <UButton icon="i-lucide-log-out" @click="onSignOut" color="error" size="xs">
           ログアウト
         </UButton>
       </template>
