@@ -1,18 +1,31 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
+import { useActiveOrg } from '~/composable/useActiveOrg';
 import { useOrgRoleStore } from '~/stores/orgRole';
 
 const session = authClient.useSession();
+const activeOrg = useActiveOrg();
 const { canAccessAdmin, isRoleResolved } = storeToRefs(useOrgRoleStore());
 const toast = useToast();
 const hasRedirected = ref(false);
 
 if (import.meta.client) {
   watch(
-    () => ({ canAccess: canAccessAdmin.value, resolved: isRoleResolved.value }),
-    ({ canAccess, resolved }) => {
+    () => ({
+      canAccess: canAccessAdmin.value,
+      resolved: isRoleResolved.value,
+      activeOrgId: activeOrg.value.data?.id,
+      activeOrgPending: activeOrg.value.isPending,
+    }),
+    ({ canAccess, resolved, activeOrgId, activeOrgPending }) => {
       if (!resolved) return; // ロール判定が完了するまで待機
+      if (activeOrgPending) return; // アクティブ組織の判定が完了するまで待機
+
+      if (!activeOrgId) {
+        hasRedirected.value = false;
+        return;
+      }
 
       if (
         !canAccess &&
