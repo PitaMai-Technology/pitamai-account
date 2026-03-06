@@ -22,6 +22,9 @@ export const auth = betterAuth({
   }),
   advanced: {
     cookiePrefix: process.env.BETTER_AUTH_COOKIE_PREFIX ?? 'pitamai-auth',
+    ipAddress: {
+      ipAddressHeaders: ['cf-connecting-ip'], // or any other custom header
+    },
   },
   // セキュリティ強化: Cookie 設定
   // HttpOnly: JavaScript からアクセス不可（XSS 対策）
@@ -137,7 +140,10 @@ export const auth = betterAuth({
             });
           }
         } catch (e) {
-          logger.error({ error: e }, 'Failed to record OAuth consent audit log');
+          logger.error(
+            { error: e },
+            'Failed to record OAuth consent audit log'
+          );
         }
       }
     }),
