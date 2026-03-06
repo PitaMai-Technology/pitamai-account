@@ -101,6 +101,17 @@ const canSubmitConsent = computed(() => !loading.value && !consentErrorMessage.v
 async function submitConsent(accept: boolean) {
   if (!canSubmitConsent.value) return;
 
+  // 同意する場合は確認ダイアログを表示
+  if (accept) {
+    const confirmStore = useConfirmDialogStore();
+    const confirmed = await confirmStore.confirm(
+      `このアプリケーションと本当に連携しますか？`
+    );
+    if (!confirmed) {
+      return;
+    }
+  }
+
   loading.value = true;
   try {
     console.info('[oauth-consent] submit start', {
@@ -153,11 +164,15 @@ async function submitConsent(accept: boolean) {
 </script>
 
 <template>
+  <div class="flex items-center justify-center gap-4">
+    <img src="/pitamai-only-logo.png" class="h-12" alt="PitaMai Logo" />
+    <p class="text-xl font-semibold">共通アカウント</p>
+  </div>
   <div class="flex items-center justify-center p-4">
     <UPageCard class="w-full max-w-xl">
       <template #title>アプリ連携の確認</template>
       <template #description>
-        以下のスコープに対するアクセス許可を確認してください。
+        以下のスコープ(アプリ情報を取得するもの)に対するアクセス許可を確認してください。
       </template>
 
       <div class="space-y-4">
@@ -167,7 +182,7 @@ async function submitConsent(accept: boolean) {
         </div>
 
         <div v-if="clientDisplayName">
-          <p class="text-sm text-neutral-500">アプリ名</p>
+          <p class="text-sm text-neutral-500">連携しようとしているアプリケーション名</p>
           <p class="font-medium">{{ clientDisplayName }}</p>
         </div>
 
@@ -175,7 +190,7 @@ async function submitConsent(accept: boolean) {
           :description="consentErrorMessage" />
 
         <div>
-          <p class="text-sm text-neutral-500 mb-2">要求スコープ</p>
+          <p class="text-sm text-neutral-500 mb-2">要求スコープ(アプリ情報を取得するもの)</p>
           <div class="flex flex-wrap gap-2">
             <UBadge v-for="scope in scopeItems" :key="scope" color="neutral" variant="subtle">
               {{ scope }}
@@ -183,7 +198,7 @@ async function submitConsent(accept: boolean) {
           </div>
         </div>
 
-        <div class="flex gap-2 pt-2">
+        <div class="flex justify-end gap-2 pt-2">
           <UButton color="neutral" variant="outline" :loading="loading" :disabled="!canSubmitConsent"
             @click="submitConsent(false)">
             拒否する
@@ -194,5 +209,6 @@ async function submitConsent(accept: boolean) {
         </div>
       </div>
     </UPageCard>
+    <LazyTheConfirmModal />
   </div>
 </template>

@@ -180,14 +180,14 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
   <div>
     <div class="flex items-center justify-center gap-4">
       <img src="/pitamai-only-logo.png" class="h-12" alt="PitaMai Logo" />
-      <p class="text-xl font-semibold">共通のアカウント</p>
+      <p class="text-xl font-semibold">共通アカウント</p>
     </div>
     <div v-if="session.data" class="flex items-center justify-center p-4 w-full">
       <UPageCard class="w-max max-w-md">
         <div class="flex flex-col items-center space-y-4 py-8">
           <UIcon name="i-lucide-check-circle" class="h-16 w-16 text-success" />
           <h2 class="text-xl font-semibold">ログイン済みです</h2>
-          <p class="text-center text-gray-600">
+          <p class="text-center">
             ようこそ、{{ session.data.user.name }}さん
           </p>
           <UButton to="/apps/dashboard" color="primary">
@@ -201,11 +201,14 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
       <UPageCard class="w-max max-w-md">
         <div class="space-y-4 w-full">
           <div>
+            <UAlert title="注意!" description="管理者側で事前に登録されていないと、認証メールが届きません。" class="text-sm mb-6" color="warning" />
             <h2 class="text-xl font-semibold">ログイン</h2>
-            <p class="mt-1 text-sm text-gray-600">
+            <p class="mt-1 text-sm">
               メールアドレス宛に届く認証コードでログインします。
             </p>
           </div>
+
+          <USeparator class="my-6" />
 
           <UForm v-if="!otpSent" :schema="emailOtpFormSchema" :state="emailState" class="space-y-4" @submit="onSendOtp">
             <UFormField label="メールアドレス" name="email" required>
@@ -217,7 +220,7 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
           </UForm>
 
           <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4" @submit="onVerifyOtp">
-            <p class="text-sm text-gray-600">
+            <p class="text-sm">
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>
             <UFormField label="認証コード" name="otp" required>
