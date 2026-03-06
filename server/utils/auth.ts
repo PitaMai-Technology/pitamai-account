@@ -140,7 +140,9 @@ export const auth = betterAuth({
               path: ctx.path,
             },
           });
-        } catch {}
+        } catch (e) {
+          logger.error({ error: e }, 'Failed to record sign-in audit log');
+        }
       }
       // OAuth2 Consent Logging
       if (
@@ -148,7 +150,7 @@ export const auth = betterAuth({
         ctx.request?.method === 'POST'
       ) {
         try {
-          const body = await ctx.body;
+          const body = ctx.body;
           const session = await auth.api.getSession({
             headers: ctx.headers || {},
           });
