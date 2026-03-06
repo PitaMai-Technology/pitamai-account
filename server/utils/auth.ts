@@ -14,6 +14,7 @@ import { sendEmail } from './email';
 import { createError } from 'h3';
 import { createAuthMiddleware } from 'better-auth/api';
 import { recordAuditLog } from '~~/server/utils/audit';
+import { logger } from '~~/server/utils/logger';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -21,6 +22,9 @@ export const auth = betterAuth({
   }),
   advanced: {
     cookiePrefix: process.env.BETTER_AUTH_COOKIE_PREFIX ?? 'pitamai-auth',
+    ipAddress: {
+      ipAddressHeaders: ['cf-connecting-ip'], // or any other custom header
+    },
   },
   // セキュリティ強化: Cookie 設定
   // HttpOnly: JavaScript からアクセス不可（XSS 対策）
@@ -32,6 +36,12 @@ export const auth = betterAuth({
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'Strict',
     maxAge: 7 * 24 * 60 * 60, // 7 days
+  },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // Cache duration in seconds
+    },
   },
   emailAndPassword: {
     enabled: true,
@@ -100,18 +110,69 @@ export const auth = betterAuth({
   hooks: {
     after: createAuthMiddleware(async ctx => {
       const newSession = ctx.context.newSession;
-      if (!newSession) return;
-
-      try {
-        await recordAuditLog({
-          userId: newSession.user.id,
-          action: 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS',
-          details: {
-            provider: 'email-otp',
-            path: ctx.path,
-          },
-        });
-      } catch {}
+      if (newSession) {
+        let action: string;
+        let provider: string;
+        // パスに基づいて認証経路を判別
+        if (ctx.path.startsWith('/sign-in/email-otp')) {
+          action = 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS';
+          provider = 'email-otp';
+        } else if (ctx.path.startsWith('/sign-in/email')) {
+          action = 'ACCOUNT_SIGN_IN_EMAIL_PASSWORD_SUCCESS';
+          provider = 'email-password';
+        } else if (ctx.path.startsWith('/sign-up/email')) {
+          action = 'ACCOUNT_SIGN_UP_EMAIL_SUCCESS';
+          provider = 'email-password';
+        } else if (ctx.path.startsWith('/verify-email')) {
+          action = 'ACCOUNT_EMAIL_VERIFICATION_SUCCESS';
+          provider = 'email-verification';
+        } else {
+          // その他の認証経路
+          action = 'ACCOUNT_SIGN_IN_SUCCESS';
+          provider = 'unknown';
+        }
+        try {
+          await recordAuditLog({
+            userId: newSession.user.id,
+            action: action,
+            details: {
+              provider: provider,
+              path: ctx.path,
+            },
+          });
+        } catch (e) {
+          logger.error({ error: e }, 'Failed to record sign-in audit log');
+        }
+      }
+      // OAuth2 Consent Logging
+      if (
+        ctx.path.endsWith('/oauth2/consent') &&
+        ctx.request?.method === 'POST'
+      ) {
+        try {
+          const body = ctx.body;
+          const session = await auth.api.getSession({
+            headers: ctx.headers || {},
+          });
+          if (session?.user) {
+            await recordAuditLog({
+              userId: session.user.id,
+              action: body.accept
+                ? 'OAUTH_CONSENT_ACCEPTED'
+                : 'OAUTH_CONSENT_DENIED',
+              details: {
+                scope: body.scope,
+                path: ctx.path,
+              },
+            });
+          }
+        } catch (e) {
+          logger.error(
+            { error: e },
+            'Failed to record OAuth consent audit log'
+          );
+        }
+      }
     }),
   },
   plugins: [
@@ -157,7 +218,7 @@ export const auth = betterAuth({
             ? 'ログイン認証コード - PitaMai'
             : type === 'email-verification'
               ? 'メール認証コード - PitaMai'
-              : 'パスワード再設定コード - PitaMai';
+              : 'パスワード設定コード - PitaMai';
 
         const purpose =
           type === 'sign-in'

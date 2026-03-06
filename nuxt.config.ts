@@ -41,7 +41,7 @@ export default defineNuxtConfig({
 
   sentry: {
     org: 'pitamai-technology',
-    project: 'maimai-hub',
+    project: 'auth-server',
   },
 
   sourcemap: {

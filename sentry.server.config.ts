@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nuxt";
  
 Sentry.init({
-  dsn: "https://66796fc2b6fbe5ba23849da69973bff8@o4509352326791168.ingest.us.sentry.io/4510496093503488",
+  dsn: "https://75849f2d0940c9f3a2bfd4c1b4523d3e@o4509352326791168.ingest.us.sentry.io/4510999109500928",
 
   // We recommend adjusting this value in production, or using tracesSampler
   // for finer control
