@@ -48,10 +48,10 @@ async function setActiveOrganization(id: string) {
     </div>
     <template v-if="activeOrganization.data === null">
       <p class="text-sm text-info mt-2">
-        現在、組織は選択されていません。 上のリストから組織を選択してください。</p>
+        現在、組織は選択されていません。</p>
       <template v-if="organizations.data?.length === 0">
         <p class="text-sm text-gray-500 mt-4">
-          また、組織に所属していない場合は、既存の組織に招待される必要があります。
+          また、組織に所属していない場合は、既存の組織に招待される必要があります。詳細は管理者にお問い合わせください。
         </p>
       </template>
     </template>

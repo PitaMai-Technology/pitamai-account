@@ -4,6 +4,7 @@ import {
   emailOTPClient,
   organizationClient,
   adminClient,
+  inferAdditionalFields,
 } from 'better-auth/client/plugins';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 
@@ -12,6 +13,16 @@ import { ac, owner, admins, member } from '~~/server/utils/permissions';
 export const authClient = createAuthClient({
   baseURL: process.env.BETTER_AUTH_URL,
   plugins: [
+    inferAdditionalFields({
+      user: {
+        twitterUrl: {
+          type: 'string',
+        },
+        bio: {
+          type: 'string',
+        },
+      },
+    }),
     oauthProviderClient(),
     emailOTPClient(),
     adminClient({

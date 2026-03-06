@@ -6,7 +6,7 @@
 - **フレームワーク:** Nuxt 4（最新版）
 - **UIライブラリ:** Nuxt UI v4
 - **認証:** Better Auth
-- **データベースORM:** Prisma
+- **データベースORM:** Prisma (PostgreSQL)
 - **言語:** TypeScript
 - **パッケージマネージャー:** pnpm
 
@@ -67,40 +67,15 @@
 
 ## このプロジェクトの概要
 
-このプロジェクトは、Nuxt 4とNuxt UI v4をベースにしたモダンなフルスタックメールクライアントアプリケーションです。
-Better Authを使った認証機能とPrisma ORMを使ったデータベース操作が組み込まれています。TypeScriptで厳密に型付けされたコードベースを持っています。
+このプロジェクトは、Nuxt 4 と Nuxt UI v4 をベースにしたモダンなフルスタック認証・組織管理サーバーです。
+Better Auth による OAuth 2.1 / OIDC プロバイダー機能、Prisma ORM を使ったデータベース操作、監査ログシステム、
+TypeScript で厳密に型付けされたコードベースとなっています。
 
-自前サーバー型（IMAP/SMTP）メールクライアント仕様
+### 主要機能
 
-### リアルタイム通知アプローチ
+#### 認証・認可
 
-方式: SSE (Server-Sent Events) による通知。
-
-理由: WebSockets よりも軽量で Nuxt (Nitro) のストリーミング応答と親和性が高いため。
-
-### 仕組み: 1. server/api/mail/stream.get.ts でストリームを確立。
-
-2. Nitroサーバーサイドで imapflow の IDLE モードを維持。
-3. 新着メール検知時に eventStream.push() を実行し、クライアントへ通知。
-
-### 使用ライブラリ
-
-IMAP 受信: imapflow (Promise-based, IDLE support)
-
-SMTP 送信: nodemailer
-
-MIME 解析: mailparser
-
-サニタイズ: isomorphic-dompurify (v-htmlの安全な描画)
-
-### データ管理 (Prisma)
-
-MailAccount: ユーザーごとの接続情報（ホスト、ポート、暗号化パスワード）を管理。
-
-MailCache: パフォーマンス向上のため、メッセージのメタデータ（UID, Subject, Date）をキャッシュ。
-
-### セキュリティ要件
-
-メールの表示には AppMailBody コンポーネントを使用し、必ずサーバー/クライアント両側でサニタイズを適用する。
-
-パスワードはデータベース内で対称暗号化（AES-256）を施して保存する。
+- Better Auth による OAuth 2.1 / OIDC プロバイダー
+- ロールベースアクセス制御（RBAC）
+- 組織メンバーの招待・管理
+- セッション管理と監査ログ

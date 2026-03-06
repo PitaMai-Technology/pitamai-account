@@ -30,7 +30,7 @@ export const auth = betterAuth({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'Strict',
     maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   emailAndPassword: {
@@ -66,6 +66,16 @@ export const auth = betterAuth({
     changeEmail: {
       enabled: true,
       updateEmailWithoutVerification: false,
+    },
+    additionalFields: {
+      twitterUrl: {
+        type: 'string',
+        required: false,
+      },
+      bio: {
+        type: 'string',
+        required: false,
+      },
     },
   },
   emailVerification: {

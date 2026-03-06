@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
 const confirmStore = useConfirmDialogStore();
-const { open: confirmOpen } = storeToRefs(confirmStore);
-const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 
 const toast = useToast();
 
@@ -21,7 +18,7 @@ const invitationId = computed(
 const loading = ref(false);
 const message = ref('');
 async function acceptInvitation() {
-  const confirmed = await confirmDialog();
+  const confirmed = await confirmStore.confirm('本当に招待を承認しますか？');
   if (!confirmed) {
     loading.value = false;
     return;
@@ -82,8 +79,7 @@ async function acceptInvitation() {
         招待を承認する
       </UButton>
 
-      <LazyTheConfirmModal :open="confirmOpen" title="確認" message="本当に招待を承認しますか？" @confirm="() => resolveConfirm(true)"
-        @cancel="() => resolveConfirm(false)" />
+      <TheConfirmModal />
     </div>
   </div>
 </template>

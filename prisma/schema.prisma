@@ -26,17 +26,17 @@ model User {
   sessions        Session[]
   accounts        Account[]
 
-  members      Member[]
-  invitations  Invitation[]
-  auditLogs    AuditLog[]
-  wikis        Wiki[]
-  mailAccounts MailAccount[]
-  gpgKey       UserGpgKey?
+  members     Member[]
+  invitations Invitation[]
+  auditLogs   AuditLog[]
 
   oauthclients       OauthClient[]
   oauthrefreshtokens OauthRefreshToken[]
   oauthaccesstokens  OauthAccessToken[]
   oauthconsents      OauthConsent[]
+
+  twitterUrl String?
+  bio        String?
 
   @@unique([email])
   @@map("user")
@@ -106,7 +106,6 @@ model Organization {
   members     Member[]
   invitations Invitation[]
   auditLogs   AuditLog[]
-  wikis       Wiki[]
 
   @@unique([slug])
   @@map("organization")

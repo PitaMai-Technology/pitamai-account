@@ -1,181 +1,55 @@
-# MaiMai Hub
+# PitaMai Account
 
-Nuxt 4 + Better Auth を使用した、パスワードレス認証＆組織管理システムです。
+Nuxt 4 + Better Auth を使用した、OIDC互換の OAuth 2.1 認証サーバー、組織管理システム、Wiki プラットフォーム、およびメールクライアントです。
 
-## 機能
+## 特徴
 
-### 認証機能
+- **OAuth 2.1 / OIDC:** Better Auth による完全な認証・認可機能
+- **組織管理:** ロールベースアクセス制御（RBAC）対応の組織管理
+- **監査ログ:** すべてのアクション監視と詳細なログ出力
+- **Wiki:** Markdown 対応、組織ごとに管理可能な Wiki プラットフォーム
+- **メール:** IMAP/SMTP 対応、SSE によるリアルタイム新着通知
+- **デザイン:** Nuxt UI v4 ベースのシンプルでクリーンなインターフェース
 
-- 🔐 **Email OTP認証**: パスワード不要のワンタイムコード認証
-- 📧 **メールログイン**: メールアドレスだけで簡単ログイン
-- 🚪 **ログアウト**: セッション破棄
-- ✅ **管理者作成ユーザー導線**:
-  - 管理画面から `admin.createUser` でユーザー作成
-  - Email OTP で初回ログイン
+## 技術スタック
 
-### 組織・メンバー管理
+- **Framework:** Nuxt 4
+- **UI:** Nuxt UI v4
+- **Database ORM:** Prisma（PostgreSQL）
+- **Authentication:** Better Auth
+- **Mail:** imapflow、nodemailer、mailparser
+- **Language:** TypeScript
+- **Package Manager:** pnpm
 
-- 🏢 組織作成（管理画面 `/apps/admin/create-organization`）
-- 🔁 アクティブ組織の切り替え
-- 👥 メンバー一覧・検索（`/apps/admin/member`）
-- ✉️ メンバー招待（`/apps/admin/member-add`）
-- 🎫 組織招待の承認（`/apps/organization/accept-invitation`）
+## 開発の開始
 
-### セキュリティ
+### 前提条件
 
-- トークンベースのメール認証（5分間有効）
-- PostgreSQL + Prisma によるセッション／ユーザー管理
-- Better Auth による認証フロー
-- Zod によるサーバー・フロント両方でのバリデーション
-- Better Auth Organization + Access Control によるロール管理（`owner` / `admin` / `member`）
+- Node.js 18+
+- PostgreSQL
+- pnpm
 
-## セットアップ
-
-### 1. 依存関係のインストール
+### インストール
 
 ```bash
 pnpm install
 ```
 
-### 2. 環境変数の設定
-
-`.env` ファイルを作成して以下を設定：
-
-```env
-BETTER_AUTH_SECRET=your-secret-key-here
-BETTER_AUTH_URL=http://localhost:3000
-
-# データベース設定
-DATABASE_URL="postgresql://maimai:maimai@localhost:5432/maimai_dev?schema=public"
-
-# メール送信設定
-SMTP_HOST=your-smtp-host
-SMTP_PORT=587
-SMTP_SECURE=true
-SMTP_USER=your-email@example.com
-SMTP_PASS=your-password
-SMTP_FROM="PitaMAI <noreply@example.com>"
-```
-
-### 3. PostgreSQL の起動（Docker Compose）
+### マイグレーション実行
 
 ```bash
-docker compose up -d
+pnpm run migration:prisma
+pnpm run migration:better-auth
 ```
 
-### 4. データベースのマイグレーション
-
-このプロジェクトの DB は **Prisma v6** を基準としているため、
-グローバルにインストールされた `npx` ではなく、**常に `pnpm exec` を使用**してください。
-
-1. 初期化
-
-```bash
-pnpm exec prisma generate
-pnpm generate:better-auth
-```
-
-2. マイグレーションの実行
-
-```bash
-pnpm exec prisma migrate dev --name better-auth
-```
-
-### 5. 開発サーバーの起動
+### 開発サーバー起動
 
 ```bash
 pnpm dev
 ```
 
-サーバーは `http://localhost:3000` で起動します。
+アプリケーションは `http://localhost:3000` で起動します。
 
-6. prisma studio の起動（任意）
+## ドキュメント
 
-```bash
-pnpm exec prisma studio
-```
-
-localhost:5555で起動します。
-
-## 使用方法
-
-### 認証フロー（Email OTP）
-
-1. **ログインページにアクセス** (`/login`)
-
-- メールアドレスを入力
-
-2. **メールを確認**
-
-- 入力したメールアドレスに 6 桁の認証コード（OTP）が送信されます
-- コードは 5 分間有効です
-
-3. **認証コードを入力**
-
-- OTP を入力すると認証され、
-  Better Auth の設定に基づきコールバック URL（例: `/apps/dashboard`）へリダイレクトされます
-
-4. **ダッシュボード**
-   - `/apps/dashboard` でユーザー情報・セッション情報・所属組織を確認できます
-   - ログアウトボタンでセッションを終了できます
-
-### 管理画面の構成（/apps 配下）
-
-- `/apps/dashboard`  
-  認証済みユーザー向けのダッシュボード
-- `/apps/admin/account-add`  
-  管理者によるアカウント作成 + Email OTP 送信
-- `/apps/admin/create-organization`  
-  組織の作成
-- `/apps/admin/member`  
-  メンバー一覧・検索
-- `/apps/admin/member-add`  
-  メンバー招待
-- `/apps/organization/[id]`  
-  組織詳細ページ（URL から組織を切り替え）
-
-※ `/apps/**` へのアクセスは `app/middleware/auth.global.ts` によって保護され、
-`/apps/admin/**` へのアクセスはロール（`admin` 以上）に基づくガードで制御されています。
-
-## API エンドポイント（抜粋）
-
-### Email OTP 認証 API（Better Auth）
-
-#### `POST /api/auth/email-otp/send-verification-otp`
-
-ログイン用の認証コード（OTP）を送信します。
-
-**リクエスト例:**
-
-```json
-{
-  "email": "user@example.com",
-  "type": "sign-in"
-}
-```
-
-#### `POST /api/auth/admin/create-user`
-
-管理者がユーザーを作成します。作成後、Email OTP を送信して初回ログインを開始します。
-
----
-
-実装の詳細はそれぞれのファイルを参照してください：
-
-- 認証クライアント: [`app/composable/auth-client.ts`](app/composable/auth-client.ts)
-- Better Auth 設定: [`server/utils/auth.ts`](server/utils/auth.ts)
-- 組織ロール / アクセス制御: [`server/utils/permissions.ts`](server/utils/permissions.ts)
-- 認証ミドルウェア: [`app/middleware/auth.global.ts`](app/middleware/auth.global.ts)
-- 管理者ガード: [`app/middleware/only-admin.global.ts`](app/middleware/only-admin.global.ts)
-
-### クライアント側のミドルウェア（`app/middleware`）
-
-- `auth.global.ts` — `/apps` 配下のルートに対して認証チェックを行うミドルウェアです。
-  - ルート条件: `/apps` 配下のみ適用（`/` はスキップ）。
-  - SSR 時は `useRequestHeaders(['cookie'])` を利用して Cookie を渡し、`/api/auth/get-session` へリクエストしてセッションを確認します。
-  - セッションが見つからない場合はログインページ (`/`) へリダイレクトします。
-
-- `only-admin.global.ts` — `/apps/admin` 配下のみを保護する管理者（管理者またはオーナー）向けのガードです。
-  - クライアント側でのみ動作（SSR ではスキップ）し、アクティブ組織内の自分のロールを `authClient.organization.getActiveMemberRole()` で取得します。
-  - 取得したロールに基づいて `authClient.organization.checkRolePermission()` で権限を検証し、権限不足の場合は `/apps/error` にリダイレクトします。
-  - このミドルウェアは UI 側でのルート保護（ページ遷移のガード）に使います。
+詳細は [docs/](docs/) を参照してください。

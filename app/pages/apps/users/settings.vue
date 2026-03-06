@@ -33,6 +33,8 @@ const tabItems: TabsItem[] = [
 const profileSchema = z.object({
   name: z.string().trim().min(1, '表示名を入力してください'),
   image: z.url('有効なURLを入力してください').trim().optional().or(z.literal('')),
+  twitterUrl: z.url('有効なURLを入力してください').trim().optional().or(z.literal('')),
+  bio: z.string().trim().optional(),
 });
 
 const changeEmailSchema = z.object({
@@ -60,6 +62,8 @@ type ResetPasswordSchema = z.output<typeof resetPasswordSchema>;
 const profileState = reactive<ProfileSchema>({
   name: '',
   image: '',
+  twitterUrl: '',
+  bio: '',
 });
 
 const changeEmailState = reactive<ChangeEmailSchema>({
@@ -81,6 +85,8 @@ watchEffect(() => {
   if (!data?.user) return;
   profileState.name = data.user.name ?? '';
   profileState.image = data.user.image ?? '';
+  profileState.twitterUrl = data.user.twitterUrl ?? '';
+  profileState.bio = data.user.bio ?? '';
   resetPasswordState.email = data.user.email ?? '';
   changeEmailState.newEmail = '';
 });
@@ -93,6 +99,8 @@ async function onProfileSubmit(event: FormSubmitEvent<ProfileSchema>) {
     const { error } = await authClient.updateUser({
       name: event.data.name,
       image: event.data.image || undefined,
+      twitterUrl: event.data.twitterUrl || undefined,
+      bio: event.data.bio || undefined,
     });
 
     if (error) {
@@ -286,6 +294,14 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
 
               <UFormField label="アイコン画像URL" name="image">
                 <UInput v-model="profileState.image" placeholder="https://example.com/avatar.png" />
+              </UFormField>
+
+              <UFormField label="Twitter URL" name="twitterUrl">
+                <UInput v-model="profileState.twitterUrl" placeholder="https://x.com/username" />
+              </UFormField>
+
+              <UFormField label="bio" name="bio">
+                <UTextarea v-model="profileState.bio" placeholder="自己紹介" />
               </UFormField>
 
               <UButton type="submit" :loading="loading">保存</UButton>
