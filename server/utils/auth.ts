@@ -37,6 +37,12 @@ export const auth = betterAuth({
     sameSite: 'Strict',
     maxAge: 7 * 24 * 60 * 60, // 7 days
   },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // Cache duration in seconds
+    },
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -105,18 +111,37 @@ export const auth = betterAuth({
     after: createAuthMiddleware(async ctx => {
       const newSession = ctx.context.newSession;
       if (newSession) {
+        let action: string;
+        let provider: string;
+        // パスに基づいて認証経路を判別
+        if (ctx.path.startsWith('/sign-in/email-otp')) {
+          action = 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS';
+          provider = 'email-otp';
+        } else if (ctx.path.startsWith('/sign-in/email')) {
+          action = 'ACCOUNT_SIGN_IN_EMAIL_PASSWORD_SUCCESS';
+          provider = 'email-password';
+        } else if (ctx.path.startsWith('/sign-up/email')) {
+          action = 'ACCOUNT_SIGN_UP_EMAIL_SUCCESS';
+          provider = 'email-password';
+        } else if (ctx.path.startsWith('/verify-email')) {
+          action = 'ACCOUNT_EMAIL_VERIFICATION_SUCCESS';
+          provider = 'email-verification';
+        } else {
+          // その他の認証経路
+          action = 'ACCOUNT_SIGN_IN_SUCCESS';
+          provider = 'unknown';
+        }
         try {
           await recordAuditLog({
             userId: newSession.user.id,
-            action: 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS',
+            action: action,
             details: {
-              provider: 'email-otp',
+              provider: provider,
               path: ctx.path,
             },
           });
         } catch {}
       }
-
       // OAuth2 Consent Logging
       if (
         ctx.path.endsWith('/oauth2/consent') &&

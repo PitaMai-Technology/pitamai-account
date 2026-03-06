@@ -9,10 +9,12 @@ const activeOrg = useActiveOrg();
 const { canAccessAdmin, isRoleResolved } = storeToRefs(useOrgRoleStore());
 const toast = useToast();
 const hasRedirected = ref(false);
+const route = useRoute();
 
 if (import.meta.client) {
   watch(
     () => ({
+      path: route.path,
       canAccess: canAccessAdmin.value,
       resolved: isRoleResolved.value,
       activeOrgId: activeOrg.value.data?.id,
