@@ -14,6 +14,7 @@ import { sendEmail } from './email';
 import { createError } from 'h3';
 import { createAuthMiddleware } from 'better-auth/api';
 import { recordAuditLog } from '~~/server/utils/audit';
+import { logger } from '~~/server/utils/logger';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -100,18 +101,45 @@ export const auth = betterAuth({
   hooks: {
     after: createAuthMiddleware(async ctx => {
       const newSession = ctx.context.newSession;
-      if (!newSession) return;
+      if (newSession) {
+        try {
+          await recordAuditLog({
+            userId: newSession.user.id,
+            action: 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS',
+            details: {
+              provider: 'email-otp',
+              path: ctx.path,
+            },
+          });
+        } catch {}
+      }
 
-      try {
-        await recordAuditLog({
-          userId: newSession.user.id,
-          action: 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS',
-          details: {
-            provider: 'email-otp',
-            path: ctx.path,
-          },
-        });
-      } catch {}
+      // OAuth2 Consent Logging
+      if (
+        ctx.path.endsWith('/oauth2/consent') &&
+        ctx.request?.method === 'POST'
+      ) {
+        try {
+          const body = await ctx.body;
+          const session = await auth.api.getSession({
+            headers: ctx.headers || {},
+          });
+          if (session?.user) {
+            await recordAuditLog({
+              userId: session.user.id,
+              action: body.accept
+                ? 'OAUTH_CONSENT_ACCEPTED'
+                : 'OAUTH_CONSENT_DENIED',
+              details: {
+                scope: body.scope,
+                path: ctx.path,
+              },
+            });
+          }
+        } catch (e) {
+          logger.error({ error: e }, 'Failed to record OAuth consent audit log');
+        }
+      }
     }),
   },
   plugins: [
@@ -157,7 +185,7 @@ export const auth = betterAuth({
             ? 'ログイン認証コード - PitaMai'
             : type === 'email-verification'
               ? 'メール認証コード - PitaMai'
-              : 'パスワード再設定コード - PitaMai';
+              : 'パスワード設定コード - PitaMai';
 
         const purpose =
           type === 'sign-in'

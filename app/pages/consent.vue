@@ -25,19 +25,29 @@ const scopeItems = computed(() =>
     .filter(Boolean)
 );
 
+type PublicClient = {
+  name?: string;
+  client_name?: string;
+  clientName?: string;
+};
+
 const loading = ref(false);
 const session = authClient.useSession();
+const publicClient = ref<PublicClient | null>(null);
+const publicClientError = ref<Error | null>(null);
+const publicClientLoading = ref(false);
 
-const hasSignedQuery = computed(() => {
-  if (!import.meta.client) return false;
-  return window.location.search.includes('sig=');
-});
+async function loadPublicClient() {
+  if (!clientId.value) {
+    publicClient.value = null;
+    publicClientError.value = null;
+    return;
+  }
 
-const { data: publicClient, error: publicClientError } = await useAsyncData(
-  'oauth-public-client',
-  async () => {
-    if (!clientId.value) return null;
+  publicClientLoading.value = true;
+  publicClientError.value = null;
 
+  try {
     const { data, error } = await authClient.oauth2.publicClient({
       query: {
         client_id: clientId.value,
@@ -48,22 +58,20 @@ const { data: publicClient, error: publicClientError } = await useAsyncData(
       throw new Error(error.message || 'クライアント情報の取得に失敗しました');
     }
 
-    return data ?? null;
-  },
-  {
-    server: false,
+    publicClient.value = (data ?? null) as PublicClient | null;
+  } catch (error) {
+    publicClient.value = null;
+    publicClientError.value =
+      error instanceof Error ? error : new Error('クライアント情報の取得に失敗しました');
+  } finally {
+    publicClientLoading.value = false;
   }
-);
+}
+
+watch(clientId, loadPublicClient, { immediate: true });
 
 const clientDisplayName = computed(() => {
-  const client = publicClient.value as
-    | {
-      name?: string;
-      client_name?: string;
-      clientName?: string;
-    }
-    | null
-    | undefined;
+  const client = publicClient.value;
 
   const value = client?.name ?? client?.client_name ?? client?.clientName;
   if (typeof value === 'string' && value.trim().length > 0) {
@@ -87,6 +95,10 @@ const consentErrorMessage = computed(() => {
       publicClientError.value.message ||
       'クライアント情報の取得に失敗しました。時間をおいて再試行してください。'
     );
+  }
+
+  if (publicClientLoading.value) {
+    return '';
   }
 
   if (!publicClient.value) {
@@ -118,14 +130,13 @@ async function submitConsent(accept: boolean) {
       accept,
       clientId: clientId.value,
       requestedScope: requestedScope.value,
-      hasSignedQuery: hasSignedQuery.value,
       hasSession: !!session.value?.data?.user,
       path: route.fullPath,
     });
 
-    const { error } = await authClient.oauth2.consent({
+    const { data, error } = await authClient.oauth2.consent({
       accept,
-      scope: requestedScope.value,
+      scope: accept ? requestedScope.value : undefined,
     });
 
     if (error) {
@@ -133,7 +144,6 @@ async function submitConsent(accept: boolean) {
         message: error.message,
         status: error.status,
         statusText: error.statusText,
-        hasSignedQuery: hasSignedQuery.value,
         hasSession: !!session.value?.data?.user,
         path: route.fullPath,
       });
@@ -149,9 +159,13 @@ async function submitConsent(accept: boolean) {
     console.info('[oauth-consent] submit success', {
       accept,
       clientId: clientId.value,
-      hasSignedQuery: hasSignedQuery.value,
       path: route.fullPath,
     });
+
+    if (!accept) {
+      await navigateTo('/login', { replace: true });
+      return;
+    }
 
     toast.add({
       title: accept ? '同意しました' : '拒否しました',
