@@ -9,7 +9,7 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - pitamai-account-pgdata:/var/lib/postgresql
+      - pitamai-account-pgdata:/var/lib/postgresql/data
 
 volumes:
   pitamai-account-pgdata:
