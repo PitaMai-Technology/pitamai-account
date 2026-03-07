@@ -32,7 +32,7 @@ export async function sendEmail({
   subject,
   text,
   html,
-  from = process.env.SMTP_FROM,
+  from = process.env.SMTP_FROM ?? 'PitaMaiアカウント',
 }: {
   to: string;
   subject: string;
