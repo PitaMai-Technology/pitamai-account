@@ -297,7 +297,7 @@ export const auth = betterAuth({
       // 本番環境：HTTPS のリダイレクトURIのみ許可（allowInsecureRedirectUris: false）
       allowInsecureRedirectUris: process.env.NODE_ENV !== 'production',
       // セキュリティ強化: PKCE 必須化（Authorization Code Flow のコード盗聴対策）
-      requirePKCE: true,
+      requirePKCE: false,
       // Refresh Token Rotation を明示的に有効化（トークンリプレイ攻撃対策）
       disableRefreshTokenRotation: true,
     }),
