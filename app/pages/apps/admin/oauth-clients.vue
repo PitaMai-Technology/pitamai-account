@@ -237,14 +237,16 @@ async function onCreateClient(event: FormSubmitEvent<Schema>) {
           },
         });
       } catch (pkceError) {
+        await refreshClients();
         toast.add({
-          title: 'PKCE設定の更新に失敗しました',
+          title: 'PKCE設定の更新に失敗しました（部分成功）',
           description:
             pkceError instanceof Error
               ? pkceError.message
               : 'PKCE設定を更新できませんでした',
-          color: 'warning',
+          color: 'error',
         });
+        return;
       }
     }
 
@@ -422,8 +424,9 @@ async function onUpdateClient(client: {
         },
       });
     } catch (pkceError) {
+      await refreshClients();
       toast.add({
-        title: 'PKCE設定の更新に失敗しました',
+        title: 'PKCE設定の更新に失敗しました（部分成功）',
         description: pkceError instanceof Error ? pkceError.message : 'PKCE設定を更新できませんでした',
         color: 'error',
       });
