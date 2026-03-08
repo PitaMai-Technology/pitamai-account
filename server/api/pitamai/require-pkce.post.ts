@@ -5,30 +5,10 @@ import { auth } from '~~/server/utils/auth';
 import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
 
-const scopeTextSchema = z.string().trim().min(1);
-
-const schema = z.discriminatedUnion('mode', [
-  z.object({
-    mode: z.literal('create'),
-    clientName: z.string().trim().min(1),
-    redirectUri: z.url(),
-    scopesText: scopeTextSchema,
-    isPublicClient: z.boolean().default(false),
-    requirePkce: z.boolean(),
-  }),
-  z.object({
-    mode: z.literal('update'),
-    clientId: z.string().trim().min(1),
-    requirePkce: z.boolean(),
-  }),
-]);
-
-function parseScopes(scopesText: string) {
-  return scopesText
-    .split(/[\s,]+/)
-    .map(scope => scope.trim())
-    .filter(Boolean);
-}
+const schema = z.object({
+  clientId: z.string().trim().min(1),
+  requirePkce: z.boolean(),
+});
 
 export default defineEventHandler(async event => {
   try {
@@ -44,6 +24,13 @@ export default defineEventHandler(async event => {
     }
 
     const session = await auth.api.getSession({ headers: event.headers });
+    if (!session?.user?.id) {
+      throw createError({
+        statusCode: 401,
+        message: '認証が必要です',
+      });
+    }
+
     const activeOrganizationId =
       typeof session?.session?.activeOrganizationId === 'string'
         ? session.session.activeOrganizationId
@@ -51,95 +38,22 @@ export default defineEventHandler(async event => {
     const userId =
       typeof session?.user?.id === 'string' ? session.user.id : undefined;
 
-    if (parsed.data.mode === 'create') {
-      const scopes = parseScopes(parsed.data.scopesText);
-      if (scopes.length === 0) {
-        throw createError({
-          statusCode: 422,
-          message: 'スコープを1つ以上入力してください',
-        });
-      }
+    const orConditions = [
+      ...(activeOrganizationId ? [{ referenceId: activeOrganizationId }] : []),
+      ...(userId ? [{ userId }] : []),
+    ];
 
-      const requirePkce = parsed.data.isPublicClient
-        ? true
-        : parsed.data.requirePkce;
-
-      const created = (await auth.api.createOAuthClient({
-        headers: event.headers,
-        body: {
-          client_name: parsed.data.clientName,
-          redirect_uris: [parsed.data.redirectUri],
-          scope: scopes.join(' '),
-          token_endpoint_auth_method: parsed.data.isPublicClient
-            ? 'none'
-            : 'client_secret_post',
-          grant_types: ['authorization_code', 'refresh_token'],
-          response_types: ['code'],
-        },
-      })) as { client_id?: string; client_secret?: string };
-
-      const clientId = created?.client_id;
-      if (!clientId) {
-        throw createError({
-          statusCode: 500,
-          message: 'OAuthクライアント作成結果の取得に失敗しました',
-        });
-      }
-
-      const ownerWhere = activeOrganizationId
-        ? {
-            clientId,
-            referenceId: activeOrganizationId,
-          }
-        : userId
-          ? {
-              clientId,
-              userId,
-            }
-          : {
-              clientId,
-            };
-
-      await prisma.oauthClient.update({
-        where: {
-          clientId,
-        },
-        data: {
-          requirePKCE: requirePkce,
-        },
+    if (orConditions.length === 0) {
+      throw createError({
+        statusCode: 403,
+        message: 'アクセス権限がありません',
       });
-
-      const client = await prisma.oauthClient.findFirst({
-        where: ownerWhere,
-        select: {
-          clientId: true,
-          requirePKCE: true,
-          tokenEndpointAuthMethod: true,
-        },
-      });
-
-      return {
-        mode: 'create',
-        client: {
-          client_id: client?.clientId ?? clientId,
-          require_pkce: client?.requirePKCE ?? requirePkce,
-          token_endpoint_auth_method:
-            client?.tokenEndpointAuthMethod ??
-            (parsed.data.isPublicClient ? 'none' : 'client_secret_post'),
-        },
-        client_secret: created?.client_secret ?? null,
-      };
     }
 
     const existing = await prisma.oauthClient.findFirst({
       where: {
         clientId: parsed.data.clientId,
-        OR: [
-          ...(activeOrganizationId
-            ? [{ referenceId: activeOrganizationId }]
-            : []),
-          ...(userId ? [{ userId }] : []),
-        ],
+        OR: orConditions,
       },
       select: {
         id: true,
@@ -175,7 +89,6 @@ export default defineEventHandler(async event => {
     });
 
     return {
-      mode: 'update',
       client: {
         client_id: updated.clientId,
         require_pkce: updated.requirePKCE ?? true,

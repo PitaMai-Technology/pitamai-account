@@ -203,22 +203,53 @@ async function onCreateClient(event: FormSubmitEvent<Schema>) {
       });
       return;
     }
-    const result = await $fetch<{ client_secret?: string | null }>(
-      '/api/pitamai/require-pkce',
-      {
-        method: 'POST',
-        body: {
-          mode: 'create',
-          clientName: event.data.clientName,
-          redirectUri: event.data.redirectUri,
-          scopesText: scopes.join(' '),
-          isPublicClient: event.data.isPublicClient,
-          requirePkce: event.data.requirePkce,
-        },
-      }
-    );
+    const { data, error } = await authClient.oauth2.createClient({
+      client_name: event.data.clientName,
+      redirect_uris: [event.data.redirectUri],
+      scope: scopes.join(' '),
+      token_endpoint_auth_method: event.data.isPublicClient
+        ? 'none'
+        : 'client_secret_post',
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+    });
 
-    justIssuedSecret.value = result?.client_secret ?? null;
+    if (error) {
+      toast.add({
+        title: '作成に失敗しました',
+        description: error.message,
+        color: 'error',
+      });
+      return;
+    }
+
+    const createdClientId =
+      (data as { client_id?: string; clientId?: string } | null)?.client_id ??
+      (data as { client_id?: string; clientId?: string } | null)?.clientId;
+
+    if (createdClientId) {
+      try {
+        await $fetch('/api/pitamai/require-pkce', {
+          method: 'POST',
+          body: {
+            clientId: createdClientId,
+            requirePkce: event.data.isPublicClient ? true : event.data.requirePkce,
+          },
+        });
+      } catch (pkceError) {
+        toast.add({
+          title: 'PKCE設定の更新に失敗しました',
+          description:
+            pkceError instanceof Error
+              ? pkceError.message
+              : 'PKCE設定を更新できませんでした',
+          color: 'warning',
+        });
+      }
+    }
+
+    justIssuedSecret.value =
+      (data as { client_secret?: string } | null)?.client_secret ?? null;
 
     toast.add({
       title: 'OAuthクライアントを作成しました',
@@ -382,14 +413,22 @@ async function onUpdateClient(client: {
       return;
     }
 
-    await $fetch('/api/pitamai/require-pkce', {
-      method: 'POST',
-      body: {
-        mode: 'update',
-        clientId: client.client_id,
-        requirePkce: client.editable_require_pkce,
-      },
-    });
+    try {
+      await $fetch('/api/pitamai/require-pkce', {
+        method: 'POST',
+        body: {
+          clientId: client.client_id,
+          requirePkce: client.editable_require_pkce,
+        },
+      });
+    } catch (pkceError) {
+      toast.add({
+        title: 'PKCE設定の更新に失敗しました',
+        description: pkceError instanceof Error ? pkceError.message : 'PKCE設定を更新できませんでした',
+        color: 'error',
+      });
+      return;
+    }
 
     toast.add({
       title: 'OAuthクライアントを更新しました',
