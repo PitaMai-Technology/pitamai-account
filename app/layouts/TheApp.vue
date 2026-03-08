@@ -11,6 +11,13 @@ const toast = useToast();
 const hasRedirected = ref(false);
 const route = useRoute();
 
+useSeoMeta({
+  title: 'PitaMaiアカウント - 管理画面',
+  ogTitle: 'PitaMaiアカウント - 管理画面',
+  robots: computed(() => route.path.startsWith('/apps') ? 'noindex, nofollow' : 'index, follow'),
+});
+
+
 if (import.meta.client) {
   watch(
     () => ({

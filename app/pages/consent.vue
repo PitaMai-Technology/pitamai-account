@@ -5,6 +5,11 @@ definePageMeta({
   layout: 'the-front',
 });
 
+useSeoMeta({
+  title: 'アプリ連携の確認 - PitaMaiアカウント',
+  ogTitle: 'アプリ連携の確認 - PitaMaiアカウント',
+});
+
 const route = useRoute();
 const toast = useToast();
 

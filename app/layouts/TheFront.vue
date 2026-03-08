@@ -1,4 +1,11 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+
+useSeoMeta({
+  title: 'PitaMaiアカウント - フロント画面',
+  ogTitle: 'PitaMaiアカウント - フロント画面',
+});
+
+</script>
 
 <template>
   <div class="bg-green-100/80">
