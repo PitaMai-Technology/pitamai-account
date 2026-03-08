@@ -234,6 +234,12 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
             </div>
           </UForm>
 
+          <p class="text-xs text-center mt-6">
+            ログインすると、<ULink
+              to="https://outline-wiki.pitamai.com/s/2d6f1abb-3cb8-4755-8f93-5d23dc400786/doc/pitamai-0tzpa8Tc2g"
+              target="_blank" class="underline hover:text-gray-800">利用規約</ULink>に同意したとみなされます。
+          </p>
+
           <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center" />
         </div>
       </UPageCard>
