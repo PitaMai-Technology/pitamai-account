@@ -50,4 +50,4 @@ pnpm dev
 
 ## ドキュメント
 
-詳細は
+詳細は <https://outline-wiki.pitamai.com/s/4965015d-d59e-4f45-9c9e-3b1992d945d8> を参照してください。
