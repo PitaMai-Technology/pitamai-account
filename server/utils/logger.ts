@@ -2,8 +2,7 @@ import pino from 'pino';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-const serviceName =
-  process.env.SERVICE_NAME || process.env.K_SERVICE || 'maimai-hub';
+const serviceName = process.env.SERVICE_NAME ?? 'pitamai-account';
 
 /**
  * Cloud Logging で扱いやすいように、
