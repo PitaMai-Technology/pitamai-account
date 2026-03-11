@@ -19,6 +19,16 @@ const items = ref([
   },
 ]);
 
+const oauthClientItems = [
+  [
+    {
+      label: 'OAuthクライアント管理',
+      icon: 'i-lucide-key-round',
+      to: '/apps/users/oauth-clients',
+    },
+  ],
+];
+
 const adminItems = [
   [
     {
@@ -81,17 +91,12 @@ const adminItems = [
           icon: 'i-lucide-mail',
           to: '/apps/admin/user-change-email',
         },
-        {
-          label: 'OAuthクライアント管理',
-          icon: 'i-lucide-key-round',
-          to: '/apps/admin/oauth-clients',
-        },
       ],
     },
   ],
 ];
 
-const { canAccessAdmin } = storeToRefs(useOrgRoleStore());
+const { canAccessAdmin, canAccessOAuthClients } = storeToRefs(useOrgRoleStore());
 </script>
 
 <template>
@@ -100,6 +105,11 @@ const { canAccessAdmin } = storeToRefs(useOrgRoleStore());
       <AppOrganaizationCheck />
     </div>
     <UNavigationMenu :collapsed="collapsed" :items="items" orientation="vertical" />
+
+    <template v-if="canAccessOAuthClients">
+      <USeparator class="my-4" label="OAuth" />
+      <UNavigationMenu :collapsed="collapsed" :items="oauthClientItems" orientation="vertical" />
+    </template>
 
     <template v-if="canAccessAdmin">
       <USeparator class="my-4" label="管理者のみ" />

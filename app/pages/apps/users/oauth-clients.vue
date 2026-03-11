@@ -6,7 +6,6 @@ import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
 definePageMeta({
   layout: 'the-app',
-  middleware: ['only-owner'],
 });
 
 const toast = useToast();
