@@ -178,11 +178,10 @@ async function submitConsent(accept: boolean) {
     toast.add({
       title: accept ? '同意しました' : '拒否しました',
       description: accept
-        ? 'アプリケーションとの連携が完了しました。まもなくリダレクトされます。'
+        ? 'アプリケーションとの連携が完了しました。まもなくリダイレクトされます。'
         : 'アプリケーションとの連携を拒否しました。このページは閉じて構いません。',
       color: accept ? 'success' : 'warning',
     });
-
     if (!accept) {
       hasDeniedConsent.value = true;
     }

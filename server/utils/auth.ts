@@ -247,7 +247,9 @@ export const auth = betterAuth({
         ctx.request?.method === 'POST'
       ) {
         try {
-          const body = ctx.body;
+          const body = (
+            ctx.body && typeof ctx.body === 'object' ? ctx.body : {}
+          ) as { accept?: boolean; scope?: string };
           const session = await auth.api.getSession({
             headers: ctx.headers || {},
           });
@@ -270,7 +272,6 @@ export const auth = betterAuth({
           );
         }
       }
-
       const oauthClientAuditActions = {
         '/oauth2/create-client': 'OAUTH_CLIENT_CREATE',
         '/oauth2/update-client': 'OAUTH_CLIENT_UPDATE',
@@ -435,9 +436,9 @@ export const auth = betterAuth({
       // 開発環境：http://localhost のリダイレクトURIを許可
       // 本番環境：HTTPS のリダイレクトURIのみ許可（allowInsecureRedirectUris: false）
       allowInsecureRedirectUris: process.env.NODE_ENV !== 'production',
-      // セキュリティ強化: PKCE 必須化（Authorization Code Flow のコード盗聴対策）
+      // 互換性維持のため、PKCEは必須にしない。
       requirePKCE: false,
-      // Refresh Token Rotation を明示的に有効化（トークンリプレイ攻撃対策）
+      // Refresh Token Rotation を有効化（トークンリプレイ攻撃対策）
       disableRefreshTokenRotation: true,
     }),
   ],
