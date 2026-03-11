@@ -372,8 +372,7 @@ async function onUpdateClient(client: {
     return;
   }
 
-  if (!z.url().safeParse(client.editable_redirect_uri).success) {
-    toast.add({
+  if (!z.string().url().safeParse(client.editable_redirect_uri).success) {    toast.add({
       title: '入力エラー',
       description: '有効なリダイレクトURIを入力してください',
       color: 'warning',
