@@ -438,7 +438,7 @@ export const auth = betterAuth({
       allowInsecureRedirectUris: process.env.NODE_ENV !== 'production',
       // 互換性維持のため、PKCEは必須にしない。
       requirePKCE: false,
-      // Refresh Token Rotation を有効化（トークンリプレイ攻撃対策）
+      // Refresh Token Rotation を無効化（互換性維持のため）
       disableRefreshTokenRotation: true,
     }),
   ],
