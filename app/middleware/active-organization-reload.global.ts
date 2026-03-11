@@ -9,9 +9,9 @@ export default defineNuxtRouteMiddleware(() => {
     return;
   }
 
-  const route = useRoute();
+  const router = useRouter();
 
-  if (!route.path.startsWith('/apps')) {
+  if (!router.currentRoute.value.path.startsWith('/apps')) {
     return;
   }
 
@@ -46,8 +46,13 @@ export default defineNuxtRouteMiddleware(() => {
         return;
       }
 
+      const currentRoute = router.currentRoute.value;
+      if (!currentRoute.path.startsWith('/apps')) {
+        return;
+      }
+
       reloadNuxtApp({
-        path: route.fullPath,
+        path: currentRoute.fullPath,
         force: true,
       });
     },
