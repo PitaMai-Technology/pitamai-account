@@ -16,6 +16,102 @@ import { createAuthMiddleware } from 'better-auth/api';
 import { recordAuditLog } from '~~/server/utils/audit';
 import { logger } from '~~/server/utils/logger';
 
+type OAuthClientAuditBody = {
+  client_id?: string;
+  client_name?: string;
+  redirect_uris?: string[];
+  scope?: string;
+  token_endpoint_auth_method?: string;
+  update?: {
+    client_name?: string;
+    redirect_uris?: string[];
+    scope?: string;
+    token_endpoint_auth_method?: string;
+  };
+};
+
+type OAuthClientAuditResponse = {
+  client_id?: string;
+  client_secret?: string;
+  client_name?: string;
+  redirect_uris?: string[];
+  scope?: string;
+  token_endpoint_auth_method?: string;
+  client?: {
+    client_id?: string;
+    client_name?: string;
+    redirect_uris?: string[];
+    scope?: string;
+    token_endpoint_auth_method?: string;
+  };
+};
+
+type AuthHookContextLike = {
+  body?: unknown;
+  context: {
+    returned?: unknown;
+  };
+};
+
+const getAuthHookResponse = async <T>(
+  ctx: AuthHookContextLike
+): Promise<T | null> => {
+  const returned = ctx.context.returned;
+  if (!returned) return null;
+
+  if (returned instanceof Response) {
+    if (returned.status !== 200) {
+      return null;
+    }
+
+    return (await returned.clone().json()) as T;
+  }
+
+  return returned as T;
+};
+
+const getOAuthClientAuditPayload = async (ctx: AuthHookContextLike) => {
+  const body = (
+    ctx.body && typeof ctx.body === 'object' ? ctx.body : {}
+  ) as OAuthClientAuditBody;
+
+  const response = await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
+  const responseClient =
+    response &&
+    typeof response === 'object' &&
+    response.client &&
+    typeof response.client === 'object'
+      ? response.client
+      : undefined;
+
+  return {
+    clientId:
+      response?.client_id ?? responseClient?.client_id ?? body.client_id,
+    details: {
+      clientName:
+        response?.client_name ??
+        responseClient?.client_name ??
+        body.client_name ??
+        body.update?.client_name,
+      redirectUris:
+        response?.redirect_uris ??
+        responseClient?.redirect_uris ??
+        body.redirect_uris ??
+        body.update?.redirect_uris,
+      scope:
+        response?.scope ??
+        responseClient?.scope ??
+        body.scope ??
+        body.update?.scope,
+      tokenEndpointAuthMethod:
+        response?.token_endpoint_auth_method ??
+        responseClient?.token_endpoint_auth_method ??
+        body.token_endpoint_auth_method ??
+        body.update?.token_endpoint_auth_method,
+    },
+  };
+};
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
@@ -171,6 +267,49 @@ export const auth = betterAuth({
           logger.error(
             { error: e },
             'Failed to record OAuth consent audit log'
+          );
+        }
+      }
+
+      const oauthClientAuditActions = {
+        '/oauth2/create-client': 'OAUTH_CLIENT_CREATE',
+        '/oauth2/update-client': 'OAUTH_CLIENT_UPDATE',
+        '/oauth2/delete-client': 'OAUTH_CLIENT_DELETE',
+      } as const;
+
+      const oauthClientAction =
+        oauthClientAuditActions[
+          ctx.path as keyof typeof oauthClientAuditActions
+        ];
+
+      if (oauthClientAction && ctx.request?.method === 'POST') {
+        try {
+          const payload = await getOAuthClientAuditPayload(ctx);
+          const session = await auth.api.getSession({
+            headers: ctx.headers || {},
+          });
+
+          if (session?.user?.id) {
+            const activeOrganizationId =
+              typeof session.session?.activeOrganizationId === 'string'
+                ? session.session.activeOrganizationId
+                : undefined;
+
+            await recordAuditLog({
+              userId: session.user.id,
+              organizationId: activeOrganizationId,
+              action: oauthClientAction,
+              targetId: payload.clientId,
+              details: {
+                path: ctx.path,
+                ...payload.details,
+              },
+            });
+          }
+        } catch (e) {
+          logger.error(
+            { error: e, path: ctx.path },
+            'Failed to record OAuth client audit log'
           );
         }
       }
