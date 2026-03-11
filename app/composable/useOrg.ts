@@ -6,12 +6,15 @@ export const useOrg = () => {
   const activeOrg = useActiveOrg();
 
   const switchOrganization = async (organizationId: string) => {
-    if (!organizationId) {
-      await router.push('/apps/dashboard');
-      return false;
-    }
+    const nextOrganizationId = organizationId.trim() || null;
 
     try {
+      if (!nextOrganizationId) {
+        await authClient.organization.setActive({ organizationId: null });
+        await router.push('/apps/dashboard');
+        return true;
+      }
+
       // Better Auth の listOrganizations をそのまま利用して一覧を取得
       const { data, error } = await authClient.organization.list({});
 
@@ -27,18 +30,20 @@ export const useOrg = () => {
         return false;
       }
 
-      const targetOrg = data.find(org => org.id === organizationId);
+      const targetOrg = data.find(org => org.id === nextOrganizationId);
 
       if (!targetOrg) {
-        console.log('Organization not found:', organizationId);
+        console.log('Organization not found:', nextOrganizationId);
         console.log('Available organizations:', data);
         await router.push('/apps/dashboard');
         return false;
       }
 
       // すでにアクティブな組織が選択されている場合は切り替えない
-      if (!activeOrg.value.data?.id) {
-        await authClient.organization.setActive({ organizationId });
+      if (activeOrg.value.data?.id !== nextOrganizationId) {
+        await authClient.organization.setActive({
+          organizationId: nextOrganizationId,
+        });
       }
 
       return true;

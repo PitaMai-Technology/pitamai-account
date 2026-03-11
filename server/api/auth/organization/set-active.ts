@@ -5,12 +5,17 @@ import { logger } from '~~/server/utils/logger';
 
 const setActiveOrganizationSchema = z
   .object({
-    organizationId: z.string().optional(),
+    organizationId: z.string().nullable().optional(),
     organizationSlug: z.string().optional(),
   })
-  .refine(data => data.organizationId || data.organizationSlug, {
-    message: 'organizationIdまたはorganizationSlugのいずれかを指定してください',
-  });
+  .refine(
+    data =>
+      data.organizationId !== undefined || data.organizationSlug !== undefined,
+    {
+      message:
+        'organizationIdまたはorganizationSlugのいずれかを指定してください',
+    }
+  );
 
 export default defineEventHandler(async event => {
   try {

@@ -2,17 +2,36 @@
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
 
+const UNSELECTED_ORGANIZATION_ID = '__unselected_organization__';
+
 const organizations = authClient.useListOrganizations();
 const activeOrganization = useActiveOrg();
 
 const toast = useToast();
 
-async function setActiveOrganization(id: string) {
+const organizationItems = computed(() => [
+  {
+    name: '組織を選択しない',
+    id: UNSELECTED_ORGANIZATION_ID,
+  },
+  ...(organizations.value.data ?? []),
+]);
+
+const selectedOrganizationId = computed(
+  () => activeOrganization.value.data?.id ?? UNSELECTED_ORGANIZATION_ID
+);
+
+async function setActiveOrganization(id: string | null | undefined) {
   try {
-    await authClient.organization.setActive({ organizationId: id });
+    const organizationId =
+      !id || id === UNSELECTED_ORGANIZATION_ID ? null : id;
+
+    await authClient.organization.setActive({ organizationId });
     toast.add({
-      title: '組織の切り替え完了',
-      description: '現在の組織を切り替えました。',
+      title: organizationId ? '組織の切り替え完了' : '組織の選択を解除しました',
+      description: organizationId
+        ? '現在の組織を切り替えました。'
+        : '現在の組織を未選択にしました。',
       color: 'success',
     });
   } catch {
@@ -42,9 +61,8 @@ async function setActiveOrganization(id: string) {
       <UIcon name="i-lucide-loader-circle" class="h-8 w-8 animate-spin text-primary" />
     </div>
     <div v-else>
-      <USelect :items="[...(organizations.data)]" label-key="name" value-key="id" class="w-full"
-        :model-value="activeOrganization.data?.id" @update:model-value="setActiveOrganization"
-        placeholder="組織を選択してください" />
+      <USelect :items="organizationItems" label-key="name" value-key="id" class="w-full"
+        :model-value="selectedOrganizationId" @update:model-value="setActiveOrganization" placeholder="組織を選択してください" />
     </div>
     <template v-if="activeOrganization.data === null">
       <p class="text-sm text-info mt-2">
