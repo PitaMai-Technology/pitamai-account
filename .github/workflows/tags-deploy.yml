@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*' # 「v1.0」などのタグがPushされたときのみ実行
 
+concurrency:
+  group: railway-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
