@@ -2,7 +2,7 @@ import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { assertGlobalUserRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
 
 const schema = z.object({
@@ -12,7 +12,7 @@ const schema = z.object({
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['owner']);
+    await assertGlobalUserRole(event, ['member', 'admins', 'owner']);
 
     const body = await readBody(event);
     const parsed = schema.safeParse(body);

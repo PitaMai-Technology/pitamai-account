@@ -10,6 +10,7 @@ import type { OrgRole } from '~~/server/utils/authorize';
 export const useOrgRoleStore = defineStore('orgRole', () => {
   const role = ref<OrgRole | null>(null);
   const isRoleResolved = ref(false);
+  const globalRoleList: OrgRole[] = ['member', 'admins', 'owner'];
 
   const session = authClient.useSession();
   const activeOrg = useActiveOrg();
@@ -28,8 +29,10 @@ export const useOrgRoleStore = defineStore('orgRole', () => {
 
     if ('role' in maybeData) {
       const value = (maybeData as { role?: unknown }).role;
-      const orgRoleList: OrgRole[] = ['member', 'admins', 'owner'];
-      if (typeof value === 'string' && orgRoleList.includes(value as OrgRole)) {
+      if (
+        typeof value === 'string' &&
+        globalRoleList.includes(value as OrgRole)
+      ) {
         return value as OrgRole;
       }
     }
@@ -67,6 +70,12 @@ export const useOrgRoleStore = defineStore('orgRole', () => {
     return canGlobal || canOrg;
   });
 
+  const canAccessOAuthClients = computed(() => {
+    return globalRole.value
+      ? globalRoleList.includes(globalRole.value as OrgRole)
+      : false;
+  });
+
   if (import.meta.client) {
     fetchActiveMemberRole();
 
@@ -83,6 +92,7 @@ export const useOrgRoleStore = defineStore('orgRole', () => {
     role: readonly(role),
     globalRole: readonly(globalRole),
     canAccessAdmin,
+    canAccessOAuthClients,
     isRoleResolved: readonly(isRoleResolved),
     fetchActiveMemberRole,
   };

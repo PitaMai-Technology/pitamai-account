@@ -37,6 +37,7 @@ type PublicClient = {
 };
 
 const loading = ref(false);
+const hasDeniedConsent = ref(false);
 const session = authClient.useSession();
 const publicClient = ref<PublicClient | null>(null);
 const publicClientError = ref<Error | null>(null);
@@ -118,6 +119,8 @@ const canSubmitConsent = computed(() => !loading.value && !consentErrorMessage.v
 async function submitConsent(accept: boolean) {
   if (!canSubmitConsent.value) return;
 
+  hasDeniedConsent.value = false;
+
   // 同意する場合は確認ダイアログを表示
   if (accept) {
     const confirmStore = useConfirmDialogStore();
@@ -167,15 +170,21 @@ async function submitConsent(accept: boolean) {
       path: route.fullPath,
     });
 
-    if (!accept) {
-      await navigateTo('/login', { replace: true });
-      return;
-    }
+    // if (!accept) {
+    //   await navigateTo('/login', { replace: true });
+    //   return;
+    // }
 
     toast.add({
       title: accept ? '同意しました' : '拒否しました',
+      description: accept
+        ? 'アプリケーションとの連携が完了しました。まもなくリダイレクトされます。'
+        : 'アプリケーションとの連携を拒否しました。このページは閉じて構いません。',
       color: accept ? 'success' : 'warning',
     });
+    if (!accept) {
+      hasDeniedConsent.value = true;
+    }
   } finally {
     loading.value = false;
   }
@@ -190,9 +199,9 @@ async function submitConsent(accept: boolean) {
   <div class="flex items-center justify-center p-4">
     <UPageCard class="w-full max-w-xl">
       <template #title>アプリ連携の確認</template>
-      <template #description>
-        以下のスコープ(アプリ情報を取得するもの)に対するアクセス許可を確認してください。
-      </template>
+
+      <UAlert v-if="hasDeniedConsent" color="error" variant="soft" title="連携がユーザーによって拒否されました"
+        description="このアプリケーションとの連携はユーザーにより拒否されました。このページは閉じて構いません" />
 
       <div class="space-y-4">
         <div>

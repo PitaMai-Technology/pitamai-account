@@ -61,6 +61,44 @@ export async function assertActiveMemberRole(
 }
 
 /**
+ * グローバルユーザーロールをチェックするサーバー側ヘルパー。
+ * 例:
+ *  await assertGlobalUserRole(event, ['admins', 'owner'])
+ */
+export async function assertGlobalUserRole(
+  event: H3Event,
+  allowedRoles: OrgRole[]
+): Promise<OrgRole> {
+  const headers = event.headers;
+
+  try {
+    const session = (await auth.api.getSession({
+      headers,
+    })) as { user?: { role?: string } } | null;
+
+    const role = session?.user?.role;
+
+    if (!role || !allowedRoles.includes(role as OrgRole)) {
+      throw createError({
+        statusCode: 403,
+        message: '操作する権限がありません',
+      });
+    }
+
+    return role as OrgRole;
+  } catch (error) {
+    if (isHttpError(error)) {
+      throw error;
+    }
+
+    throw createError({
+      statusCode: 403,
+      message: '操作する権限がありません',
+    });
+  }
+}
+
+/**
  * Better Auth の Access Control(permissions) を使って柔軟に権限判定するサーバー側ヘルパー。
  * 例:
  *   await assertHasPermission(event, { project: ['create', 'update'] })

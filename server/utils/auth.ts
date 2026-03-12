@@ -16,6 +16,109 @@ import { createAuthMiddleware } from 'better-auth/api';
 import { recordAuditLog } from '~~/server/utils/audit';
 import { logger } from '~~/server/utils/logger';
 
+type OAuthClientAuditBody = {
+  client_id?: string;
+  client_name?: string;
+  redirect_uris?: string[];
+  scope?: string;
+  token_endpoint_auth_method?: string;
+  update?: {
+    client_name?: string;
+    redirect_uris?: string[];
+    scope?: string;
+    token_endpoint_auth_method?: string;
+  };
+};
+
+type OAuthClientAuditResponse = {
+  client_id?: string;
+  client_secret?: string;
+  client_name?: string;
+  redirect_uris?: string[];
+  scope?: string;
+  token_endpoint_auth_method?: string;
+  client?: {
+    client_id?: string;
+    client_name?: string;
+    redirect_uris?: string[];
+    scope?: string;
+    token_endpoint_auth_method?: string;
+  };
+};
+
+type AuthHookContextLike = {
+  body?: unknown;
+  context: {
+    returned?: unknown;
+  };
+};
+
+const getAuthHookResponse = async <T>(
+  ctx: AuthHookContextLike
+): Promise<T | null> => {
+  const returned = ctx.context.returned;
+  if (!returned) return null;
+
+  if (returned instanceof Response) {
+    // Check for any 2xx status code (success range)
+    if (returned.status < 200 || returned.status >= 300) {
+      return null;
+    }
+
+    // Handle 204 No Content - no body to parse
+    if (returned.status === 204) {
+      return null;
+    }
+
+    // For other 2xx statuses (200, 201, etc.), parse the JSON body
+    return (await returned.clone().json()) as T;
+  }
+
+  return returned as T;
+};
+
+const getOAuthClientAuditPayload = async (ctx: AuthHookContextLike) => {
+  const body = (
+    ctx.body && typeof ctx.body === 'object' ? ctx.body : {}
+  ) as OAuthClientAuditBody;
+
+  const response = await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
+  const responseClient =
+    response &&
+    typeof response === 'object' &&
+    response.client &&
+    typeof response.client === 'object'
+      ? response.client
+      : undefined;
+
+  return {
+    clientId:
+      response?.client_id ?? responseClient?.client_id ?? body.client_id,
+    details: {
+      clientName:
+        response?.client_name ??
+        responseClient?.client_name ??
+        body.client_name ??
+        body.update?.client_name,
+      redirectUris:
+        response?.redirect_uris ??
+        responseClient?.redirect_uris ??
+        body.redirect_uris ??
+        body.update?.redirect_uris,
+      scope:
+        response?.scope ??
+        responseClient?.scope ??
+        body.scope ??
+        body.update?.scope,
+      tokenEndpointAuthMethod:
+        response?.token_endpoint_auth_method ??
+        responseClient?.token_endpoint_auth_method ??
+        body.token_endpoint_auth_method ??
+        body.update?.token_endpoint_auth_method,
+    },
+  };
+};
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
@@ -151,7 +254,9 @@ export const auth = betterAuth({
         ctx.request?.method === 'POST'
       ) {
         try {
-          const body = ctx.body;
+          const body = (
+            ctx.body && typeof ctx.body === 'object' ? ctx.body : {}
+          ) as { accept?: boolean; scope?: string };
           const session = await auth.api.getSession({
             headers: ctx.headers || {},
           });
@@ -171,6 +276,68 @@ export const auth = betterAuth({
           logger.error(
             { error: e },
             'Failed to record OAuth consent audit log'
+          );
+        }
+      }
+      const oauthClientAuditActions = {
+        '/oauth2/create-client': {
+          success: 'OAUTH_CLIENT_CREATE',
+          failed: 'OAUTH_CLIENT_CREATE_FAILED',
+        },
+        '/oauth2/update-client': {
+          success: 'OAUTH_CLIENT_UPDATE',
+          failed: 'OAUTH_CLIENT_UPDATE_FAILED',
+        },
+        '/oauth2/delete-client': {
+          success: 'OAUTH_CLIENT_DELETE',
+          failed: 'OAUTH_CLIENT_DELETE_FAILED',
+        },
+      } as const;
+
+      const oauthClientActionPair =
+        oauthClientAuditActions[
+          ctx.path as keyof typeof oauthClientAuditActions
+        ];
+
+      if (oauthClientActionPair && ctx.request?.method === 'POST') {
+        try {
+          const response =
+            await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
+          const isSuccess =
+            response !== null &&
+            !('error' in response) &&
+            !('code' in response);
+          const oauthClientAction = isSuccess
+            ? oauthClientActionPair.success
+            : oauthClientActionPair.failed;
+
+          const payload = await getOAuthClientAuditPayload(ctx);
+          const session = await auth.api.getSession({
+            headers: ctx.headers || {},
+          });
+
+          if (session?.user?.id) {
+            const activeOrganizationId =
+              typeof session.session?.activeOrganizationId === 'string'
+                ? session.session.activeOrganizationId
+                : undefined;
+
+            await recordAuditLog({
+              userId: session.user.id,
+              organizationId: activeOrganizationId,
+              action: oauthClientAction,
+              targetId: payload.clientId,
+              details: {
+                path: ctx.path,
+                success: isSuccess,
+                ...payload.details,
+              },
+            });
+          }
+        } catch (e) {
+          logger.error(
+            { error: e, path: ctx.path },
+            'Failed to record OAuth client audit log'
           );
         }
       }
@@ -296,9 +463,9 @@ export const auth = betterAuth({
       // 開発環境：http://localhost のリダイレクトURIを許可
       // 本番環境：HTTPS のリダイレクトURIのみ許可（allowInsecureRedirectUris: false）
       allowInsecureRedirectUris: process.env.NODE_ENV !== 'production',
-      // セキュリティ強化: PKCE 必須化（Authorization Code Flow のコード盗聴対策）
+      // 互換性維持のため、PKCEは必須にしない。
       requirePKCE: false,
-      // Refresh Token Rotation を明示的に有効化（トークンリプレイ攻撃対策）
+      // Refresh Token Rotation を無効化（互換性維持のため）
       disableRefreshTokenRotation: true,
     }),
   ],

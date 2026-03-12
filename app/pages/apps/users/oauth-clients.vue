@@ -6,7 +6,6 @@ import { useConfirmDialogStore } from '~/stores/confirmDialog';
 
 definePageMeta({
   layout: 'the-app',
-  middleware: ['only-owner'],
 });
 
 const toast = useToast();
@@ -373,7 +372,7 @@ async function onUpdateClient(client: {
     return;
   }
 
-  if (!z.url().safeParse(client.editable_redirect_uri).success) {
+  if (!z.string().url().safeParse(client.editable_redirect_uri).success) {
     toast.add({
       title: '入力エラー',
       description: '有効なリダイレクトURIを入力してください',
@@ -461,9 +460,12 @@ onMounted(async () => {
     <div class="space-y-6">
       <div>
         <h1 class="text-xl font-semibold">OAuthクライアント管理</h1>
-        <p class="text-sm text-neutral-500 mt-1">
-          OIDC連携用クライアントを作成・管理します。
+        <p class="text-sm text-neutral-500 mt-1 mb-4">
+          OIDC連携用クライアントを作成・管理します。(誰でも作れます。管理者の承認などは不要です)
         </p>
+        <UButton icon="i-lucide-info" color="info" variant="outline" size="md"
+          to="https://outline-wiki.pitamai.com/s/4965015d-d59e-4f45-9c9e-3b1992d945d8/doc/oauth-exwsnnFx3h"
+          target="_blank">ヘルプ(wiki)</UButton>
       </div>
 
       <UForm :schema="schema" :state="state" class="space-y-4" @submit="onCreateClient">
