@@ -60,10 +60,17 @@ const getAuthHookResponse = async <T>(
   if (!returned) return null;
 
   if (returned instanceof Response) {
-    if (returned.status !== 200) {
+    // Check for any 2xx status code (success range)
+    if (returned.status < 200 || returned.status >= 300) {
       return null;
     }
 
+    // Handle 204 No Content - no body to parse
+    if (returned.status === 204) {
+      return null;
+    }
+
+    // For other 2xx statuses (200, 201, etc.), parse the JSON body
     return (await returned.clone().json()) as T;
   }
 
@@ -296,7 +303,10 @@ export const auth = betterAuth({
         try {
           const response =
             await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
-          const isSuccess = response !== null && !('error' in response);
+          const isSuccess =
+            response !== null &&
+            !('error' in response) &&
+            !('code' in response);
           const oauthClientAction = isSuccess
             ? oauthClientActionPair.success
             : oauthClientActionPair.failed;
