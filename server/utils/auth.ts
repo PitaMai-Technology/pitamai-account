@@ -273,18 +273,34 @@ export const auth = betterAuth({
         }
       }
       const oauthClientAuditActions = {
-        '/oauth2/create-client': 'OAUTH_CLIENT_CREATE',
-        '/oauth2/update-client': 'OAUTH_CLIENT_UPDATE',
-        '/oauth2/delete-client': 'OAUTH_CLIENT_DELETE',
+        '/oauth2/create-client': {
+          success: 'OAUTH_CLIENT_CREATE',
+          failed: 'OAUTH_CLIENT_CREATE_FAILED',
+        },
+        '/oauth2/update-client': {
+          success: 'OAUTH_CLIENT_UPDATE',
+          failed: 'OAUTH_CLIENT_UPDATE_FAILED',
+        },
+        '/oauth2/delete-client': {
+          success: 'OAUTH_CLIENT_DELETE',
+          failed: 'OAUTH_CLIENT_DELETE_FAILED',
+        },
       } as const;
 
-      const oauthClientAction =
+      const oauthClientActionPair =
         oauthClientAuditActions[
           ctx.path as keyof typeof oauthClientAuditActions
         ];
 
-      if (oauthClientAction && ctx.request?.method === 'POST') {
+      if (oauthClientActionPair && ctx.request?.method === 'POST') {
         try {
+          const response =
+            await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
+          const isSuccess = response !== null && !('error' in response);
+          const oauthClientAction = isSuccess
+            ? oauthClientActionPair.success
+            : oauthClientActionPair.failed;
+
           const payload = await getOAuthClientAuditPayload(ctx);
           const session = await auth.api.getSession({
             headers: ctx.headers || {},
@@ -303,6 +319,7 @@ export const auth = betterAuth({
               targetId: payload.clientId,
               details: {
                 path: ctx.path,
+                success: isSuccess,
                 ...payload.details,
               },
             });
