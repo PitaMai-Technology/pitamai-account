@@ -237,7 +237,9 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
           <p class="text-xs text-center mt-6">
             ログインすると、<ULink
               to="https://outline-wiki.pitamai.com/s/2d6f1abb-3cb8-4755-8f93-5d23dc400786/doc/pitamai-0tzpa8Tc2g"
-              target="_blank" class="underline hover:text-gray-800">利用規約</ULink>に同意したとみなされます。
+              target="_blank" class="underline hover:text-gray-800">利用規約</ULink>と、<ULink
+              to="https://outline-wiki.pitamai.com/s/8d9b13cf-7609-4db8-acab-553959ee9cfb/doc/5ycl5lq65oof5acx5ld6k235pa56yedioodloocvodnuocpooduodhuocrodjuodreocuoodva-rFgXpKyail"
+              target="_blank" class="underline hover:text-gray-800">プライバシーポリシー</ULink>に同意したとみなされます。
           </p>
 
           <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center" />
