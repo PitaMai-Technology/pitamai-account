@@ -20,7 +20,7 @@ const emailState = reactive({
 });
 
 const otpState = reactive({
-  otp: '',
+  otp: [] as number[],
 });
 
 const emailOtpFormSchema = z.object({
@@ -28,7 +28,7 @@ const emailOtpFormSchema = z.object({
 });
 
 const emailOtpVerifySchema = z.object({
-  otp: z.string().regex(/^\d{6}$/, '6桁の認証コードを入力してください'),
+  otp: z.array(z.number()).length(6, '6桁の認証コードを入力してください'),
 });
 
 type SendOtpSchema = z.output<typeof emailOtpFormSchema>;
@@ -101,7 +101,7 @@ async function onSendOtp(event: FormSubmitEvent<SendOtpSchema>) {
   }
 }
 
-async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
+async function handleVerifyOtp(data: VerifyOtpSchema) {
   if (!turnstileToken.value) {
     toast.add({
       title: '確認が必要です',
@@ -119,7 +119,7 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
       (route.query.client_id !== undefined && route.query.response_type === 'code');
     const signInPayload: Parameters<typeof authClient.signIn.emailOtp>[0] = {
       email: emailState.email,
-      otp: event.data.otp,
+      otp: data.otp.join(''),
       fetchOptions: {
         headers: {
           'x-captcha-response': turnstileToken.value,
@@ -174,6 +174,10 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
     loading.value = false;
   }
 }
+
+async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
+  await handleVerifyOtp(event.data);
+}
 </script>
 
 <template>
@@ -223,8 +227,8 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
             <p class="text-sm">
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>
-            <UFormField label="認証コード" name="otp" required>
-              <UInput v-model="otpState.otp" placeholder="123456" maxlength="6" />
+            <UFormField label="認証コード" name="otp" required class="flex flex-col items-center">
+              <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="() => handleVerifyOtp(otpState)" />
             </UFormField>
             <div class="flex gap-2">
               <UButton type="submit" :loading="loading">ログイン</UButton>
