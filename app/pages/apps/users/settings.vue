@@ -22,12 +22,6 @@ const tabItems: TabsItem[] = [
     icon: "i-lucide-user-cog",
     value: 'profile',
   },
-  {
-    label: 'パスワード',
-    slot: 'password',
-    icon: "i-lucide-lock",
-    value: 'password',
-  },
 ];
 
 const profileSchema = z.object({
@@ -327,66 +321,6 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
                 <UButton type="submit" :loading="loading">メールアドレスを変更</UButton>
               </UForm>
             </div>
-          </div>
-        </template>
-
-        <template #password>
-          <div class="pt-4 space-y-6">
-
-            <UAlert color="warning">
-              <template #title>パスワードは基本的に使用しません。</template>
-              <p>パスワードレスに移行</p>
-            </UAlert>
-            <!-- <div class="space-y-4">
-              <div>
-                <h2 class="font-semibold text-sm mb-2">パスワードを変更</h2>
-                <p class="text-sm text-neutral-500 mb-4">
-                  現在のパスワードが分かっている場合
-                </p>
-              </div>
-
-              <UForm :schema="changePasswordSchema" :state="changePasswordState" class="space-y-4"
-                @submit="onChangePasswordSubmit">
-                <UFormField label="現在のパスワード" name="currentPassword" required>
-                  <UInput v-model="changePasswordState.currentPassword" type="password"
-                    autocomplete="current-password" />
-                </UFormField>
-
-                <UFormField label="新しいパスワード" name="newPassword" required>
-                  <UInput v-model="changePasswordState.newPassword" type="password" autocomplete="new-password" />
-                </UFormField>
-
-                <UFormField label="新しいパスワード（確認）" name="confirmPassword" required>
-                  <UInput v-model="changePasswordState.confirmPassword" type="password" autocomplete="new-password" />
-                </UFormField>
-
-                <UButton type="submit" :loading="loading">パスワードを変更</UButton>
-              </UForm>
-            </div>
-
-            <USeparator class="my-8" />
-
-            <div class="space-y-4">
-              <div>
-                <h2 class="font-semibold text-sm mb-2">パスワードをリセット</h2>
-                <p class="text-sm text-neutral-500 mb-4">
-                  パスワードを忘れた場合。メール受信後、リセットリンクから新しいパスワードを設定できます。
-                </p>
-              </div>
-
-              <div v-if="resetEmailSent" class="p-4 rounded-lg bg-success/10 border border-success/20 text-sm">
-                パスワード再設定用のメールを送信しました。メールをご確認ください。
-              </div>
-
-              <UForm v-if="!resetEmailSent" :schema="resetPasswordSchema" :state="resetPasswordState" class="space-y-4"
-                @submit="onResetPasswordSubmit">
-                <UFormField label="メールアドレス" name="email" required>
-                  <UInput v-model="resetPasswordState.email" type="email" autocomplete="email" />
-                </UFormField>
-
-                <UButton type="submit" :loading="loading">リセットメールを送信</UButton>
-              </UForm>
-            </div> -->
           </div>
         </template>
       </UTabs>
