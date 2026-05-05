@@ -2,6 +2,7 @@ services:
   db-account:
     image: postgres:18
     container_name: pitamai-account-postgres
+    restart: always
     environment:
       POSTGRES_USER: maimai
       POSTGRES_PASSWORD: maimai
@@ -9,7 +10,13 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - pitamai-account-pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maimai -d maimai_dev_account"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  pitamai-account-pgdata:
+  pgdata:
+    name: pitamai-account-pgdata
