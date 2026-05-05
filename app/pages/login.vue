@@ -227,7 +227,7 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
             <p class="text-sm">
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>
-            <UFormField label="認証コード" name="otp" required class="flex flex-col items-center">
+            <UFormField label="認証コード(6桁の数字)" name="otp" required class="flex flex-col items-center">
               <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="() => handleVerifyOtp(otpState)" />
             </UFormField>
             <div class="flex gap-2">
