@@ -344,13 +344,7 @@ export const auth = betterAuth({
     }),
   },
   plugins: [
-    jwt({
-      jwks: {
-        keyPairConfig: {
-          alg: 'RS256',
-        },
-      },
-    }),
+    jwt(),
     captcha({
       provider: 'cloudflare-turnstile', // or google-recaptcha, hcaptcha, captchafox
       secretKey: process.env.TURNSTILE_SECRET_KEY!,
