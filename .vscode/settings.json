@@ -16,5 +16,8 @@
   "typescript.tsdk": "node_modules\\typescript\\lib",
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[vue]": {
+    "editor.defaultFormatter": "Vue.volar"
   }
 }
