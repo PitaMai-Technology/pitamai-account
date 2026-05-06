@@ -200,6 +200,16 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
         </div>
       </UPageCard>
     </div>
+    <template v-else-if="session.isPending">
+      <div class="flex items-center justify-center p-4">
+        <UPageCard class="w-max max-w-md">
+          <div class="flex flex-col items-center space-y-4 py-8">
+            <UIcon name="i-lucide-loader-circle" class="h-16 w-16 text-primary animate-spin" />
+            <h2 class="text-xl font-semibold">ローディング中です...</h2>
+          </div>
+        </UPageCard>
+      </div>
+    </template>
     <div v-else class="flex items-center justify-center p-4">
       <!-- w-maxをつけないと、overflowする -->
       <UPageCard class="w-max max-w-md">
@@ -228,7 +238,8 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>
             <UFormField label="認証コード(6桁の数字)" name="otp" required class="flex flex-col items-center">
-              <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="() => handleVerifyOtp(otpState)" />
+              <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus
+                @complete="() => handleVerifyOtp(otpState)" />
             </UFormField>
             <div class="flex gap-2">
               <UButton type="submit" :loading="loading">ログイン</UButton>
