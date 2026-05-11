@@ -13,11 +13,7 @@ export default defineNuxtConfig({
 
   nitro: {
     externals: {
-      inline: [],
-    },
-    moduleSideEffects: ['@prisma/client', '.prisma/client/default'],
-    rollupConfig: {
-      external: ['@prisma/client', '.prisma/client/default'],
+      inline: ['@prisma/client', '.prisma/client'],
     },
   },
 
