@@ -74,20 +74,28 @@ export function useTurnstile(containerId: string) {
     const turnstile = getTurnstileApi();
     if (!turnstile) return false;
 
-    turnstileWidgetId.value = turnstile.render(`#${containerId}`, {
-      sitekey: siteKey,
-      callback: token => {
-        turnstileToken.value = token;
-      },
-      'expired-callback': () => {
-        turnstileToken.value = '';
-      },
-      'error-callback': () => {
-        turnstileToken.value = '';
-      },
-    });
+    // 要素が DOM 上に存在するか確認
+    const container = document.getElementById(containerId);
+    if (!container) return false;
 
-    return true;
+    try {
+      turnstileWidgetId.value = turnstile.render(container, {
+        sitekey: siteKey as string,
+        callback: (token) => {
+          turnstileToken.value = token;
+        },
+        'expired-callback': () => {
+          turnstileToken.value = '';
+        },
+        'error-callback': () => {
+          turnstileToken.value = '';
+        },
+      });
+      return true;
+    } catch (e) {
+      console.error('Turnstile render error:', e);
+      return true;
+    }
   }
 
   onMounted(() => {
@@ -99,10 +107,10 @@ export function useTurnstile(containerId: string) {
       if (mountTurnstile()) {
         clearInterval(timer);
       }
-    }, 200);
+    }, 250);
 
     onBeforeUnmount(() => {
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
     });
   });
 
