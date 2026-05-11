@@ -279,9 +279,10 @@ async function onCreateClient(event: FormSubmitEvent<Schema>) {
 async function onDeleteClient(clientId: string) {
   if (!clientId || loading.value) return;
 
+  const client = clients.value.find(c => c.client_id === clientId);
   const confirmed = await confirmStore.confirm(
-    'このOAuthクライアントを削除します。よろしいですか？',
-    'OAuthクライアント削除'
+    `このOAuthクライアント、「 ${client?.client_name ?? clientId} 」を削除します。よろしいですか？`,
+    `OAuthクライアント削除 「 ${client?.client_name ?? clientId} 」`
   );
   if (!confirmed) {
     return;
@@ -470,15 +471,16 @@ onMounted(async () => {
 
       <UForm :schema="schema" :state="state" class="space-y-4" @submit="onCreateClient">
         <UFormField label="クライアント名" name="clientName" required>
-          <UInput v-model="state.clientName" placeholder="example-web-client" />
+          <UInput class="w-full max-w-md" v-model="state.clientName" placeholder="example-web-client" />
         </UFormField>
 
         <UFormField label="リダイレクトURI" name="redirectUri" required>
-          <UInput v-model="state.redirectUri" placeholder="https://client.example.com/callback" />
+          <UInput class="w-full max-w-md" v-model="state.redirectUri"
+            placeholder="https://client.example.com/callback" />
         </UFormField>
 
         <UFormField label="許可スコープ" name="scopesText" required>
-          <UInputMenu class="w-md max-w-md" v-model="createScopesModel" multiple create-item :items="scopeItems"
+          <UInputMenu class="w-full max-w-md" v-model="createScopesModel" multiple create-item :items="scopeItems"
             @create="onCreateScopeItem" />
         </UFormField>
 
@@ -487,62 +489,91 @@ onMounted(async () => {
         <p class="text-xs text-neutral-500">
           Confidential Client は PKCE を任意で選択できます。Public Client は常に PKCE 必須です。
         </p>
-        <UButton type="submit" :loading="loading">クライアント作成</UButton>
+        <UButton type="submit" icon="i-lucide-plus" :loading="loading">クライアント作成</UButton>
       </UForm>
 
-      <UAlert v-if="justIssuedSecret" color="warning" variant="soft" title="client_secret はこの表示時のみ確認できます"
-        :description="justIssuedSecret" />
+      <UAlert v-if="justIssuedSecret" color="warning" variant="solid">
+        <template #title>
+          client_secret はこの表示時のみ確認できます
+        </template>
+        <template #description>
+          <AppCopyText :value="justIssuedSecret" size="sm" masked />
+        </template>
+      </UAlert>
 
       <USeparator />
 
       <div class="space-y-3">
         <h2 class="text-lg font-semibold">登録済みクライアント</h2>
 
-        <div v-for="client in clients" :key="client.client_id" class="rounded border border-neutral-200 p-4 space-y-2">
-          <p class="font-medium">{{ client.client_name || '(名称未設定)' }}</p>
-          <p class="text-xs break-all text-neutral-500">client_id: {{ client.client_id }}</p>
-          <p class="text-xs text-neutral-500">
-            auth_method: {{ client.token_endpoint_auth_method || '-' }}
-          </p>
-          <UFormField label="クライアント名" size="sm">
-            <UInput v-model="client.editable_name" />
-          </UFormField>
-          <UFormField label="リダイレクトURI" size="sm">
-            <UInput v-model="client.editable_redirect_uri" />
-          </UFormField>
-          <UFormField label="許可スコープ" size="sm">
-            <UInputMenu class="w-md max-w-md" :model-value="parseScopes(client.editable_scope_text)" multiple
-              create-item :items="scopeItems" size="sm" @create="onCreateScopeItem"
-              @update:model-value="value => updateClientScopes(client, value)" />
-          </UFormField>
-          <UCheckbox v-model="client.editable_require_pkce" :disabled="client.token_endpoint_auth_method === 'none'"
-            label="PKCE 必須" />
-          <p class="text-xs text-neutral-500">
-            {{ client.token_endpoint_auth_method === 'none'
-              ? 'Public Client は PKCE 必須です。'
-              : 'Confidential Client は PKCE を任意で選択できます。' }}
-          </p>
-          <p class="text-xs text-neutral-500">
-            redirect_uris: {{ (client.redirect_uris || []).join(', ') || '-' }}
-          </p>
-          <p class="text-xs text-neutral-500">
-            scope: {{ client.scope || '-' }}
-          </p>
+        <UCollapsible v-for="client in clients" :key="client.client_id" class="rounded border border-success px-2 py-4">
+          <template #default="{ open }">
+            <UButton color="success" variant="ghost" block class="justify-between font-semibold text-lg">
+              {{ client.client_name || '(名称未設定)' }}
+              <UIcon name="i-lucide-chevron-down" class="transition-transform duration-200"
+                :class="[open && 'rotate-180']" />
+            </UButton>
+          </template>
 
-          <div class="flex gap-2">
-            <UButton color="primary" variant="outline" size="xs" :loading="loading" @click="onUpdateClient(client)">
-              更新
-            </UButton>
-            <UButton color="neutral" variant="outline" size="xs" :loading="loading"
-              @click="onRotateSecret(client.client_id)">
-              シークレット再発行
-            </UButton>
-            <UButton color="error" variant="outline" size="xs" :loading="loading"
-              @click="onDeleteClient(client.client_id)">
-              削除
-            </UButton>
-          </div>
-        </div>
+          <template #content>
+            <div class="p-2 space-y-4">
+              <div class="flex flex-col gap-2 items-start">
+                <AppCopyText :value="client.client_id" label="CLIENT ID" color="info" size="sm" />
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-neutral-500 font-medium">auth_method:</span>
+                  <UBadge color="neutral" variant="subtle" size="sm">{{ client.token_endpoint_auth_method || '-' }}
+                  </UBadge>
+                </div>
+              </div>
+
+              <UFormField label="クライアント名" size="sm">
+                <UInput class="w-full max-w-md" v-model="client.editable_name" />
+              </UFormField>
+
+              <UFormField label="リダイレクトURI" size="sm">
+                <UInput class="w-full max-w-md" v-model="client.editable_redirect_uri" />
+              </UFormField>
+
+              <UFormField label="許可スコープ" size="sm">
+                <UInputMenu class="w-full max-w-md" :model-value="parseScopes(client.editable_scope_text)" multiple
+                  create-item :items="scopeItems" size="sm" @create="onCreateScopeItem"
+                  @update:model-value="value => updateClientScopes(client, value)" />
+              </UFormField>
+
+              <UCheckbox v-model="client.editable_require_pkce" :disabled="client.token_endpoint_auth_method === 'none'"
+                label="PKCE 必須" />
+
+              <div class="bg-neutral-50 p-2 rounded space-y-1">
+                <p class="text-xs text-neutral-500">
+                  {{ client.token_endpoint_auth_method === 'none'
+                    ? 'Public Client は PKCE 必須です。'
+                    : 'Confidential Client は PKCE を任意で選択できます。' }}
+                </p>
+                <p class="text-xs text-neutral-500">
+                  redirect_uris: {{ (client.redirect_uris || []).join(', ') || '-' }}
+                </p>
+                <p class="text-xs text-neutral-500">
+                  scope: {{ client.scope || '-' }}
+                </p>
+              </div>
+
+              <div class="flex gap-2 pt-2 border-t border-neutral-100">
+                <UButton color="primary" icon="i-lucide-save" variant="solid" size="xs" :loading="loading"
+                  @click="onUpdateClient(client)">
+                  更新
+                </UButton>
+                <UButton color="neutral" icon="i-lucide-rotate-ccw" variant="outline" size="xs" :loading="loading"
+                  @click="onRotateSecret(client.client_id)">
+                  シークレット再発行
+                </UButton>
+                <UButton color="error" icon="i-lucide-trash" variant="outline" size="xs" :loading="loading"
+                  @click="onDeleteClient(client.client_id)">
+                  削除
+                </UButton>
+              </div>
+            </div>
+          </template>
+        </UCollapsible>
 
         <p v-if="!loading && clients.length === 0" class="text-sm text-neutral-500">
           クライアントはまだ登録されていません。
