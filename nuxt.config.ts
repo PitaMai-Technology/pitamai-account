@@ -11,9 +11,33 @@ export default defineNuxtConfig({
   ],
   css: ['~/assets/main.css'],
 
+  build: {
+    transpile: ['@prisma/client'],
+  },
+
   nitro: {
     externals: {
       inline: ['@prisma/client', '.prisma/client'],
+    },
+    esbuild: {
+      options: {
+        target: 'esnext',
+      },
+    },
+    rollupConfig: {
+      plugins: [
+        {
+          name: 'prisma-esm-shim',
+          banner() {
+            return [
+              "import { fileURLToPath as __fileURLToPath } from 'node:url';",
+              "import { dirname as __dirname_fn } from 'node:path';",
+              'const __filename = __fileURLToPath(import.meta.url);',
+              'const __dirname = __dirname_fn(__filename);',
+            ].join('\n');
+          },
+        },
+      ],
     },
   },
 
