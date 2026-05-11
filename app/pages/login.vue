@@ -239,7 +239,10 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
             </p>
             <UFormField label="認証コード(6桁の数字)" name="otp" required class="flex flex-col items-center">
               <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus
-                @complete="() => handleVerifyOtp(otpState)" />
+                @complete="async () => {
+                  const result = emailOtpVerifySchema.safeParse(otpState);
+                  if (result.success) await handleVerifyOtp(result.data);
+                }" />
             </UFormField>
             <div class="flex gap-2">
               <UButton type="submit" :loading="loading">ログイン</UButton>
