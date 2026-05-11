@@ -63,13 +63,18 @@ export function useTurnstile(containerId: string) {
     turnstileToken.value = '';
     const turnstile = getTurnstileApi();
     if (turnstile && turnstileWidgetId.value !== null) {
-      turnstile.reset(turnstileWidgetId.value);
+      try {
+        turnstile.reset(turnstileWidgetId.value);
+      } catch (e) {
+        // すでにウィジェットが破棄されている場合などのエラーを抑制
+        console.warn('Turnstile reset failed (non-critical):', e);
+      }
     }
   }
 
   function mountTurnstile() {
     const siteKey = config.public.TURNSTILE_SITE_KEY;
-    if (!siteKey || turnstileWidgetId.value !== null) return true;
+    if (!siteKey) return true;
 
     const turnstile = getTurnstileApi();
     if (!turnstile) return false;
@@ -77,6 +82,14 @@ export function useTurnstile(containerId: string) {
     // 要素が DOM 上に存在するか確認
     const container = document.getElementById(containerId);
     if (!container) return false;
+
+    // すでにIDがある場合でも、コンテナが空（Vueの再描画などで消えた）なら再レンダリングを許可
+    if (turnstileWidgetId.value !== null) {
+      if (container.innerHTML.trim() !== '') {
+        return true;
+      }
+      turnstileWidgetId.value = null;
+    }
 
     try {
       turnstileWidgetId.value = turnstile.render(container, {
@@ -94,23 +107,31 @@ export function useTurnstile(containerId: string) {
       return true;
     } catch (e) {
       console.error('Turnstile render error:', e);
-      return true;
+      return false;
     }
   }
 
   onMounted(() => {
     if (!config.public.TURNSTILE_SITE_KEY) return;
 
-    if (mountTurnstile()) return;
+    // 初回マウント試行
+    mountTurnstile();
 
+    // 継続的にマウント状態を監視するタイマー
+    // (一度成功しても、DOMから消えたら再マウントする)
     const timer = setInterval(() => {
-      if (mountTurnstile()) {
-        clearInterval(timer);
-      }
-    }, 250);
+      mountTurnstile();
+    }, 1000);
+
+    // タブが戻ってきたときなどに再チェック
+    const handleFocus = () => mountTurnstile();
+    window.addEventListener('focus', handleFocus);
 
     onBeforeUnmount(() => {
       if (timer) clearInterval(timer);
+      window.removeEventListener('focus', handleFocus);
+      // ウィジェットを明示的にクリア
+      resetTurnstileToken();
     });
   });
 
