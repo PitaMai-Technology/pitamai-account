@@ -63,46 +63,93 @@ export function useTurnstile(containerId: string) {
     turnstileToken.value = '';
     const turnstile = getTurnstileApi();
     if (turnstile && turnstileWidgetId.value !== null) {
-      turnstile.reset(turnstileWidgetId.value);
+      try {
+        turnstile.reset(turnstileWidgetId.value);
+      } catch (e) {
+        // すでにウィジェットが破棄されている場合などのエラーを抑制
+        console.warn('Turnstile reset failed (non-critical):', e);
+      }
     }
   }
 
   function mountTurnstile() {
     const siteKey = config.public.TURNSTILE_SITE_KEY;
-    if (!siteKey || turnstileWidgetId.value !== null) return true;
+    if (!siteKey) return true;
 
     const turnstile = getTurnstileApi();
     if (!turnstile) return false;
 
-    turnstileWidgetId.value = turnstile.render(`#${containerId}`, {
-      sitekey: siteKey,
-      callback: token => {
-        turnstileToken.value = token;
-      },
-      'expired-callback': () => {
-        turnstileToken.value = '';
-      },
-      'error-callback': () => {
-        turnstileToken.value = '';
-      },
-    });
+    // 要素が DOM 上に存在するか確認
+    const container = document.getElementById(containerId);
+    if (!container) return false;
 
-    return true;
+    // すでにIDがある場合でも、コンテナ内にウィジェットが存在しないなら再レンダリングを許可
+    if (turnstileWidgetId.value !== null) {
+      // Turnstile が作成する iframe が存在するかチェック
+      const turnstileWidget = container.querySelector('iframe[src*="challenges.cloudflare.com"]');
+      if (turnstileWidget) {
+        return true;
+      }
+      // ウィジェットが消えている場合は再レンダリング
+      turnstileWidgetId.value = null;
+    }
+
+    try {
+      turnstileWidgetId.value = turnstile.render(container, {
+        sitekey: siteKey as string,
+        callback: (token) => {
+          turnstileToken.value = token;
+        },
+        'expired-callback': () => {
+          turnstileToken.value = '';
+        },
+        'error-callback': () => {
+          turnstileToken.value = '';
+        },
+      });
+      return true;
+    } catch (e) {
+      console.error('Turnstile render error:', e);
+      return false;
+    }
   }
 
   onMounted(() => {
     if (!config.public.TURNSTILE_SITE_KEY) return;
 
-    if (mountTurnstile()) return;
+    let timer: ReturnType<typeof setInterval> | null = null;
 
-    const timer = setInterval(() => {
-      if (mountTurnstile()) {
+    // マウントを試行し、成功したらタイマーを止める関数
+    const checkAndMount = () => {
+      const isMounted = mountTurnstile();
+      if (isMounted && timer) {
         clearInterval(timer);
+        timer = null;
       }
-    }, 200);
+      return isMounted;
+    };
+
+    // 初回実行
+    if (!checkAndMount()) {
+      timer = setInterval(checkAndMount, 1000);
+    }
+
+    // タブ復帰時などのイベントで再チェック。消えていればタイマーを再開。
+    const recover = () => {
+      if (!checkAndMount() && !timer) {
+        timer = setInterval(checkAndMount, 1000);
+      }
+    };
+
+    window.addEventListener('focus', recover);
+    document.addEventListener('visibilitychange', recover);
 
     onBeforeUnmount(() => {
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
+      window.removeEventListener('focus', recover);
+      document.removeEventListener('visibilitychange', recover);
+      // ウィジェットを明示的にクリア
+      resetTurnstileToken();
     });
   });
 
