@@ -469,28 +469,51 @@ onMounted(async () => {
           target="_blank">ヘルプ(wiki)</UButton>
       </div>
 
-      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onCreateClient">
-        <UFormField label="クライアント名" name="clientName" required>
-          <UInput class="w-full max-w-md" v-model="state.clientName" placeholder="example-web-client" />
-        </UFormField>
+      <div
+        class="max-w-2xl bg-neutral-50 dark:bg-neutral-800/50 p-6 rounded-2xl border border-neutral-100 dark:border-neutral-800">
+        <UForm :schema="schema" :state="state" class="space-y-6" @submit="onCreateClient">
+          <UFormField label="クライアント名" name="clientName" required description="ユーザーに表示される名称です">
+            <UInput class="w-full max-w-md" v-model="state.clientName" placeholder="例: マイ・ウェブアプリ" block />
+          </UFormField>
 
-        <UFormField label="リダイレクトURI" name="redirectUri" required>
-          <UInput class="w-full max-w-md" v-model="state.redirectUri"
-            placeholder="https://client.example.com/callback" />
-        </UFormField>
+          <UFormField label="リダイレクトURI" name="redirectUri" required description="認証後の戻り先URL">
+            <UInput class="w-full max-w-md" v-model="state.redirectUri" placeholder="https://app.example.com/callback"
+              block />
+          </UFormField>
 
-        <UFormField label="許可スコープ" name="scopesText" required>
-          <UInputMenu class="w-full max-w-md" v-model="createScopesModel" multiple create-item :items="scopeItems"
-            @create="onCreateScopeItem" />
-        </UFormField>
+          <UFormField label="許可スコープ" name="scopesText" required>
+            <UInputMenu v-model="createScopesModel" multiple create-item :items="scopeItems" placeholder="スコープを選択または追加"
+              block @create="onCreateScopeItem" />
+          </UFormField>
 
-        <UCheckbox v-model="state.isPublicClient" label="Public Client (client_secretなし)" />
-        <UCheckbox v-model="state.requirePkce" :disabled="state.isPublicClient" label="PKCE 必須（推奨）" />
-        <p class="text-xs text-neutral-500">
-          Confidential Client は PKCE を任意で選択できます。Public Client は常に PKCE 必須です。
-        </p>
-        <UButton type="submit" icon="i-lucide-plus" :loading="loading">クライアント作成</UButton>
-      </UForm>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div
+              class="flex items-center justify-between p-3 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800">
+              <div class="flex flex-col">
+                <span class="text-sm font-medium">Public Client</span>
+                <span class="text-[10px] text-neutral-500 line-clamp-1">シークレットなし&PKCE必須</span>
+              </div>
+              <USwitch v-model="state.isPublicClient" />
+            </div>
+
+            <div
+              class="flex items-center justify-between p-3 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800"
+              :class="{ 'opacity-50': state.isPublicClient }">
+              <div class="flex flex-col">
+                <span class="text-sm font-medium">PKCE 必須</span>
+                <span class="text-[10px] text-neutral-500 line-clamp-1">より安全な認証（推奨）</span>
+              </div>
+              <USwitch v-model="state.requirePkce" :disabled="state.isPublicClient" />
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <UButton type="submit" icon="i-lucide-plus" :loading="loading" size="lg" class="px-8">
+              クライアントを作成
+            </UButton>
+          </div>
+        </UForm>
+      </div>
 
       <UAlert v-if="justIssuedSecret" color="warning" variant="solid">
         <template #title>
@@ -506,70 +529,96 @@ onMounted(async () => {
       <div class="space-y-3">
         <h2 class="text-lg font-semibold">登録済みクライアント</h2>
 
-        <UCollapsible v-for="client in clients" :key="client.client_id" class="rounded border border-success px-2 py-4">
+        <UCollapsible v-for="client in clients" :key="client.client_id"
+          class="overflow-hidden bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl transition-all duration-200 hover:border-primary-300 dark:hover:border-primary-700">
           <template #default="{ open }">
-            <UButton color="success" variant="ghost" block class="justify-between font-semibold text-lg">
-              {{ client.client_name || '(名称未設定)' }}
-              <UIcon name="i-lucide-chevron-down" class="transition-transform duration-200"
+            <div class="w-full flex items-center justify-between p-4 cursor-pointer select-none">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <div
+                  class="flex-shrink-0 w-10 h-10 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-500 group-hover:text-primary transition-colors">
+                  <UIcon
+                    :name="client.token_endpoint_auth_method === 'none' ? 'i-lucide-smartphone' : 'i-lucide-server'"
+                    class="text-xl" />
+                </div>
+                <div class="flex flex-col min-w-0 text-left">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-lg font-bold truncate text-neutral-900 dark:text-white min-w-0">
+                      {{ client.client_name || '(名称未設定)' }}
+                    </span>
+                    <UBadge v-if="client.token_endpoint_auth_method === 'none'" size="xs" color="info" variant="subtle"
+                      class="flex-shrink-0">
+                      Public</UBadge>
+                    <UBadge v-else size="xs" color="neutral" variant="subtle" class="flex-shrink-0">Confidential
+                    </UBadge>
+                  </div>
+                  <span class="text-xs text-neutral-400 font-mono truncate">{{ client.client_id }}</span>
+                </div>
+              </div>
+              <UIcon name="i-lucide-chevron-down" class="transition-transform duration-300 text-neutral-400"
                 :class="[open && 'rotate-180']" />
-            </UButton>
+            </div>
           </template>
 
           <template #content>
-            <div class="p-2 space-y-4">
-              <div class="flex flex-col gap-2 items-start">
-                <AppCopyText :value="client.client_id" label="CLIENT ID" color="info" size="sm" />
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-neutral-500 font-medium">auth_method:</span>
-                  <UBadge color="neutral" variant="subtle" size="sm">{{ client.token_endpoint_auth_method || '-' }}
-                  </UBadge>
+            <div class="px-4 pb-4 pt-2 space-y-6 border-t border-neutral-100 dark:border-neutral-800">
+              <div class="gap-6 mt-2">
+                <div class="space-y-4">
+                  <AppCopyText :value="client.client_id" label="CLIENT ID" color="neutral" size="sm" />
+
+                  <UFormField label="クライアント名" size="sm">
+                    <UInput class="w-full max-w-md" v-model="client.editable_name" block />
+                  </UFormField>
+
+                  <UFormField label="リダイレクトURI" size="sm">
+                    <UInput class="w-full max-w-md mb-6" v-model="client.editable_redirect_uri" block />
+                  </UFormField>
+                </div>
+
+                <div class="space-y-4">
+                  <UFormField label="許可スコープ" size="sm">
+                    <UInputMenu :model-value="parseScopes(client.editable_scope_text)" multiple create-item
+                      :items="scopeItems" size="sm" block @create="onCreateScopeItem"
+                      @update:model-value="value => updateClientScopes(client, value)" />
+                  </UFormField>
+
+                  <div
+                    class="flex items-center justify-between w-fit gap-4 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-100 dark:border-neutral-800">
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium">PKCE 必須</span>
+                      <span class="text-xs text-neutral-500">
+                        {{ client.token_endpoint_auth_method === 'none' ? 'Public Clientは必須です' : '推奨設定' }}
+                      </span>
+                    </div>
+                    <USwitch v-model="client.editable_require_pkce"
+                      :disabled="client.token_endpoint_auth_method === 'none'" size="sm" />
+                  </div>
                 </div>
               </div>
 
-              <UFormField label="クライアント名" size="sm">
-                <UInput class="w-full max-w-md" v-model="client.editable_name" />
-              </UFormField>
-
-              <UFormField label="リダイレクトURI" size="sm">
-                <UInput class="w-full max-w-md" v-model="client.editable_redirect_uri" />
-              </UFormField>
-
-              <UFormField label="許可スコープ" size="sm">
-                <UInputMenu class="w-full max-w-md" :model-value="parseScopes(client.editable_scope_text)" multiple
-                  create-item :items="scopeItems" size="sm" @create="onCreateScopeItem"
-                  @update:model-value="value => updateClientScopes(client, value)" />
-              </UFormField>
-
-              <UCheckbox v-model="client.editable_require_pkce" :disabled="client.token_endpoint_auth_method === 'none'"
-                label="PKCE 必須" />
-
-              <div class="bg-neutral-50 p-2 rounded space-y-1">
-                <p class="text-xs text-neutral-500">
-                  {{ client.token_endpoint_auth_method === 'none'
-                    ? 'Public Client は PKCE 必須です。'
-                    : 'Confidential Client は PKCE を任意で選択できます。' }}
-                </p>
-                <p class="text-xs text-neutral-500">
-                  redirect_uris: {{ (client.redirect_uris || []).join(', ') || '-' }}
-                </p>
-                <p class="text-xs text-neutral-500">
-                  scope: {{ client.scope || '-' }}
-                </p>
+              <div
+                class="text-[11px] text-neutral-500 bg-neutral-50 dark:bg-neutral-800/50 p-3 rounded-lg space-y-1 border border-neutral-100 dark:border-neutral-800">
+                <div>
+                  <span class="font-bold w-20">Redirect URIs: </span>
+                  <span class="truncate">{{ (client.redirect_uris || []).join(', ') || '-' }}</span>
+                </div>
+                <div>
+                  <span class="font-bold w-20">Scopes: </span>
+                  <span class="truncate">{{ client.scope || '-' }}</span>
+                </div>
               </div>
 
-              <div class="flex gap-2 pt-2 border-t border-neutral-100">
-                <UButton color="primary" icon="i-lucide-save" variant="solid" size="xs" :loading="loading"
-                  @click="onUpdateClient(client)">
-                  更新
-                </UButton>
-                <UButton color="neutral" icon="i-lucide-rotate-ccw" variant="outline" size="xs" :loading="loading"
-                  @click="onRotateSecret(client.client_id)">
-                  シークレット再発行
-                </UButton>
-                <UButton color="error" icon="i-lucide-trash" variant="outline" size="xs" :loading="loading"
-                  @click="onDeleteClient(client.client_id)">
-                  削除
-                </UButton>
+              <div
+                class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                <UButton color="error" icon="i-lucide-trash-2" variant="ghost" size="sm" label="削除" :loading="loading"
+                  @click="onDeleteClient(client.client_id)" />
+
+                <div class="flex flex-wrap gap-2">
+                  <UButton v-if="client.token_endpoint_auth_method !== 'none'" color="neutral"
+                    icon="i-lucide-refresh-cw" variant="outline" size="sm" label="再発行" :loading="loading"
+                    @click="onRotateSecret(client.client_id)" />
+                  <UButton color="primary" icon="i-lucide-save" size="sm" label="変更を保存" :loading="loading"
+                    @click="onUpdateClient(client)" />
+                </div>
               </div>
             </div>
           </template>
