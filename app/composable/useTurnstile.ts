@@ -83,11 +83,14 @@ export function useTurnstile(containerId: string) {
     const container = document.getElementById(containerId);
     if (!container) return false;
 
-    // すでにIDがある場合でも、コンテナが空（Vueの再描画などで消えた）なら再レンダリングを許可
+    // すでにIDがある場合でも、コンテナ内にウィジェットが存在しないなら再レンダリングを許可
     if (turnstileWidgetId.value !== null) {
-      if (container.innerHTML.trim() !== '') {
+      // Turnstile が作成する iframe が存在するかチェック
+      const turnstileWidget = container.querySelector('iframe[src*="challenges.cloudflare.com"]');
+      if (turnstileWidget) {
         return true;
       }
+      // ウィジェットが消えている場合は再レンダリング
       turnstileWidgetId.value = null;
     }
 
@@ -114,22 +117,37 @@ export function useTurnstile(containerId: string) {
   onMounted(() => {
     if (!config.public.TURNSTILE_SITE_KEY) return;
 
-    // 初回マウント試行
-    mountTurnstile();
+    let timer: ReturnType<typeof setInterval> | null = null;
 
-    // 継続的にマウント状態を監視するタイマー
-    // (一度成功しても、DOMから消えたら再マウントする)
-    const timer = setInterval(() => {
-      mountTurnstile();
-    }, 1000);
+    // マウントを試行し、成功したらタイマーを止める関数
+    const checkAndMount = () => {
+      const isMounted = mountTurnstile();
+      if (isMounted && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      return isMounted;
+    };
 
-    // タブが戻ってきたときなどに再チェック
-    const handleFocus = () => mountTurnstile();
-    window.addEventListener('focus', handleFocus);
+    // 初回実行
+    if (!checkAndMount()) {
+      timer = setInterval(checkAndMount, 1000);
+    }
+
+    // タブ復帰時などのイベントで再チェック。消えていればタイマーを再開。
+    const recover = () => {
+      if (!checkAndMount() && !timer) {
+        timer = setInterval(checkAndMount, 1000);
+      }
+    };
+
+    window.addEventListener('focus', recover);
+    document.addEventListener('visibilitychange', recover);
 
     onBeforeUnmount(() => {
       if (timer) clearInterval(timer);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', recover);
+      document.removeEventListener('visibilitychange', recover);
       // ウィジェットを明示的にクリア
       resetTurnstileToken();
     });
