@@ -238,11 +238,10 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>
             <UFormField label="認証コード(6桁の数字)" name="otp" required class="flex flex-col items-center">
-              <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus
-                @complete="async () => {
-                  const result = emailOtpVerifySchema.safeParse(otpState);
-                  if (result.success) await handleVerifyOtp(result.data);
-                }" />
+              <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="async () => {
+                const result = emailOtpVerifySchema.safeParse(otpState);
+                if (result.success) await handleVerifyOtp(result.data);
+              }" />
             </UFormField>
             <div class="flex gap-2">
               <UButton type="submit" :loading="loading">ログイン</UButton>
@@ -253,11 +252,10 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
           </UForm>
 
           <p class="text-xs text-center mt-6">
-            ログインすると、<ULink
-              to="https://outline-wiki.pitamai.com/s/2d6f1abb-3cb8-4755-8f93-5d23dc400786/doc/pitamai-0tzpa8Tc2g"
-              target="_blank" class="underline hover:text-gray-800">利用規約</ULink>と、<ULink
-              to="https://outline-wiki.pitamai.com/s/8d9b13cf-7609-4db8-acab-553959ee9cfb/doc/5ycl5lq65oof5acx5ld6k235pa56yedioodloocvodnuocpooduodhuocrodjuodreocuoodva-rFgXpKyail"
-              target="_blank" class="underline hover:text-gray-800">プライバシーポリシー</ULink>に同意したとみなされます。
+            ログインすると、<ULink to="https://wiki.pitamai.com/s/9ec0829c-02a5-402a-ba17-347400fc2e16" target="_blank"
+              class="underline hover:text-gray-800">利用規約</ULink>と、<ULink
+              to="https://wiki.pitamai.com/s/7fb52506-1f33-4aa7-b3e6-3db6b48b919b" target="_blank"
+              class="underline hover:text-gray-800">プライバシーポリシー</ULink>に同意したとみなされます。
           </p>
 
           <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center" />
