@@ -5,18 +5,19 @@ import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
   // Better Auth 標準の hasPermission API を直接使用
-  const permissionResult = (await auth.api.hasPermission({
+  const permissionResult = await auth.api.userHasPermission({
     headers: event.headers,
     body: {
       permissions: {
         auditLog: ['read'],
       },
     },
-  })) as any;
+  });
 
-  const hasPermission = typeof permissionResult === 'boolean' 
-    ? permissionResult 
-    : !!(permissionResult?.hasPermission ?? permissionResult?.success);
+  const hasPermission =
+    typeof permissionResult === 'boolean'
+      ? permissionResult
+      : !!(permissionResult?.hasPermission ?? permissionResult?.success);
 
   if (!hasPermission) {
     throw createError({

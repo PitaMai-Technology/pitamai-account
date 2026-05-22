@@ -91,6 +91,11 @@ const adminItems = [
           icon: 'i-lucide-mail',
           to: '/apps/admin/user-change-email',
         },
+        {
+          label: '登録審査',
+          icon: 'i-lucide-clipboard-check',
+          to: '/apps/admin/register-request',
+        },
       ],
     },
   ],

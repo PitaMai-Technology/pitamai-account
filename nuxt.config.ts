@@ -17,20 +17,6 @@ export default defineNuxtConfig({
     },
   },
 
-  devServer: {
-    host: '0.0.0.0',
-    port: 3000,
-  },
-
-  vite: {
-    server: {
-      hmr: {
-        protocol: 'ws',
-        clientPort: 3000,
-      },
-    },
-  },
-
   runtimeConfig: {
     // サーバ専用（公開されない）
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
