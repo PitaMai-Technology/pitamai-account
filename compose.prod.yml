@@ -1,0 +1,50 @@
+# 本番環境用 Docker Compose 設定 (compose.prod.yml)
+services:
+  # PostgreSQL データベースサービス (アカウント管理用)
+  db-account:
+    image: postgres:17.9
+    container_name: pitamai-account-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # マイグレーション実行用ジョブ
+  migrate:
+    image: ${MIGRATE_IMAGE:-pitamai-account-migrate:latest}
+    container_name: pitamai-account-migrate
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    restart: "no"
+    depends_on:
+      db-account:
+        condition: service_healthy
+
+  # Webアプリケーション本体 (事前ビルド済みイメージを使用)
+  app:
+    image: ${APP_IMAGE:-pitamai-account-app:latest}
+    container_name: pitamai-account-app
+    restart: always
+    environment:
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+    ports:
+      - '3000:3000'
+    depends_on:
+      db-account:
+        condition: service_healthy
+
+# ボリューム定義 (データベースデータの永続化)
+volumes:
+  pgdata:
+    name: pitamai-account-pgdata

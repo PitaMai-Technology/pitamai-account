@@ -1,0 +1,73 @@
+# Docker Compose サービス定義
+services:
+  # PostgreSQL データベースサービス (アカウント管理用)
+  db-account:
+    image: postgres:17.9
+    container_name: pitamai-account-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: maimai
+      POSTGRES_PASSWORD: maimai
+      POSTGRES_DB: maimai_dev_account
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U maimai -d maimai_dev_account']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # マイグレーション実行用ジョブ (docker compose run --rm migrate で実行)
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    environment:
+      - DATABASE_URL=postgresql://maimai:maimai@db-account:5432/maimai_dev_account
+    depends_on:
+      db-account:
+        condition: service_healthy
+    profiles: ["tools"]
+
+  # Webアプリケーション本体 (Nuxt 4 開発モード)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: pitamai-account-app-dev:latest
+    container_name: pitamai-account-app-dev
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://maimai:maimai@db-account:5432/maimai_dev_account
+      - WATCHPACK_POLLING=true # Windows環境などでのHMR安定化のため
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - /app/node_modules # コンテナ内の node_modules をホスト側で上書きしないように保護
+      - /app/.nuxt
+    depends_on:
+      db-account:
+        condition: service_healthy
+
+  # Adminer (Webベースのデータベース管理ツール)
+  adminer:
+    image: adminer:latest
+    container_name: pitamai-account-adminer
+    restart: always
+    ports:
+      - '8080:8080'
+    depends_on:
+      - db-account
+
+# ボリューム定義 (データベースデータの永続化)
+volumes:
+  pgdata:
+    name: pitamai-account-pgdata

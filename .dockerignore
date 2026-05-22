@@ -1,0 +1,23 @@
+# 依存パッケージ
+node_modules
+
+# Nuxt 4 ビルド成果物およびキャッシュ
+.output
+.nuxt
+dist
+
+# 環境変数ファイル (認証情報が含まれるため除外)
+.env
+
+# IDE / エディタ設定ファイル
+/.vscode
+/.idea
+
+# テストカバレッジレポート
+coverage
+
+# ログファイル
+*.log
+
+# 一時ファイル
+tmp
