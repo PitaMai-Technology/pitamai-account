@@ -2,6 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { registerRequestSchema } from '~~/shared/types/register-request';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
+const { $csrfFetch } = useNuxtApp();
 
 definePageMeta({
   layout: 'the-front',
@@ -30,7 +31,7 @@ async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
 
   loading.value = true;
   try {
-    const response = await $fetch<{ success: boolean; request?: { id: string } }>('/api/register-user/register', {
+    const response = await $csrfFetch<{ success: boolean; request?: { id: string } }>('/api/register-user/register', {
       method: 'POST',
       body: event.data,
     }).catch((error: any) => ({ success: false, error } as any));
