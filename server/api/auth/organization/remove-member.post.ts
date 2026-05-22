@@ -1,7 +1,6 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { RemoveMemberSchema } from '~~/shared/types/member-remove';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
 
 type MemberRecord = { id: string };
@@ -30,11 +29,7 @@ const extractMembers = (res: unknown): MemberRecord[] => {
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
     const body = await readBody(event);
-    console.debug('remove-member request body:', body);
-
     const parsed = RemoveMemberSchema.safeParse(body);
     if (!parsed.success) {
       throw createError({ statusCode: 422, message: 'Validation Error' });
@@ -42,15 +37,8 @@ export default defineEventHandler(async event => {
 
     const { organizationId, memberIdOrEmail, memberId } = parsed.data;
 
-    // 監査ログ記録
-    await logAuditWithSession(event, {
-      action: 'MEMBER_REMOVE',
-      targetId: memberIdOrEmail ?? memberId,
-      organizationId: organizationId,
-    });
-
-    const headersObj =
-      (event as unknown as { headers?: Record<string, string> }).headers ?? {};
+    // auth.api.removeMember に headers を渡すことで認可チェックが行われます
+    // ただし、自己削除のチェックなど追加のロジックを継続します
 
     const idToSend = String(memberIdOrEmail ?? memberId);
     const payload = {
@@ -58,40 +46,41 @@ export default defineEventHandler(async event => {
       ...(organizationId ? { organizationId } : {}),
     };
 
-    // サーバーでの自己削除を防ぐ：セッションのユーザーID/メールを解決
-    console.debug('remove-member payload to auth.api:', payload);
-    try {
-      const session = await auth.api.getSession({ headers: headersObj });
-      const currentUserId = session?.user?.id as string | undefined;
-      const currentUserEmail = session?.user?.email as string | undefined;
-      if (
-        currentUserId &&
-        (idToSend === currentUserId || idToSend === currentUserEmail)
-      ) {
-        throw createError({
-          statusCode: 403,
-          message: 'Cannot delete your own membership',
-        });
-      }
-    } catch {
-      // セッション取得エラーを無視して続行（認証されていない場合、auth.api呼び出しは後で失敗する）
+    const session = await auth.api.getSession({ headers: event.headers });
+    const currentUserId = session?.user?.id as string | undefined;
+    const currentUserEmail = session?.user?.email as string | undefined;
+    if (
+      currentUserId &&
+      (idToSend === currentUserId || idToSend === currentUserEmail)
+    ) {
+      throw createError({
+        statusCode: 403,
+        message: 'Cannot delete your own membership',
+      });
     }
 
-    // removeMemberを呼び出す小さなヘルパー
+    // 監査ログ記録
+    await logAuditWithSession(event, {
+      action: 'MEMBER_REMOVE',
+      targetId: idToSend,
+      organizationId: organizationId,
+    });
+
     const tryRemove = async (p: {
       memberIdOrEmail: string;
       organizationId?: string;
     }) => {
-      return await auth.api.removeMember({ body: p, headers: headersObj });
+      return await auth.api.removeMember({ body: p, headers: event.headers });
     };
 
     try {
       return await tryRemove(payload);
     } catch (err: unknown) {
+      if (err instanceof Error && 'statusCode' in err && (err.statusCode === 401 || err.statusCode === 403)) throw err;
+
       const msg = err instanceof Error ? err.message : String(err);
       logger.warn({ error: msg }, 'auth.api.removeMember failed');
 
-      // メールが見つからない場合のみフォールバックを試す
       if (
         organizationId &&
         idToSend.includes('@') &&
@@ -105,31 +94,28 @@ export default defineEventHandler(async event => {
               filterOperator: 'eq',
               filterValue: idToSend,
             },
-            headers: headersObj,
+            headers: event.headers,
           });
 
           const members = extractMembers(listRes);
           const found = members[0];
           if (found) {
-            logger.debug(
-              { memberId: found.id },
-              'メールでメンバーが見つかった、memberIdで削除を再試行'
-            );
             return await tryRemove({
               memberIdOrEmail: found.id,
               organizationId,
             });
           }
         } catch (fallbackErr) {
-          logger.error(fallbackErr, 'フォールバックのメンバー削除検索に失敗');
+          logger.error(fallbackErr, 'Fallback member removal failed');
         }
       }
 
-      // フォールバックが成功しなかった場合、元のエラーを再スロー
       throw err;
     }
   } catch (e: unknown) {
     if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+      
       logger.error(e, 'Remove member error');
       throw createError({
         statusCode: 400,

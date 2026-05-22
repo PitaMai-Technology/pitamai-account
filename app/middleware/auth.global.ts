@@ -1,3 +1,5 @@
+import { authClient } from '~/composable/auth-client';
+
 export default defineNuxtRouteMiddleware(async to => {
   // ログインページは認証チェックをスキップ
   if (to.path === '/') {
@@ -8,19 +10,16 @@ export default defineNuxtRouteMiddleware(async to => {
     return;
   }
 
-  // サーバー側レンダリング時は cookie を含めるため、リクエストヘッダーを渡す。
-  // クライアント側ではそのまま $fetch を呼び出す。
   try {
-    const headers = import.meta.server
-      ? useRequestHeaders(['cookie'])
-      : undefined;
+    // Better Auth クライアントを使用してセッションを取得
+    // headers は composable/auth-client.ts または内部で自動処理されます
+    const { data: session, error } = await authClient.getSession({
+      fetchOptions: {
+        headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
+      },
+    });
 
-    // server/api/auth/get-session.ts は認証が無ければ null を返す
-    const session = await $fetch('/api/auth/get-session', { headers }).catch(
-      () => null
-    );
-
-    if (!session || !session.user) {
+    if (error || !session?.user) {
       console.log('No session found, redirecting to login...');
       return navigateTo('/');
     }

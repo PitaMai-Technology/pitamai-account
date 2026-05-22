@@ -2,7 +2,7 @@
 import { h, resolveComponent } from 'vue';
 import type { TableColumn, FormSubmitEvent } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
-import type { OrgRole } from '~~/server/utils/authorize';
+import type { OrgRole } from '~~/shared/types/auth';
 
 definePageMeta({
   layout: 'the-app',
@@ -400,20 +400,19 @@ const revokeSessionsLoading = ref(false);
 async function fetchUserSessions(userId: string) {
   sessionsLoading.value = true;
   try {
-    const data = await $fetch<any>('/api/auth/admin/list-user-sessions', {
-      method: 'POST',
-      body: { userId },
+    const { data, error } = await authClient.admin.listUserSessions({
+      userId,
     });
 
-    const list: unknown = data?.sessions ?? data;
+    if (error) throw error;
 
-    if (Array.isArray(list)) {
-      sessions.value = list as AdminUserSession[];
+    if (data && Array.isArray(data)) {
+      sessions.value = data as AdminUserSession[];
     } else {
       sessions.value = [];
     }
   } catch (e: unknown) {
-    console.error('admin list-user-sessions error:', e);
+    console.error('admin listUserSessions error:', e);
     toast.add({
       title: 'エラー',
       description: 'セッション一覧の取得に失敗しました',
@@ -437,10 +436,11 @@ async function revokeAllSessionsForTargetUser() {
 
   revokeSessionsLoading.value = true;
   try {
-    await $fetch('/api/auth/admin/revoke-user-sessions', {
-      method: 'POST',
-      body: { userId: user.id },
+    const { error } = await authClient.admin.revokeUserSessions({
+      userId: user.id,
     });
+
+    if (error) throw error;
 
     toast.add({
       title: '削除しました',
@@ -453,7 +453,7 @@ async function revokeAllSessionsForTargetUser() {
 
     revokeSessionsConfirmOpen.value = false;
   } catch (e: unknown) {
-    console.error('admin revoke-user-sessions error:', e);
+    console.error('admin revokeUserSessions error:', e);
     toast.add({
       title: 'エラー',
       description: 'セッションの削除に失敗しました',

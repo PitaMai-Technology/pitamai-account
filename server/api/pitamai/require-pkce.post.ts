@@ -2,7 +2,6 @@ import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
-import { assertGlobalUserRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
 
 const schema = z.object({
@@ -12,7 +11,13 @@ const schema = z.object({
 
 export default defineEventHandler(async event => {
   try {
-    await assertGlobalUserRole(event, ['member', 'admins', 'owner']);
+    const session = await auth.api.getSession({ headers: event.headers });
+    if (!session?.user?.id) {
+      throw createError({
+        statusCode: 401,
+        message: '認証が必要です',
+      });
+    }
 
     const body = await readBody(event);
     const parsed = schema.safeParse(body);
@@ -23,32 +28,16 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const session = await auth.api.getSession({ headers: event.headers });
-    if (!session?.user?.id) {
-      throw createError({
-        statusCode: 401,
-        message: '認証が必要です',
-      });
-    }
-
     const activeOrganizationId =
       typeof session?.session?.activeOrganizationId === 'string'
         ? session.session.activeOrganizationId
         : undefined;
-    const userId =
-      typeof session?.user?.id === 'string' ? session.user.id : undefined;
+    const userId = session.user.id;
 
     const orConditions = [
       ...(activeOrganizationId ? [{ referenceId: activeOrganizationId }] : []),
-      ...(userId ? [{ userId }] : []),
+      { userId },
     ];
-
-    if (orConditions.length === 0) {
-      throw createError({
-        statusCode: 403,
-        message: 'アクセス権限がありません',
-      });
-    }
 
     const existing = await prisma.oauthClient.findFirst({
       where: {

@@ -2,20 +2,17 @@ import { createError, readBody } from 'h3';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
 import { logAuditWithSession } from '~~/server/utils/audit';
 
 const createUserSchema = z.object({
-  email: z.email('メールアドレスの形式が正しくありません'),
+  email: z.string().email('メールアドレスの形式が正しくありません'),
   name: z.string().min(1).optional(),
   role: z.enum(['member', 'admins', 'owner']).optional(),
 });
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
     const body = await readBody(event);
     const parsed = createUserSchema.safeParse(body);
 
@@ -29,6 +26,7 @@ export default defineEventHandler(async event => {
     const { email, name, role } = parsed.data;
     const temporaryPassword = `${globalThis.crypto.randomUUID()}!aA1`;
 
+    // auth.api.createUser に headers を渡すことで自動的に権限チェックが行われます
     const createdFromAuth = (await auth.api.createUser({
       body: {
         email,
@@ -76,6 +74,10 @@ export default defineEventHandler(async event => {
       user: createdUser,
     };
   } catch (e: unknown) {
+    if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+    }
+
     try {
       await logAuditWithSession(event, {
         action: 'ADMIN_CREATE_USER_FAILURE',

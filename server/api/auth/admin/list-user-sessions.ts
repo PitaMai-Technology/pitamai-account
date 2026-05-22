@@ -11,28 +11,26 @@ const BodySchema = z.object({
 type Body = z.infer<typeof BodySchema>;
 
 export default defineEventHandler(async event => {
-  let body: Body | undefined;
+  let validatedBody: Body | undefined;
 
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
-    const raw = await readBody(event);
-    const parsed = BodySchema.safeParse(raw);
+    const body = await readBody(event);
+    const parsed = BodySchema.safeParse(body);
 
     if (!parsed.success) {
       throw createError({ statusCode: 422, message: 'Validation Error' });
     }
 
-    body = parsed.data;
+    validatedBody = parsed.data;
 
     const data = await auth.api.listUserSessions({
-      body: { userId: body.userId },
+      body: { userId: validatedBody.userId },
       headers: event.headers,
     });
 
     await logAuditWithSession(event, {
       action: 'ADMIN_ACCOUNT_SESSIONS_LIST',
-      targetId: body.userId,
+      targetId: validatedBody.userId,
       details: {
         source: 'auth/admin/list-user-sessions',
       },
@@ -42,10 +40,10 @@ export default defineEventHandler(async event => {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
 
-    if (body?.userId) {
+    if (validatedBody?.userId) {
       await logAuditWithSession(event, {
         action: 'ADMIN_ACCOUNT_SESSIONS_LIST_FAILED',
-        targetId: body.userId,
+        targetId: validatedBody.userId,
         details: {
           source: 'auth/admin/list-user-sessions',
           errorMessage: msg,

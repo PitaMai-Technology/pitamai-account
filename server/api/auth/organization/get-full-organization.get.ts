@@ -1,22 +1,13 @@
 import { auth } from '~~/server/utils/auth';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { createError } from 'h3';
 
 export default defineEventHandler(async event => {
-  // owner / admin だけが組織のフル情報を取得できる
-  await assertActiveMemberRole(event, ['admins', 'owner']);
+  const query = getQuery(event);
+  const organizationId = query.organizationId as string | undefined;
 
-  const { headers } = event;
-
-  const organization = await auth.api.getFullOrganization({
-    query: {},
-    headers,
+  // auth.api.getFullOrganization に headers を渡すことで認可チェックが行われます
+  return await auth.api.getFullOrganization({
+    query: { organizationId },
+    headers: event.headers,
   });
-
-  // 監査ログ記録
-  await logAuditWithSession(event, {
-    action: 'ORGANIZATION_GET_FULL',
-    targetId: organization?.id,
-  });
-
-  return organization;
 });

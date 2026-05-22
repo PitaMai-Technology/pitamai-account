@@ -4,8 +4,26 @@ import { AuditListQuerySchema } from '~~/shared/types/audit-list';
 import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
-  // audit-log 権限、または owner 権限を持つユーザーのみ許可
-  await assertActiveMemberRole(event, ['owner']);
+  // Better Auth 標準の hasPermission API を直接使用
+  const permissionResult = (await auth.api.hasPermission({
+    headers: event.headers,
+    body: {
+      permissions: {
+        auditLog: ['read'],
+      },
+    },
+  })) as any;
+
+  const hasPermission = typeof permissionResult === 'boolean' 
+    ? permissionResult 
+    : !!(permissionResult?.hasPermission ?? permissionResult?.success);
+
+  if (!hasPermission) {
+    throw createError({
+      statusCode: 403,
+      message: 'この操作を行う権限がありません',
+    });
+  }
 
   const query = await getValidatedQuery(event, body =>
     AuditListQuerySchema.parse(body)

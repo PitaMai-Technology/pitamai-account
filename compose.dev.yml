@@ -31,7 +31,7 @@ services:
     depends_on:
       db-account:
         condition: service_healthy
-    profiles: ["tools"]
+    profiles: ['tools']
 
   # Webアプリケーション本体 (Nuxt 4 開発モード)
   app:
@@ -49,6 +49,7 @@ services:
       - WATCHPACK_POLLING=true # Windows環境などでのHMR安定化のため
     ports:
       - '3000:3000'
+      - '24678:24678'
     volumes:
       - .:/app
       - /app/node_modules # コンテナ内の node_modules をホスト側で上書きしないように保護

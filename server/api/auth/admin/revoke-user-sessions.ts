@@ -11,36 +11,34 @@ const BodySchema = z.object({
 type Body = z.infer<typeof BodySchema>;
 
 export default defineEventHandler(async event => {
-  let body: Body | undefined;
+  let validatedBody: Body | undefined;
 
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
-    const raw = await readBody(event);
-    const parsed = BodySchema.safeParse(raw);
+    const body = await readBody(event);
+    const parsed = BodySchema.safeParse(body);
 
     if (!parsed.success) {
       throw createError({ statusCode: 422, message: 'Validation Error' });
     }
 
-    body = parsed.data;
+    validatedBody = parsed.data;
 
     await logAuditWithSession(event, {
       action: 'ADMIN_ACCOUNT_SESSIONS_REVOKE_ALL_REQUEST',
-      targetId: body.userId,
+      targetId: validatedBody.userId,
       details: {
         source: 'auth/admin/revoke-user-sessions',
       },
     });
 
     const data = await auth.api.revokeUserSessions({
-      body: { userId: body.userId },
+      body: { userId: validatedBody.userId },
       headers: event.headers,
     });
 
     await logAuditWithSession(event, {
       action: 'ADMIN_ACCOUNT_SESSIONS_REVOKE_ALL_SUCCESS',
-      targetId: body.userId,
+      targetId: validatedBody.userId,
       details: {
         source: 'auth/admin/revoke-user-sessions',
       },
@@ -50,10 +48,10 @@ export default defineEventHandler(async event => {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
 
-    if (body?.userId) {
+    if (validatedBody?.userId) {
       await logAuditWithSession(event, {
         action: 'ADMIN_ACCOUNT_SESSIONS_REVOKE_ALL_FAILED',
-        targetId: body.userId,
+        targetId: validatedBody.userId,
         details: {
           source: 'auth/admin/revoke-user-sessions',
           errorMessage: msg,

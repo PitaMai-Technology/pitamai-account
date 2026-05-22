@@ -6,7 +6,6 @@ import { logAuditWithSession } from '~~/server/utils/audit';
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
     const body = await readBody(event);
     const result = InviteMemberForm.safeParse(body);
 
@@ -32,10 +31,10 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const { headers } = event;
+    // auth.api.createInvitation に headers を渡すことで自動的に権限チェックが行われます
     const data = await auth.api.createInvitation({
       body: validated,
-      headers,
+      headers: event.headers,
     });
 
     // 監査ログ記録
@@ -52,7 +51,10 @@ export default defineEventHandler(async event => {
     return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
-      logger.error(e, 'Organization creation error');
+      // 権限エラー(401/403)はそのままスローしてクライアントに伝える
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+      
+      logger.error(e, 'Organization invitation error');
       throw createError({
         statusCode: 400,
         message: '招待に失敗しました',

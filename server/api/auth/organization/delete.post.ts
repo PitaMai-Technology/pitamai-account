@@ -1,41 +1,20 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['owner']);
-
     const body = await readBody(event);
-    const result = organizationDeleteSchema.safeParse(body);
-
-    if (!result.success) {
-      throw createError({
-        statusCode: 422,
-        message: 'Validation Error',
-      });
-    }
-
-    const { organizationId } = result.data;
-
-    // 監査ログ記録
-    await logAuditWithSession(event, {
-      action: 'ORGANIZATION_DELETE',
-      targetId: organizationId, // 削除された組織ID
-      organizationId: organizationId,
+    
+    // auth.api.deleteOrganization が内部で権限チェックを行います
+    return await auth.api.deleteOrganization({
+      body,
+      headers: event.headers,
     });
-
-    const { headers } = event;
-    const data = await auth.api.deleteOrganization({
-      body: {
-        organizationId,
-      },
-      headers,
-    });
-    return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+      
       logger.error(e, 'Organization deletion error');
       throw createError({
         statusCode: 400,

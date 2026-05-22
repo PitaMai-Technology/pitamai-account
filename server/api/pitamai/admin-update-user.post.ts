@@ -1,8 +1,7 @@
 import { readBody, createError } from 'h3';
-import prisma from '~~/lib/prisma';
 import { userUpdateSchema } from '~~/shared/types/user-update';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
+import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
   try {
@@ -14,27 +13,27 @@ export default defineEventHandler(async event => {
     }
 
     const { userId, data } = parsed.data;
-    await assertActiveMemberRole(event, ['admins', 'owner']);
 
-    // Prisma を使ってユーザー情報を更新（更新可能なフィールドのみコピー）
-    const updateData: Record<string, unknown> = {};
-    if (typeof data.name === 'string') updateData.name = data.name;
-    if (typeof data.image === 'string') updateData.image = data.image;
-    if (typeof data.email === 'string') updateData.email = data.email;
-
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
+    // Better Auth の adminUpdateUser を使用することで権限チェックを標準化
+    const result = await auth.api.adminUpdateUser({
+      body: {
+        userId,
+        data,
+      },
+      headers: event.headers,
     });
 
     // 監査ログ記録
     await logAuditWithSession(event, {
       action: 'USER_UPDATE_SUCCESS',
-      targetId: updated.id,
+      targetId: userId,
     });
-    return { success: true, user: updated };
+    
+    return { success: true, user: result };
   } catch (e: unknown) {
     if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+      
       logger.error(e, 'admin-update-user error');
       throw createError({
         statusCode: 400,
