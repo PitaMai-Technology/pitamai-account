@@ -53,7 +53,7 @@ async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
       color: 'success',
     });
 
-    await navigateTo('/login');
+    await navigateTo('/thanks?from=register');
   } finally {
     loading.value = false;
   }
