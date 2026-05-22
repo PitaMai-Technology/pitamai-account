@@ -1,5 +1,4 @@
 import { auth } from '~~/server/utils/auth';
-import { createError } from 'h3';
 
 export default defineEventHandler(async event => {
   const query = getQuery(event);

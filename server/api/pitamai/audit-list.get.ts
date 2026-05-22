@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { AuditListQuerySchema } from '~~/shared/types/audit-list';
 import { auth } from '~~/server/utils/auth';
@@ -17,7 +16,7 @@ export default defineEventHandler(async event => {
   const hasPermission =
     typeof permissionResult === 'boolean'
       ? permissionResult
-      : !!(permissionResult?.hasPermission ?? permissionResult?.success);
+      : !!permissionResult?.success;
 
   if (!hasPermission) {
     throw createError({

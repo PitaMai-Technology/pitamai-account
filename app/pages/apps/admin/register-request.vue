@@ -129,7 +129,6 @@ async function fetchRequests() {
       description: error?.data?.message ?? error?.message ?? '申請一覧の取得に失敗しました',
       color: 'error',
     });
-    requests.value = [];
   } finally {
     loading.value = false;
   }
@@ -141,25 +140,23 @@ async function approveRequest(request: RegistrationRequest) {
 
   loading.value = true;
   try {
-    try {
-      await $fetch(`/api/pitamai/register-requests/${request.id}/approve`, {
-        method: 'POST',
-      });
+    await $fetch(`/api/pitamai/register-requests/${request.id}/approve`, {
+      method: 'POST',
+    });
 
-      toast.add({
-        title: '承認しました',
-        description: `${request.email} を承認しました`,
-        color: 'success',
-      });
-      await fetchRequests();
-    } catch (error) {
-      const apiError = error as ApiErrorLike;
-      toast.add({
-        title: 'エラー',
-        description: apiError?.data?.message ?? apiError?.message ?? '承認に失敗しました',
-        color: 'error',
-      });
-    }
+    toast.add({
+      title: '承認しました',
+      description: `${request.email} を承認しました`,
+      color: 'success',
+    });
+    await fetchRequests();
+  } catch (error) {
+    const apiError = error as ApiErrorLike;
+    toast.add({
+      title: 'エラー',
+      description: apiError?.data?.message ?? apiError?.message ?? '承認に失敗しました',
+      color: 'error',
+    });
   } finally {
     loading.value = false;
   }
@@ -176,28 +173,27 @@ async function submitReject() {
 
   loading.value = true;
   try {
-    try {
-      await $fetch(`/api/pitamai/register-requests/${pendingRejectRequest.value.id}/reject`, {
-        method: 'POST',
-        body: { rejectionReason: rejectReasonDraft.value },
-      });
+    const currentRequest = pendingRejectRequest.value;
+    await $fetch(`/api/pitamai/register-requests/${currentRequest.id}/reject`, {
+      method: 'POST',
+      body: { rejectionReason: rejectReasonDraft.value },
+    });
 
-      toast.add({
-        title: '却下しました',
-        description: `${pendingRejectRequest.value.email} を却下しました`,
-        color: 'success',
-      });
-      rejectModalOpen.value = false;
-      pendingRejectRequest.value = null;
-      await fetchRequests();
-    } catch (error) {
-      const apiError = error as ApiErrorLike;
-      toast.add({
-        title: 'エラー',
-        description: apiError?.data?.message ?? apiError?.message ?? '却下に失敗しました',
-        color: 'error',
-      });
-    }
+    toast.add({
+      title: '却下しました',
+      description: `${currentRequest.email} を却下しました`,
+      color: 'success',
+    });
+    rejectModalOpen.value = false;
+    pendingRejectRequest.value = null;
+    await fetchRequests();
+  } catch (error) {
+    const apiError = error as ApiErrorLike;
+    toast.add({
+      title: 'エラー',
+      description: apiError?.data?.message ?? apiError?.message ?? '却下に失敗しました',
+      color: 'error',
+    });
   } finally {
     loading.value = false;
   }
@@ -209,25 +205,23 @@ async function restoreRequest(request: RegistrationRequest) {
 
   loading.value = true;
   try {
-    try {
-      await $fetch(`/api/pitamai/register-requests/${request.id}/restore`, {
-        method: 'POST',
-      });
+    await $fetch(`/api/pitamai/register-requests/${request.id}/restore`, {
+      method: 'POST',
+    });
 
-      toast.add({
-        title: '再審査に戻しました',
-        description: `${request.email} を審査中に戻しました`,
-        color: 'success',
-      });
-      await fetchRequests();
-    } catch (error) {
-      const apiError = error as ApiErrorLike;
-      toast.add({
-        title: 'エラー',
-        description: apiError?.data?.message ?? apiError?.message ?? '再審査への復帰に失敗しました',
-        color: 'error',
-      });
-    }
+    toast.add({
+      title: '再審査に戻しました',
+      description: `${request.email} を審査中に戻しました`,
+      color: 'success',
+    });
+    await fetchRequests();
+  } catch (error) {
+    const apiError = error as ApiErrorLike;
+    toast.add({
+      title: 'エラー',
+      description: apiError?.data?.message ?? apiError?.message ?? '再審査への復帰に失敗しました',
+      color: 'error',
+    });
   } finally {
     loading.value = false;
   }
@@ -239,25 +233,23 @@ async function deleteRequest(request: RegistrationRequest) {
 
   loading.value = true;
   try {
-    try {
-      await $fetch(`/api/pitamai/register-requests/${request.id}/delete`, {
-        method: 'POST',
-      });
+    await $fetch(`/api/pitamai/register-requests/${request.id}/delete`, {
+      method: 'POST',
+    });
 
-      toast.add({
-        title: '削除しました',
-        description: `${request.email} の申請を削除しました`,
-        color: 'success',
-      });
-      await fetchRequests();
-    } catch (error) {
-      const apiError = error as ApiErrorLike;
-      toast.add({
-        title: 'エラー',
-        description: apiError?.data?.message ?? apiError?.message ?? '削除に失敗しました',
-        color: 'error',
-      });
-    }
+    toast.add({
+      title: '削除しました',
+      description: `${request.email} の申請を削除しました`,
+      color: 'success',
+    });
+    await fetchRequests();
+  } catch (error) {
+    const apiError = error as ApiErrorLike;
+    toast.add({
+      title: 'エラー',
+      description: apiError?.data?.message ?? apiError?.message ?? '削除に失敗しました',
+      color: 'error',
+    });
   } finally {
     loading.value = false;
   }

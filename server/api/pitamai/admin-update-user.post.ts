@@ -2,6 +2,7 @@ import { readBody, createError } from 'h3';
 import { userUpdateSchema } from '~~/shared/types/user-update';
 import { logger } from '~~/server/utils/logger';
 import { auth } from '~~/server/utils/auth';
+import { logAuditWithSession } from '~~/server/utils/audit';
 
 export default defineEventHandler(async event => {
   try {
@@ -28,12 +29,13 @@ export default defineEventHandler(async event => {
       action: 'USER_UPDATE_SUCCESS',
       targetId: userId,
     });
-    
+
     return { success: true, user: result };
   } catch (e: unknown) {
     if (e instanceof Error) {
-      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
-      
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403))
+        throw e;
+
       logger.error(e, 'admin-update-user error');
       throw createError({
         statusCode: 400,

@@ -2,7 +2,7 @@ import { readBody, createError } from 'h3';
 import { z } from 'zod';
 import { auth } from '~~/server/utils/auth';
 import { logger } from '~~/server/utils/logger';
-import { logAuditWithSession } from '~~/server/utils/audit';
+import { recordAuditLog } from '~~/server/utils/audit';
 
 const BodySchema = z.object({
   userId: z.string().min(1),
@@ -22,18 +22,21 @@ export default defineEventHandler(async event => {
     }
 
     validatedBody = parsed.data;
+    const session = await auth.api.getSession({ headers: event.headers });
 
     const data = await auth.api.listUserSessions({
       body: { userId: validatedBody.userId },
       headers: event.headers,
     });
 
-    await logAuditWithSession(event, {
+    await recordAuditLog({
+      userId: session?.user.id,
       action: 'ADMIN_ACCOUNT_SESSIONS_LIST',
       targetId: validatedBody.userId,
       details: {
         source: 'auth/admin/list-user-sessions',
       },
+      event,
     });
 
     return data ?? { sessions: [] };
@@ -41,13 +44,16 @@ export default defineEventHandler(async event => {
     const msg = e instanceof Error ? e.message : 'Unknown error';
 
     if (validatedBody?.userId) {
-      await logAuditWithSession(event, {
+      const session = await auth.api.getSession({ headers: event.headers });
+      await recordAuditLog({
+        userId: session?.user.id,
         action: 'ADMIN_ACCOUNT_SESSIONS_LIST_FAILED',
         targetId: validatedBody.userId,
         details: {
           source: 'auth/admin/list-user-sessions',
           errorMessage: msg,
         },
+        event,
       });
     }
 

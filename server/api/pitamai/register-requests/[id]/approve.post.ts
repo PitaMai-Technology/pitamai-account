@@ -75,15 +75,36 @@ export default defineEventHandler(async event => {
     });
   }
 
-  const updatedRequest = await prisma.registrationRequest.update({
-    where: { id: request.id },
-    data: {
-      status: 'approved',
-      reviewedAt: new Date(),
-      reviewedBy: session?.user.id,
-      rejectionReason: null,
-    },
-  });
+  let updatedRequest;
+  try {
+    updatedRequest = await prisma.$transaction(async transaction => {
+      return await transaction.registrationRequest.update({
+        where: { id: request.id },
+        data: {
+          status: 'approved',
+          reviewedAt: new Date(),
+          reviewedBy: session?.user.id,
+          rejectionReason: null,
+        },
+      });
+    });
+  } catch (updateError) {
+    try {
+      await auth.api.removeUser({
+        body: {
+          userId: createdFromAuth.user?.id,
+        },
+        headers: event.headers,
+      });
+    } catch (rollbackError) {
+      console.error('Failed to rollback created auth user', {
+        userId: createdFromAuth.user?.id,
+        rollbackError,
+      });
+    }
+
+    throw updateError;
+  }
 
   await recordAuditLog({
     userId: session?.user.id,

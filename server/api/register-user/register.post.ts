@@ -29,42 +29,56 @@ export default defineEventHandler(async event => {
     });
   }
 
-  const existingRequest = await prisma.registrationRequest.findUnique({
-    where: { email: normalizedEmail },
-    select: { id: true, status: true },
-  });
+  let request;
+  try {
+    request = await prisma.registrationRequest.create({
+      data: {
+        email: normalizedEmail,
+        name,
+        age,
+        discordId,
+        agreedToTerms,
+        status: 'pending',
+      },
+    });
+  } catch (error: any) {
+    if (error?.code !== 'P2002') {
+      throw error;
+    }
 
-  if (existingRequest?.status === 'pending') {
-    throw createError({
-      statusCode: 409,
-      message: 'メールアドレスでエラーが発生しました。(409-2)',
+    const existingRequest = await prisma.registrationRequest.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, status: true },
+    });
+
+    if (!existingRequest) {
+      throw createError({
+        statusCode: 409,
+        message: 'メールアドレスでエラーが発生しました。(409)',
+      });
+    }
+
+    if (existingRequest.status === 'pending') {
+      throw createError({
+        statusCode: 409,
+        message: 'メールアドレスでエラーが発生しました。(409-2)',
+      });
+    }
+
+    request = await prisma.registrationRequest.update({
+      where: { email: normalizedEmail },
+      data: {
+        name,
+        age,
+        discordId,
+        agreedToTerms,
+        status: 'pending',
+        reviewedAt: null,
+        reviewedBy: null,
+        rejectionReason: null,
+      },
     });
   }
-
-  const request = existingRequest
-    ? await prisma.registrationRequest.update({
-        where: { email: normalizedEmail },
-        data: {
-          name,
-          age,
-          discordId,
-          agreedToTerms,
-          status: 'pending',
-          reviewedAt: null,
-          reviewedBy: null,
-          rejectionReason: null,
-        },
-      })
-    : await prisma.registrationRequest.create({
-        data: {
-          email: normalizedEmail,
-          name,
-          age,
-          discordId,
-          agreedToTerms,
-          status: 'pending',
-        },
-      });
 
   await recordAuditLog({
     action: 'REGISTRATION_REQUEST_CREATED',

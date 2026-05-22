@@ -20,7 +20,7 @@ const { role } = storeToRefs(useOrgRoleStore());
     <template #footer="{ collapsed }">
       <div v-if="!collapsed" class="space-y-2">
         <div class="text-sm">
-          あなたのアカウント：<p class="text-gray-600 dark:text-gray-400 truncate">{{ session.data?.user.email }}</p>
+          あなたのアカウント：<span class="text-gray-600 dark:text-gray-400 truncate">{{ session.data?.user.email }}</span>
         </div>
         <AppLogOut class="w-full" />
       </div>

@@ -1,7 +1,7 @@
 import { createError, getRouterParam } from 'h3';
 import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
-import { logAuditWithSession } from '~~/server/utils/audit';
+import { recordAuditLog } from '~~/server/utils/audit';
 
 export default defineEventHandler(async event => {
   const session = await auth.api.getSession({ headers: event.headers });
@@ -44,12 +44,14 @@ export default defineEventHandler(async event => {
     where: { id: request.id },
   });
 
-  await logAuditWithSession(event, {
+  await recordAuditLog({
+    userId: session?.user.id,
     action: 'REGISTRATION_REQUEST_DELETED',
     targetId: deletedRequest.id,
     details: {
       email: deletedRequest.email,
     },
+    event,
   });
 
   return {

@@ -406,7 +406,9 @@ async function fetchUserSessions(userId: string) {
 
     if (error) throw error;
 
-    if (data && Array.isArray(data)) {
+    if (data && 'sessions' in data && Array.isArray((data as { sessions: unknown[] }).sessions)) {
+      sessions.value = (data as { sessions: AdminUserSession[] }).sessions;
+    } else if (data && Array.isArray(data)) {
       sessions.value = data as AdminUserSession[];
     } else {
       sessions.value = [];

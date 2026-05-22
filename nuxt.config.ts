@@ -22,8 +22,6 @@ export default defineNuxtConfig({
     csrf: true,
   },
 
-  // Enable CSRF module so composables like $csrfFetch are available,
-  // but disable CSRF for most API routes and enable only for the register endpoint.
   routeRules: {
     '/api/**': {
       csurf: false,

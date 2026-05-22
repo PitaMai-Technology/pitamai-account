@@ -1,6 +1,7 @@
 import { readBody, createError } from 'h3';
 import { auth } from '~~/server/utils/auth';
 import { logAuditWithSession } from '~~/server/utils/audit';
+import { logger } from '~~/server/utils/logger';
 
 type Role = 'member' | 'admins' | 'owner';
 
@@ -41,9 +42,10 @@ export default defineEventHandler(async event => {
     return data ?? { success: true };
   } catch (e: unknown) {
     if (e instanceof Error) {
-      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
-      
-      console.error('auth/admin/set-role error:', e.message);
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403))
+        throw e;
+
+      logger.error({ err: e }, 'auth/admin/set-role error:');
       throw createError({
         statusCode: 400,
         message: 'ロールの更新に失敗しました',
