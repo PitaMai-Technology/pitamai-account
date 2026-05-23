@@ -17,6 +17,7 @@ export default defineEventHandler(async event => {
   const { email, name, age, discordId, agreedToTerms } = parsed.data;
   const normalizedEmail = email.trim().toLowerCase();
 
+  // 1. 現在そのメールアドレスを使用しているユーザーがいるかチェック
   const existingUser = await prisma.user.findUnique({
     where: { email: normalizedEmail },
     select: { id: true },
@@ -25,7 +26,23 @@ export default defineEventHandler(async event => {
   if (existingUser) {
     throw createError({
       statusCode: 409,
-      message: 'メールアドレスでエラーが発生しました。(409)',
+      message: 'このメールアドレスは既に登録されています',
+    });
+  }
+
+  // 2. そのメールアドレスの過去の申請をチェック
+  const existingRequest = await prisma.registrationRequest.findUnique({
+    where: { email: normalizedEmail },
+    include: { user: true },
+  });
+
+  // もし既に承認済みの申請があり、かつユーザーが紐付いている場合、
+  // そのユーザーがメールアドレスを変更していたとしても、
+  // 「このメールアドレスからの申請は既に完了している（アカウントが存在する）」とみなして拒否します。
+  if (existingRequest && existingRequest.status === 'approved' && existingRequest.user) {
+    throw createError({
+      statusCode: 409,
+      message: 'このメールアドレスでの申請は既に承認され、アカウントが作成されています。',
     });
   }
 
@@ -45,26 +62,19 @@ export default defineEventHandler(async event => {
     if (error?.code !== 'P2002') {
       throw error;
     }
+    
+    // registrationRequest.create で P2002 (Unique constraint) が出たということは
+    // email が既に存在することを意味します（findUnique ですでにチェックしていますが、
+    // レースコンディション対策として catch 内でも処理します）
 
-    const existingRequest = await prisma.registrationRequest.findUnique({
-      where: { email: normalizedEmail },
-      select: { id: true, status: true },
-    });
-
-    if (!existingRequest) {
+    if (existingRequest && existingRequest.status === 'pending') {
       throw createError({
         statusCode: 409,
-        message: 'メールアドレスでエラーが発生しました。(409)',
+        message: '現在、このメールアドレスでの申請を審査中です。',
       });
     }
 
-    if (existingRequest.status === 'pending') {
-      throw createError({
-        statusCode: 409,
-        message: 'メールアドレスでエラーが発生しました。(409-2)',
-      });
-    }
-
+    // 承認済みだがユーザーがいない、あるいは却下済みの場合は、既存の申請を更新して再申請
     request = await prisma.registrationRequest.update({
       where: { email: normalizedEmail },
       data: {
