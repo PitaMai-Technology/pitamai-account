@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
+import type { z } from 'zod';
 import { registerRequestSchema } from '~~/shared/types/register-request';
 import { useConfirmDialogStore } from '~/stores/confirmDialog';
 const { $csrfFetch } = useNuxtApp();
@@ -22,7 +23,7 @@ const state = reactive({
   agreedToTerms: false,
 });
 
-type RegisterSchema = typeof registerRequestSchema._output;
+type RegisterSchema = z.output<typeof registerRequestSchema>;
 
 async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
   // 確認ダイアログを表示
@@ -31,17 +32,24 @@ async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
 
   loading.value = true;
   try {
-    const response = await $csrfFetch<{ success: boolean; request?: { id: string } }>('/api/register-user/register', {
-      method: 'POST',
-      body: event.data,
-    }).catch((error: any) => ({ success: false, error } as any));
+    let response:
+      | { success: boolean; request?: { id: string } }
+      | undefined;
 
-    if (!response.success) {
-      const errorMessage =
-        response.error?.data?.message ?? response.error?.message ?? '申請の送信に失敗しました。';
+    try {
+      response = await $csrfFetch<{ success: boolean; request?: { id: string } }>('/api/register-user/register', {
+        method: 'POST',
+        body: event.data,
+      });
+    } catch (error) {
+      console.error('register request failed:', error);
+      response = { success: false };
+    }
+
+    if (!response?.success) {
       toast.add({
         title: 'エラー',
-        description: errorMessage,
+        description: '申請の送信に失敗しました。',
         color: 'error',
       });
       return;

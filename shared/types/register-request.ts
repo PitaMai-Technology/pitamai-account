@@ -13,8 +13,8 @@ export const registerRequestSchema = z.object({
     .max(150, '年齢が不正です'),
   discordId: z
     .string()
-    .min(1, 'Discord IDを入力してください')
-    .max(35, 'Discord IDは35文字以内で入力してください'),
+    .min(1, 'Discord ユーザー名を入力してください')
+    .max(32, 'Discord ユーザー名は32文字以内で入力してください'),
   agreedToTerms: z
     .boolean()
     .refine(value => value === true, '同意項目に同意してください'),

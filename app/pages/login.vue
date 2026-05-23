@@ -175,10 +175,6 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
   }
 }
 
-async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
-  await handleVerifyOtp(event.data);
-}
-
 </script>
 
 <template>
@@ -237,7 +233,8 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
             </UButton>
           </UForm>
 
-          <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4" @submit="onVerifyOtp">
+          <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4"
+            @submit="(event) => handleVerifyOtp(event.data)">
             <p class="text-sm">
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>

@@ -52,12 +52,12 @@ export default defineEventHandler(async event => {
     });
   }
 
-  const temporaryPassword = `${globalThis.crypto.randomUUID()}!aA1`;
+  const fakePassword = `${globalThis.crypto.randomUUID()}!aA1`;
   const createdFromAuth = (await auth.api.createUser({
     body: {
       email: request.email,
       name: request.name,
-      password: temporaryPassword,
+      password: fakePassword,
       role: 'member',
       data: {
         twitterUrl: null,
