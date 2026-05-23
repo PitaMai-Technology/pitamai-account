@@ -4,11 +4,13 @@ import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
 import { logger } from '~~/server/utils/logger';
 import { logAuditWithSession } from '~~/server/utils/audit';
+import { sendEmail } from '~~/server/utils/email';
 
 const createUserSchema = z.object({
   email: z.string().email('メールアドレスの形式が正しくありません'),
   name: z.string().min(1).optional(),
   role: z.enum(['member', 'admins', 'owner']).optional(),
+  sendEmail: z.boolean().optional(),
 });
 
 export default defineEventHandler(async event => {
@@ -23,7 +25,7 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const { email, name, role } = parsed.data;
+    const { email, name, role, sendEmail: shouldSendEmail } = parsed.data;
     const temporaryPassword = `${globalThis.crypto.randomUUID()}!aA1`;
 
     // auth.api.createUser に headers を渡すことで自動的に権限チェックが行われます
@@ -45,12 +47,12 @@ export default defineEventHandler(async event => {
       });
     }
 
-    const createdUser = await prisma.user.update({
+    const createdUser = await prisma.user.findUniqueOrThrow({
       where: { id: createdUserId },
-      data: { mustSetPassword: true },
       select: {
         id: true,
         email: true,
+        name: true,
       },
     });
 
@@ -67,6 +69,20 @@ export default defineEventHandler(async event => {
         { err: auditErr },
         'admin-create-user success audit log failed'
       );
+    }
+
+    if (shouldSendEmail) {
+      const config = useRuntimeConfig();
+      const loginUrl = `${config.public.BETTER_AUTH_URL}/login`;
+      try {
+        await sendEmail({
+          to: createdUser.email,
+          subject: '【ピタマイ・テクノロジー】構成員アカウント作成のお知らせ',
+          text: `${createdUser.name} さん\n\n構成員アカウントが作成されました。\n\n以下のログインページより、メールアドレスを入力してログインしてください。\n\nログインURL:\n${loginUrl}`,
+        });
+      } catch (emailError) {
+        logger.error(emailError, 'Failed to send welcome email to manually created user');
+      }
     }
 
     return {

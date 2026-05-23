@@ -27,7 +27,7 @@ type RegisterSchema = z.output<typeof registerRequestSchema>;
 
 async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
   // 確認ダイアログを表示
-  const confirmed = await confirmDialog('本当に構成員への申請しますか？');
+  const confirmed = await confirmDialog('構成員申請を送信しますか？');
   if (!confirmed) return;
 
   loading.value = true;
@@ -105,7 +105,7 @@ async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
           </UFormField>
 
           <UFormField label="Discord ユーザー名" name="discordId" required>
-            <UInput v-model="state.discordId" type="text" placeholder="otusoa" />
+            <UInput v-model="state.discordId" type="text" placeholder="例: otusoa" />
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
               Discordのユーザー名を入力してください。@マークはなしで大丈夫です。
             </p>

@@ -21,7 +21,7 @@ if (route.query.from !== 'register') {
         <div class="flex flex-col items-center space-y-6 py-8">
           <h1 class="text-2xl font-bold">構成員への申請が完了しました！</h1>
           <p class="text-lg max-w-2xl">
-            構成員への申請が完了しました。問題がなければ承認されますので、しばらくお待ちください。
+            構成員への申請が完了しました。問題がなければ承認され、メールが送信されますので、しばらくお待ちください。
             また、承認されないと、ログインできませんのでご注意ください。<br>
             また、このタブは閉じて構いません。
           </p>
