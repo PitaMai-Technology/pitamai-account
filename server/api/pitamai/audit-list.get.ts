@@ -109,11 +109,8 @@ export default defineEventHandler(async event => {
 
   if (startAt || endAt) {
     const gte = startAt ? new Date(startAt) : undefined;
-    if (gte) gte.setUTCHours(0, 0, 0, 0);
-
     const lteBase = endAt ?? startAt;
     const lte = lteBase ? new Date(lteBase) : undefined;
-    if (lte) lte.setUTCHours(23, 59, 59, 999);
 
     where.createdAt = {
       ...(gte ? { gte } : {}),

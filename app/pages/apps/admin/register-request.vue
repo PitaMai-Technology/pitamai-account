@@ -28,7 +28,82 @@ const { confirm: confirmDialog } = confirmStore;
 const loading = ref(false);
 const requests = ref<RegistrationRequest[]>([]);
 const tableFilter = ref('');
-const total = computed(() => requests.value.length);
+const total = ref<number | undefined>(undefined);
+
+const state = reactive({
+  limit: 20,
+  offset: 0,
+});
+
+const currentPage = computed({
+  get: () => Math.floor(state.offset / state.limit) + 1,
+  set: (val) => {
+    state.offset = (val - 1) * state.limit;
+  },
+});
+
+const dateFilter = reactive<{ start?: Date; end?: Date }>({});
+const calendarRange = shallowRef<any>({ start: undefined, end: undefined });
+
+function resetFilters() {
+  tableFilter.value = '';
+  dateFilter.start = undefined;
+  dateFilter.end = undefined;
+  calendarRange.value = { start: undefined, end: undefined };
+  state.offset = 0;
+  fetchRequests();
+}
+
+watch(
+  calendarRange,
+  value => {
+    // CalendarDate.toDate('Asia/Tokyo') で JST の日付境界を正しく UTC に変換する
+    // 例: CalendarDate(2026,5,23).toDate('Asia/Tokyo') → 2026-05-22T15:00:00.000Z (= JST 5/23 00:00)
+    const toJstStartOfDay = (v: any): Date | undefined => {
+      if (!v) return undefined;
+      if (typeof v.toDate === 'function') {
+        return v.toDate('Asia/Tokyo'); // JST 0:00:00 をUTCで返す
+      }
+      // フォールバック: 文字列/Dateの場合はローカル0時をUTC換算
+      const d = new Date(v);
+      return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0) - 9 * 3600 * 1000);
+    };
+
+    const toJstEndOfDay = (v: any): Date | undefined => {
+      if (!v) return undefined;
+      if (typeof v.toDate === 'function') {
+        // toDate('Asia/Tokyo') は JST 0:00 → UTC 前日15:00。そこに 23h 59m 59s 999ms を足す
+        const startOfDay = v.toDate('Asia/Tokyo') as Date;
+        return new Date(startOfDay.getTime() + (23 * 3600 + 59 * 60 + 59) * 1000 + 999);
+      }
+      const d = new Date(v);
+      return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999) - 9 * 3600 * 1000);
+    };
+
+    dateFilter.start = toJstStartOfDay(value?.start);
+    // end 未選択（単独日付選択）の場合は start の終わりを使う
+    dateFilter.end = toJstEndOfDay(value?.end ?? value?.start);
+
+    state.offset = 0;
+    fetchRequests();
+  },
+  { deep: true }
+);
+
+watch(
+  () => state.offset,
+  () => {
+    fetchRequests();
+  }
+);
+
+watch(
+  () => state.limit,
+  () => {
+    state.offset = 0;
+    fetchRequests();
+  }
+);
 
 const rejectModalOpen = ref(false);
 const rejectReasonDraft = ref('');
@@ -120,8 +195,16 @@ const columns: TableColumn<RegistrationRequest>[] = [
 async function fetchRequests() {
   loading.value = true;
   try {
-    const { requests: data } = await $fetch<{ requests: RegistrationRequest[] }>('/api/pitamai/register-requests');
+    const { requests: data, total: totalCount } = await $fetch<{ requests: RegistrationRequest[]; total: number }>('/api/pitamai/register-requests', {
+      query: {
+        limit: state.limit,
+        offset: state.offset,
+        startAt: dateFilter.start ? dateFilter.start.toISOString() : undefined,
+        endAt: dateFilter.end ? dateFilter.end.toISOString() : undefined,
+      },
+    });
     requests.value = Array.isArray(data) ? data : [];
+    total.value = typeof totalCount === 'number' ? totalCount : data?.length;
   } catch (error: any) {
     console.error('register request fetch error:', error);
     toast.add({
@@ -272,18 +355,18 @@ onMounted(async () => {
 
       <div class="flex items-center justify-between gap-3">
         <p class="text-sm text-gray-600 dark:text-gray-300">
-          件数: <span class="font-medium">{{ total }}</span>
+          件数: <span class="font-medium">{{ total ?? requests.length }}</span>
         </p>
         <UButton variant="ghost" :loading="loading" @click="fetchRequests">
           更新
         </UButton>
       </div>
 
+      <AppDateRangePicker v-model="calendarRange" :clear-disabled="!tableFilter && !dateFilter.start && !dateFilter.end"
+        @clear="resetFilters" class="mb-4" />
+
       <div class="flex items-center gap-2 justify-between mb-8">
         <UInput v-model="tableFilter" placeholder="メール、名前、Discord ID で検索" class="flex-1 max-w-lg" />
-        <UButton variant="ghost" :disabled="!tableFilter" @click="tableFilter = ''">
-          クリア
-        </UButton>
       </div>
 
       <div class="overflow-auto">
@@ -294,6 +377,8 @@ onMounted(async () => {
             tr: 'hover:bg-gray-50/60 dark:hover:bg-gray-900/30',
           }" />
       </div>
+
+      <AppPaginationBar v-model:page="currentPage" :total="total ?? 0" :items-per-page="state.limit" />
 
       <TheConfirmModal />
 

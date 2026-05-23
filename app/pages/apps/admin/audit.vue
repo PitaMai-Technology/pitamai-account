@@ -9,14 +9,10 @@ definePageMeta({
 
 const toast = useToast();
 
-// オーナー権限を持つ組織一覧を取得
 const { data: ownerOrganizations } = await useFetch('/api/pitamai/owner-list', {
   key: '/api/pitamai/owner-list',
 });
 
-// フォームスキーマ
-// クライアント側フォーム用に少し調整（z.coerceなどは不要な場合もあるが、共有スキーマを使うのが基本）
-// ただしフォーム入力値として使うため、型定義を利用
 type Schema = AuditListQuery;
 
 const state = reactive<Schema>({
@@ -26,43 +22,59 @@ const state = reactive<Schema>({
   search: undefined,
 });
 
-// 初期化時に現在の組織をセット
-
 const loading = ref(false);
 const logs = ref<any[]>([]);
 const total = ref<number | undefined>(undefined);
 const tableFilter = ref('');
 const globalSearchInput = ref('');
 
-// 日付レンジフィルタ用（start/end を Date で保持）
 const dateFilter = reactive<{ start?: Date; end?: Date }>({});
-
-// UCalendar 用のモデル（CalendarDate 相当の構造を受け取り、Date に変換して保持）
 const calendarRange = shallowRef<any>({ start: undefined, end: undefined });
+
+function resetFilters() {
+  tableFilter.value = '';
+  dateFilter.start = undefined;
+  dateFilter.end = undefined;
+  calendarRange.value = { start: undefined, end: undefined };
+  state.offset = 0;
+  fetchLogs();
+}
 
 watch(
   calendarRange,
   value => {
-    if (value?.start) {
-      dateFilter.start = value.start.toDate?.('UTC') ?? new Date(value.start);
-    } else {
-      dateFilter.start = undefined;
-    }
+    // CalendarDate.toDate('Asia/Tokyo') で JST の日付境界を正しく UTC に変換する
+    // 例: CalendarDate(2026,5,23).toDate('Asia/Tokyo') → 2026-05-22T15:00:00.000Z (= JST 5/23 00:00)
+    const toJstStartOfDay = (v: any): Date | undefined => {
+      if (!v) return undefined;
+      if (typeof v.toDate === 'function') {
+        return v.toDate('Asia/Tokyo'); // JST 0:00:00 をUTCで返す
+      }
+      const d = new Date(v);
+      return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0) - 9 * 3600 * 1000);
+    };
 
-    if (value?.end) {
-      dateFilter.end = value.end.toDate?.('UTC') ?? new Date(value.end);
-    } else {
-      dateFilter.end = undefined;
-    }
+    const toJstEndOfDay = (v: any): Date | undefined => {
+      if (!v) return undefined;
+      if (typeof v.toDate === 'function') {
+        // toDate('Asia/Tokyo') は JST 0:00 → UTC 前日15:00。そこに 23h 59m 59s 999ms を足す
+        const startOfDay = v.toDate('Asia/Tokyo') as Date;
+        return new Date(startOfDay.getTime() + (23 * 3600 + 59 * 60 + 59) * 1000 + 999);
+      }
+      const d = new Date(v);
+      return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999) - 9 * 3600 * 1000);
+    };
 
-    // 日付レンジが変わったら 1 ページ目に戻して再取得
+    dateFilter.start = toJstStartOfDay(value?.start);
+    // end 未選択（単独日付選択）の場合は start の終わりを使う
+    dateFilter.end = toJstEndOfDay(value?.end ?? value?.start);
+
     state.offset = 0;
     fetchLogs();
   },
   { deep: true }
 );
 
-// ページネーション用の計算プロパティ
 const currentPage = computed({
   get: () => Math.floor(state.offset / state.limit) + 1,
   set: (val) => {
@@ -70,7 +82,6 @@ const currentPage = computed({
   },
 });
 
-// 組織選択肢
 const organizationItems = computed(() => {
   const items =
     ownerOrganizations.value?.map(org => ({
@@ -78,7 +89,6 @@ const organizationItems = computed(() => {
       value: org.id,
     })) ?? [];
 
-  // 先頭に「すべてのログ」を追加
   return [{ label: 'すべてのログ', value: undefined }, ...items];
 });
 
@@ -97,9 +107,7 @@ async function fetchLogs() {
       endAt: dateFilter.end ? dateFilter.end.toISOString() : undefined,
     };
 
-    const data = await $fetch('/api/pitamai/audit-list', {
-      query,
-    });
+    const data = await $fetch('/api/pitamai/audit-list', { query });
 
     if (data) {
       logs.value = data.logs as any[];
@@ -117,40 +125,28 @@ async function fetchLogs() {
   }
 }
 
-// 検索実行
 async function onSubmit(event?: FormSubmitEvent<Schema>) {
   event?.preventDefault?.();
   if (loading.value) return;
-  state.offset = 0; // 検索時は1ページ目に戻す
+  state.offset = 0;
   state.search = globalSearchInput.value || undefined;
-  tableFilter.value = ''; // 検索時はテーブルフィルタもクリア
+  tableFilter.value = '';
   await fetchLogs();
 }
 
-// ページネーション変更時
-watch(
-  () => state.offset,
-  () => {
-    fetchLogs();
-  }
-);
-
-// 組織変更時に再取得
-watch(
-  () => state.organizationId,
-  () => {
-    state.offset = 0;
-    fetchLogs();
-  }
-);
-
-// 初回ロード
-onMounted(() => {
-  // 組織IDがなくても全件取得を実行
+watch(() => state.offset, () => {
   fetchLogs();
 });
 
-// カラム定義
+watch(() => state.organizationId, () => {
+  state.offset = 0;
+  fetchLogs();
+});
+
+onMounted(() => {
+  fetchLogs();
+});
+
 const columns: TableColumn<any>[] = [
   {
     accessorKey: 'createdAt',
@@ -177,7 +173,7 @@ const columns: TableColumn<any>[] = [
     cell: ({ row }) => {
       const details = row.original.details;
       if (!details) return '-';
-      return JSON.stringify(details); // 簡易表示
+      return JSON.stringify(details);
     },
   },
 ];
@@ -188,12 +184,9 @@ const columns: TableColumn<any>[] = [
     <AppBackgroundCard class="mx-auto w-full space-y-6">
       <div>
         <h2 class="text-lg font-bold text-gray-900">監査ログ (Owner Only)</h2>
-        <p class="text-sm text-gray-500">
-          組織内の操作履歴を確認できます。
-        </p>
+        <p class="text-sm text-gray-500">組織内の操作履歴を確認できます。</p>
       </div>
 
-      <!-- 検索フォーム -->
       <UForm :schema="AuditListQuerySchema" :state="state" class="space-y-4 mb-8 mt-10" @submit="onSubmit">
         <div class="flex flex-wrap gap-4 items-end">
           <UFormField label="組織" name="organizationId" class="min-w-50">
@@ -206,16 +199,10 @@ const columns: TableColumn<any>[] = [
           </UFormField>
         </div>
         <div class="flex gap-2">
-          <UButton type="submit" :loading="loading">
-            検索
-          </UButton>
-          <UButton variant="outline" :disabled="!globalSearchInput && !state.organizationId" @click="() => {
-            globalSearchInput = '';
-            state.search = undefined;
-            state.organizationId = undefined;
-            state.offset = 0;
-            fetchLogs();
-          }">
+          <UButton type="submit" :loading="loading">検索</UButton>
+          <UButton variant="outline"
+            :disabled="!globalSearchInput && !state.organizationId && !dateFilter.start && !dateFilter.end"
+            @click="resetFilters">
             検索条件をクリア
           </UButton>
         </div>
@@ -224,54 +211,18 @@ const columns: TableColumn<any>[] = [
       <USeparator />
 
       <div v-if="logs.length" class="mt-4 mb-2 flex items-center gap-2 justify-between">
-
         <UInput v-model="tableFilter" placeholder="今表示されているテーブル内を検索..." class="flex-1 max-w-md" />
-        <UButton variant="ghost" :disabled="!tableFilter && !dateFilter.start && !dateFilter.end" label="絞り込みクリア"
-          @click.prevent="() => {
-            tableFilter = '';
-            dateFilter.start = undefined;
-            dateFilter.end = undefined;
-            calendarRange.value = { start: undefined, end: undefined };
-            state.offset = 0;
-            fetchLogs();
-          }" />
       </div>
-      <!-- 日付検索 -->
-      <UFormField label="日付範囲" name="dateRange" class="min-w-65 mt-6">
-        <UPopover>
-          <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
-            <template v-if="dateFilter.start">
-              <template v-if="dateFilter.end">
-                {{ dateFilter.start.toLocaleDateString('ja-JP') }} -
-                {{ dateFilter.end.toLocaleDateString('ja-JP') }}
-              </template>
-              <template v-else>
-                {{ dateFilter.start.toLocaleDateString('ja-JP') }}
-              </template>
-            </template>
-            <template v-else>
-              日付で絞り込み
-            </template>
-          </UButton>
 
-          <template #content>
-            <UCalendar v-model="calendarRange" range class="p-2" :number-of-months="2">
-              <!-- ここではデフォルトの day 表示を使用 -->
-            </UCalendar>
-          </template>
-        </UPopover>
-      </UFormField>
+      <AppDateRangePicker v-model="calendarRange" :clear-disabled="!tableFilter && !dateFilter.start && !dateFilter.end"
+        @clear="resetFilters" />
+
       <div class="overflow-hidden">
         <UTable :key="logs.length" v-model:global-filter="tableFilter" :data="logs" :columns="columns"
           :loading="loading" class="w-full" />
       </div>
 
-      <!-- ページネーション -->
-      <div v-if="total !== undefined && total > 0" class="flex justify-center pt-4">
-        <UPagination v-model:page="currentPage" :total="total" :items-per-page="state.limit" @update:page="(page) => {
-          state.offset = (page - 1) * state.limit;
-        }" />
-      </div>
+      <AppPaginationBar v-model:page="currentPage" :total="total ?? 0" :items-per-page="state.limit" />
     </AppBackgroundCard>
   </div>
 </template>
