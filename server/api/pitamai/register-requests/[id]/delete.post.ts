@@ -33,10 +33,10 @@ export default defineEventHandler(async event => {
     });
   }
 
-  if (request.status !== 'rejected') {
+  if (request.status === 'pending') {
     throw createError({
       statusCode: 409,
-      message: '却下済みの申請のみ削除できます',
+      message: '審査済みの申請のみ削除できます',
     });
   }
 

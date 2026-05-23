@@ -180,12 +180,10 @@ const columns: TableColumn<RegistrationRequest>[] = [
       const request = row.original;
       const UButton = resolveComponent('UButton');
       const canReview = request.status === 'pending';
-      const canRestore = request.status === 'rejected';
-      const canDelete = request.status === 'rejected';
+      const canDelete = request.status !== 'pending';
       return h('div', { class: 'flex flex-wrap gap-2' }, [
         h(UButton, { color: 'primary', variant: 'solid', loading: loading.value, disabled: !canReview, onClick: () => approveRequest(request) }, { default: () => '承認' }),
         h(UButton, { color: 'warning', variant: 'outline', loading: loading.value, disabled: !canReview, onClick: () => openRejectModal(request) }, { default: () => '却下' }),
-        h(UButton, { color: 'neutral', variant: 'outline', loading: loading.value, disabled: !canRestore, onClick: () => restoreRequest(request) }, { default: () => '審査に戻す' }),
         h(UButton, { color: 'error', variant: 'solid', loading: loading.value, disabled: !canDelete, onClick: () => deleteRequest(request) }, { default: () => '削除' }),
       ]);
     },
@@ -275,34 +273,6 @@ async function submitReject() {
     toast.add({
       title: 'エラー',
       description: apiError?.data?.message ?? apiError?.message ?? '却下に失敗しました',
-      color: 'error',
-    });
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function restoreRequest(request: RegistrationRequest) {
-  const confirmed = await confirmDialog(`${request.email} を再審査に戻しますか？`);
-  if (!confirmed) return;
-
-  loading.value = true;
-  try {
-    await $fetch(`/api/pitamai/register-requests/${request.id}/restore`, {
-      method: 'POST',
-    });
-
-    toast.add({
-      title: '再審査に戻しました',
-      description: `${request.email} を審査中に戻しました`,
-      color: 'success',
-    });
-    await fetchRequests();
-  } catch (error) {
-    const apiError = error as ApiErrorLike;
-    toast.add({
-      title: 'エラー',
-      description: apiError?.data?.message ?? apiError?.message ?? '再審査への復帰に失敗しました',
       color: 'error',
     });
   } finally {
