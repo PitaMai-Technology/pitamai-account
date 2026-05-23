@@ -49,8 +49,22 @@ export default defineEventHandler(async event => {
     prisma.registrationRequest.count({ where }),
   ]);
 
+  const emails = requests.map(r => r.email);
+  const users = await prisma.user.findMany({
+    where: { email: { in: emails } },
+    select: { id: true, email: true },
+  });
+
+  const requestsWithUser = requests.map(r => {
+    const user = users.find(u => u.email === r.email);
+    return {
+      ...r,
+      user: user ? { id: user.id } : null,
+    };
+  });
+
   return {
-    requests,
+    requests: requestsWithUser,
     total,
   };
 });

@@ -10,6 +10,7 @@ definePageMeta({
 });
 
 
+const route = useRoute();
 const toast = useToast();
 const confirmStore = useConfirmDialogStore();
 const { confirm: confirmDialog } = confirmStore;
@@ -31,6 +32,10 @@ interface AdminUser {
   role?: OrgRole | null;
   banned?: boolean | null;
   banReason?: string | null;
+  registrationRequest?: {
+    id: string;
+    status: string;
+  } | null;
 }
 
 interface AdminUserSession {
@@ -61,6 +66,43 @@ const columns: TableColumn<AdminUser>[] = [
     id: 'email',
     accessorKey: 'email',
     header: 'メールアドレス',
+    cell: ({ row }) => {
+      const email = row.original.email;
+      const request = row.original.registrationRequest;
+      const UBadge = resolveComponent('UBadge');
+      const NuxtLink = resolveComponent('NuxtLink');
+
+      return h('div', { class: 'flex flex-col gap-1' }, [
+        h('span', email ?? ''),
+        request
+          ? h(
+            'div',
+            { class: 'flex items-center gap-1' },
+            h(
+              NuxtLink,
+              {
+                to: `/apps/admin/register-request?id=${request.id}`,
+                class: 'inline-flex',
+              },
+              h(
+                UBadge,
+                {
+                  color: request.status === 'approved' ? 'success' : 'warning',
+                  variant: 'soft',
+                  size: 'sm',
+                  class: 'cursor-pointer hover:opacity-80',
+                },
+                { default: () => `申請: ${request.status}` }
+              )
+            )
+          )
+          : h(UBadge, {
+            color: 'neutral',
+            variant: 'soft',
+            size: 'sm', class: 'text-xs italic'
+          }, '手動、もしくは申請に紐付いていません'),
+      ]);
+    },
   },
   {
     id: 'name',
@@ -625,6 +667,10 @@ onMounted(async () => {
   } catch (e) {
     console.error('getSession error', e);
     session.value = null;
+  }
+
+  if (route.query.id) {
+    tableFilter.value = String(route.query.id);
   }
 
   await fetchUsers();

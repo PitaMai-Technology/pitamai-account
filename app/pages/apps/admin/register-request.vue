@@ -19,8 +19,12 @@ type RegistrationRequest = {
   reviewedBy?: string | null;
   rejectionReason?: string | null;
   createdAt: string | Date;
+  user?: {
+    id: string;
+  } | null;
 };
 
+const route = useRoute();
 const toast = useToast();
 const confirmStore = useConfirmDialogStore();
 const { confirm: confirmDialog } = confirmStore;
@@ -124,8 +128,45 @@ type ApiErrorLike = {
 };
 
 const columns: TableColumn<RegistrationRequest>[] = [
+  { accessorKey: 'id', header: '申請識別用ID' },
   { accessorKey: 'createdAt', header: '申請日時', cell: ({ row }) => new Date(row.original.createdAt).toLocaleString('ja-JP') },
-  { accessorKey: 'email', header: 'メールアドレス' },
+  {
+    accessorKey: 'email',
+    header: 'メールアドレス',
+    cell: ({ row }) => {
+      const email = row.original.email;
+      const user = row.original.user;
+      const UBadge = resolveComponent('UBadge');
+      const NuxtLink = resolveComponent('NuxtLink');
+
+      return h('div', { class: 'flex flex-col gap-1' }, [
+        h('span', email),
+        user
+          ? h(
+            'div',
+            { class: 'flex items-center gap-1' },
+            h(
+              NuxtLink,
+              {
+                to: `/apps/admin/account?id=${user.id}`,
+                class: 'inline-flex',
+              },
+              h(
+                UBadge,
+                {
+                  color: 'info',
+                  variant: 'soft',
+                  size: 'sm',
+                  class: 'cursor-pointer hover:opacity-80',
+                },
+                { default: () => 'アカウント作成済み' }
+              )
+            )
+          )
+          : null,
+      ]);
+    },
+  },
   { accessorKey: 'name', header: '名前' },
   { accessorKey: 'age', header: '年齢' },
   { accessorKey: 'discordId', header: 'Discord ID' },
@@ -309,6 +350,9 @@ async function deleteRequest(request: RegistrationRequest) {
 }
 
 onMounted(async () => {
+  if (route.query.id) {
+    tableFilter.value = String(route.query.id);
+  }
   await fetchRequests();
 });
 </script>
