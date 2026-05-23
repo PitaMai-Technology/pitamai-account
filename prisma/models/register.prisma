@@ -1,18 +1,25 @@
 model RegistrationRequest {
-  id              String    @id @default(cuid())
-  email           String    @unique
+  id              String         @id @default(cuid())
+  email           String         @unique
   name            String
   age             Int
   discordId       String
   agreedToTerms   Boolean
-  status          String    @default("pending")
+  status          RegisterStatus @default(pending)
   reviewedAt      DateTime?
   reviewedBy      String?
   rejectionReason String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @default(now()) @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
 
   @@index([status])
   @@index([reviewedBy])
   @@map("registration_request")
+}
+
+enum RegisterStatus {
+  pending
+  approved
+  rejected
+  deleted
 }
