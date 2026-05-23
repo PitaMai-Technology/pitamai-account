@@ -50,13 +50,23 @@ export default defineEventHandler(async event => {
   ]);
 
   const emails = requests.map(r => r.email);
+  const requestIds = requests.map(r => r.id);
   const users = await prisma.user.findMany({
-    where: { email: { in: emails } },
-    select: { id: true, email: true },
+    where: {
+      OR: [
+        { email: { in: emails } },
+        { registrationRequestId: { in: requestIds } },
+      ],
+    },
+    select: { id: true, email: true, registrationRequestId: true },
   });
 
   const requestsWithUser = requests.map(r => {
-    const user = users.find(u => u.email === r.email);
+    // まず registrationRequestId で検索し、なければ email で検索する
+    let user = users.find(u => u.registrationRequestId === r.id);
+    if (!user) {
+      user = users.find(u => u.email === r.email);
+    }
     return {
       ...r,
       user: user ? { id: user.id } : null,

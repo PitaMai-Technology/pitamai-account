@@ -11,6 +11,7 @@ model RegistrationRequest {
   rejectionReason String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @default(now()) @updatedAt
+  user            User?
 
   @@index([status])
   @@index([reviewedBy])

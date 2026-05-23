@@ -190,6 +190,10 @@ export const auth = betterAuth({
         type: 'string',
         required: false,
       },
+      registrationRequestId: {
+        type: 'string',
+        required: false,
+      },
     },
   },
   emailVerification: {

@@ -16,14 +16,26 @@ export default defineEventHandler(async event => {
       headers: event.headers,
     });
 
-    const emails = result.users.map(u => u.email);
+    const emails = result.users.map(u => u.email).filter((e): e is string => !!e);
+    const requestIds = result.users.map(u => (u as any).registrationRequestId).filter((id): id is string => !!id);
+
     const requests = await prisma.registrationRequest.findMany({
-      where: { email: { in: emails } },
+      where: {
+        OR: [
+          { email: { in: emails } },
+          { id: { in: requestIds } },
+        ],
+      },
       select: { id: true, status: true, email: true },
     });
 
     const usersWithRequest = result.users.map(u => {
-      const request = requests.find(r => r.email === u.email);
+      // まず registrationRequestId で検索し、なければ email で検索する
+      const requestId = (u as any).registrationRequestId;
+      let request = requestId ? requests.find(r => r.id === requestId) : null;
+      if (!request && u.email) {
+        request = requests.find(r => r.email === u.email);
+      }
       return {
         ...u,
         registrationRequest: request ? { id: request.id, status: request.status } : null,
