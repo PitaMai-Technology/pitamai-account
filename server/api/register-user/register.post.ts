@@ -26,7 +26,7 @@ export default defineEventHandler(async event => {
   if (existingUser) {
     throw createError({
       statusCode: 409,
-      message: 'このメールアドレスは既に登録されています',
+      message: 'メールアドレス周りでのエラーが発生しました。(409-1)',
     });
   }
 
@@ -39,10 +39,14 @@ export default defineEventHandler(async event => {
   // もし既に承認済みの申請があり、かつユーザーが紐付いている場合、
   // そのユーザーがメールアドレスを変更していたとしても、
   // 「このメールアドレスからの申請は既に完了している（アカウントが存在する）」とみなして拒否します。
-  if (existingRequest && existingRequest.status === 'approved' && existingRequest.user) {
+  if (
+    existingRequest &&
+    existingRequest.status === 'approved' &&
+    existingRequest.user
+  ) {
     throw createError({
       statusCode: 409,
-      message: 'このメールアドレスでの申請は既に承認され、アカウントが作成されています。',
+      message: 'メールアドレス周りでのエラーが発生しました。(409-2)',
     });
   }
 
@@ -62,7 +66,7 @@ export default defineEventHandler(async event => {
     if (error?.code !== 'P2002') {
       throw error;
     }
-    
+
     // registrationRequest.create で P2002 (Unique constraint) が出たということは
     // email が既に存在することを意味します（findUnique ですでにチェックしていますが、
     // レースコンディション対策として catch 内でも処理します）
@@ -70,7 +74,7 @@ export default defineEventHandler(async event => {
     if (existingRequest && existingRequest.status === 'pending') {
       throw createError({
         statusCode: 409,
-        message: '現在、このメールアドレスでの申請を審査中です。',
+        message: 'メールアドレス周りでのエラーが発生しました。(409-3)',
       });
     }
 
