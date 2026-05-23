@@ -30,7 +30,7 @@
     "better-auth": "^1.6.10",
     "eslint": "^9.39.4",
     "import-in-the-middle": "^2.0.6",
-    "nuxt": "^4.4.5",
+    "nuxt": "^4.4.6",
     "nuxt-security": "2.6.0",
     "pinia": "^3.0.4",
     "pino": "^10.3.1",
