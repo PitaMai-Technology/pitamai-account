@@ -1,5 +1,4 @@
 import { authClient } from '~/composable/auth-client';
-import type { OrgRole } from '~~/shared/types/auth';
 
 export default defineNuxtRouteMiddleware(async to => {
   if (!to.path.startsWith('/apps/admin/organization')) return;
