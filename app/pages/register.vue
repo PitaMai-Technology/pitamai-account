@@ -104,10 +104,10 @@ async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
             <UInput v-model="state.age" type="number" min="1" max="150" placeholder="18" />
           </UFormField>
 
-          <UFormField label="Discord ID" name="discordId" required>
+          <UFormField label="Discord ユーザー名" name="discordId" required>
             <UInput v-model="state.discordId" type="text" placeholder="otusoa" />
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              DiscordのIDを入力してください。@マークはなしで大丈夫です。
+              Discordのユーザー名を入力してください。@マークはなしで大丈夫です。
             </p>
           </UFormField>
 

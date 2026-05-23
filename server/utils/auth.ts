@@ -200,7 +200,7 @@ export const auth = betterAuth({
       try {
         await sendEmail({
           to: user.email,
-          subject: 'MaiMai Hub - メール検証',
+          subject: 'PitaMaiアカウント - メール検証',
           text: `メール検証のためのリンク: ${url}\n\nこのリンクは有効期限があります。`,
         });
       } catch (err) {
@@ -430,7 +430,7 @@ export const auth = betterAuth({
           `/apps/organization/accept-invitation?invitationId=${data.id}`;
         await sendEmail({
           to: data.email,
-          subject: `組織内システム「MaiMai Hub」への招待メール`,
+          subject: `組織内システム「PitaMaiアカウント」への招待メール`,
           text: `
               招待リンクです。
               ${data.inviter.user.email}さんからの招待です。
@@ -473,6 +473,25 @@ export const auth = betterAuth({
       requirePKCE: false,
       // Refresh Token Rotation を無効化（互換性維持のため）
       disableRefreshTokenRotation: true,
+      // IDトークン (JWT) に拡張フィールドを含める
+      // * 将来的に実装
+      // customIdTokenClaims: ({ user }) => {
+      //   return {
+      //     twitterUrl: user.twitterUrl,
+      //     bio: user.bio,
+      //   };
+      // },
+      // // UserInfo エンドポイント (/oauth2/userinfo) のレスポンスに含める
+      // customUserInfoClaims: ({ user }) => {
+      //   return {
+      //     twitterUrl: user.twitterUrl,
+      //     bio: user.bio,
+      //   };
+      // },
+      // // 広告するメタデータにサポートクレームを追加
+      // advertisedMetadata: {
+      //   claims_supported: ['twitterUrl', 'bio'],
+      // },
     }),
   ],
 });
