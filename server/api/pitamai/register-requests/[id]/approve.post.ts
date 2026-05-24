@@ -124,7 +124,7 @@ export default defineEventHandler(async event => {
     await sendEmail({
       to: updatedRequest.email,
       subject: '【ピタマイ・テクノロジー】構成員への申請承認のお知らせ',
-      text: `${updatedRequest.name} さん\n\nピタマイ・テクノロジーへの構成員への申請が承認されました。\n\n以下のログインページより、構成員管理システムにログインしてください。\n\nログインURL:\n${loginUrl}`,
+      text: `${updatedRequest.name} さん\n\nピタマイ・テクノロジーへの構成員申請が承認されました。\n\n以下のログインページより、構成員管理システムにログインしてください。\n\nログインURL:\n${loginUrl}`,
     });
   } catch (emailError) {
     console.error('Failed to send approval welcome email', emailError);

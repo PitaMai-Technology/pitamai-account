@@ -72,8 +72,7 @@ export default defineEventHandler(async event => {
     }
 
     if (shouldSendEmail) {
-      const config = useRuntimeConfig();
-      const loginUrl = `${config.public.BETTER_AUTH_URL}/login`;
+      const loginUrl = `${process.env.BETTER_AUTH_URL}/login`;
       try {
         await sendEmail({
           to: createdUser.email,
@@ -81,7 +80,10 @@ export default defineEventHandler(async event => {
           text: `${createdUser.name} さん\n\n構成員アカウントが作成されました。\n\n以下のログインページより、メールアドレスを入力してログインしてください。\n\nログインURL:\n${loginUrl}`,
         });
       } catch (emailError) {
-        logger.error(emailError, 'Failed to send welcome email to manually created user');
+        logger.error(
+          emailError,
+          'Failed to send welcome email to manually created user'
+        );
       }
     }
 
@@ -91,7 +93,8 @@ export default defineEventHandler(async event => {
     };
   } catch (e: unknown) {
     if (e instanceof Error) {
-      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403))
+        throw e;
     }
 
     try {
