@@ -1,6 +1,5 @@
 import { authClient } from '~/composable/auth-client';
 import type { OrgRole } from '~~/shared/types/auth';
-import { recordAuditLog } from '~~/server/utils/audit';
 
 export default defineNuxtRouteMiddleware(async to => {
   // /apps/admin 配下だけ対象
@@ -30,22 +29,6 @@ export default defineNuxtRouteMiddleware(async to => {
       console.warn('[only-admin] invalid session role:', possibleRole);
     }
 
-    // Record audit on server for investigation
-    if (import.meta.server) {
-      try {
-        const event = useRequestEvent();
-        await recordAuditLog({
-          action: 'MIDDLEWARE_INVALID_ROLE',
-          details: { role: possibleRole },
-          event,
-        });
-      } catch (e) {
-        // don't block the response if audit fails
-        // eslint-disable-next-line no-console
-        console.error('Failed to record audit log (invalid role):', e);
-      }
-    }
-
     return navigateTo('/apps/error');
   }
 
@@ -57,22 +40,6 @@ export default defineNuxtRouteMiddleware(async to => {
   });
 
   if (!canAccess) {
-    // Record audit on server for denied access attempts
-    if (import.meta.server) {
-      try {
-        const event = useRequestEvent();
-        await recordAuditLog({
-          userId: sessionData?.user?.id,
-          action: 'ADMIN_GUARD_ACCESS_DENIED',
-          details: { required: { user: ['list'] }, role },
-          event,
-        });
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to record audit log (access denied):', e);
-      }
-    }
-
     return navigateTo('/apps/error');
   }
 });

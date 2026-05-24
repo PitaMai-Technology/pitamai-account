@@ -20,6 +20,7 @@ export default defineNuxtConfig({
 
   security: {
     csrf: true,
+    rateLimiter: false,
   },
 
   routeRules: {

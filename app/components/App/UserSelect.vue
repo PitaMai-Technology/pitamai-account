@@ -64,7 +64,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="error" class="text-error text-sm mb-2">{{ error }}</div>
+  <div v-if="error" role="alert" aria-live="polite" class="text-error text-sm mb-2">{{ error }}</div>
   <USelectMenu v-model="model" value-key="value" :items="selectItems" :placeholder="props.placeholder"
     :loading="loading" class="w-full max-w-lg" :search-input="{
       placeholder: '名前やメールアドレスで検索...',

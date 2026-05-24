@@ -60,13 +60,6 @@ export default defineEventHandler(async event => {
       });
     }
 
-    // 監査ログ記録
-    await logAuditWithSession(event, {
-      action: 'MEMBER_REMOVE',
-      targetId: idToSend,
-      organizationId: organizationId,
-    });
-
     const tryRemove = async (p: {
       memberIdOrEmail: string;
       organizationId?: string;
@@ -75,7 +68,16 @@ export default defineEventHandler(async event => {
     };
 
     try {
-      return await tryRemove(payload);
+      const result = await tryRemove(payload);
+
+      // 監査ログ記録
+      await logAuditWithSession(event, {
+        action: 'MEMBER_REMOVE',
+        targetId: idToSend,
+        organizationId: organizationId,
+      });
+
+      return result;
     } catch (err: unknown) {
       if (
         err instanceof Error &&
@@ -106,10 +108,18 @@ export default defineEventHandler(async event => {
           const members = extractMembers(listRes);
           const found = members[0];
           if (found) {
-            return await tryRemove({
+            const fallbackResult = await tryRemove({
               memberIdOrEmail: found.id,
               organizationId,
             });
+
+            await logAuditWithSession(event, {
+              action: 'MEMBER_REMOVE',
+              targetId: found.id,
+              details: { organizationId: organizationId },
+            });
+
+            return fallbackResult;
           }
         } catch (fallbackErr) {
           logger.error(fallbackErr, 'Fallback member removal failed');
