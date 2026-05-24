@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn, FormSubmitEvent } from '@nuxt/ui';
 import { AuditListQuerySchema, type AuditListQuery } from '~~/shared/types/audit-list';
+import { useDateRangeFilter } from '~/composable/useDateRangeFilter';
 
 definePageMeta({
   layout: 'the-app',
@@ -22,6 +23,13 @@ const state = reactive<Schema>({
   search: undefined,
 });
 
+const currentPage = computed({
+  get: () => Math.floor(state.offset / state.limit) + 1,
+  set: (val) => {
+    state.offset = (val - 1) * state.limit;
+  },
+});
+
 const loading = ref(false);
 const logs = ref<any[]>([]);
 const total = ref<number | undefined>(undefined);
@@ -40,45 +48,12 @@ function resetFilters() {
   fetchLogs();
 }
 
-watch(
+useDateRangeFilter({
   calendarRange,
-  value => {
-    // CalendarDate.toDate('Asia/Tokyo') で JST の日付境界を正しく UTC に変換する
-    // 例: CalendarDate(2026,5,23).toDate('Asia/Tokyo') → 2026-05-22T15:00:00.000Z (= JST 5/23 00:00)
-    const toJstStartOfDay = (v: any): Date | undefined => {
-      if (!v) return undefined;
-      if (typeof v.toDate === 'function') {
-        return v.toDate('Asia/Tokyo'); // JST 0:00:00 をUTCで返す
-      }
-      const d = new Date(v);
-      return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0) - 9 * 3600 * 1000);
-    };
-
-    const toJstEndOfDay = (v: any): Date | undefined => {
-      if (!v) return undefined;
-      if (typeof v.toDate === 'function') {
-        // toDate('Asia/Tokyo') は JST 0:00 → UTC 前日15:00。そこに 23h 59m 59s 999ms を足す
-        const startOfDay = v.toDate('Asia/Tokyo') as Date;
-        return new Date(startOfDay.getTime() + (23 * 3600 + 59 * 60 + 59) * 1000 + 999);
-      }
-      const d = new Date(v);
-      return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999) - 9 * 3600 * 1000);
-    };
-
-    dateFilter.start = toJstStartOfDay(value?.start);
-    // end 未選択（単独日付選択）の場合は start の終わりを使う
-    dateFilter.end = toJstEndOfDay(value?.end ?? value?.start);
-
+  dateFilter,
+  onRangeChanged: () => {
     state.offset = 0;
     fetchLogs();
-  },
-  { deep: true }
-);
-
-const currentPage = computed({
-  get: () => Math.floor(state.offset / state.limit) + 1,
-  set: (val) => {
-    state.offset = (val - 1) * state.limit;
   },
 });
 
