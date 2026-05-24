@@ -10,6 +10,7 @@ COPY prisma ./prisma
 
 # 依存関係のインストール（開発・ビルドに必要な全依存）
 RUN pnpm install --frozen-lockfile
+RUN pnpm exec prisma generate --schema ./prisma
 
 
 # アプリケーションのビルド用ステージ
