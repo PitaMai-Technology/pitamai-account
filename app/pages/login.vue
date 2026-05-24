@@ -259,7 +259,7 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
               class="underline hover:text-gray-800">プライバシーポリシー</ULink>に同意したとみなされます。
           </p>
 
-          <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center" />
+          <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center"></div>
         </div>
       </UPageCard>
     </div>
