@@ -10,7 +10,7 @@ definePageMeta({
 const toast = useToast();
 const loading = ref(false);
 const setupCompleted = ref(false);
-const { config, turnstileToken, resetTurnstileToken } = useTurnstile('setup-turnstile');
+const { showTurnstileWidget, turnstileErrorMessage, turnstileToken, resetTurnstileToken } = useTurnstile('setup-turnstile');
 
 const schema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
@@ -115,7 +115,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           owner を作成
         </UButton>
 
-        <div v-if="config.public.TURNSTILE_SITE_KEY" id="setup-turnstile" class="pt-2" />
+        <UAlert v-if="!showTurnstileWidget" color="warning" variant="soft" title="Turnstile を表示できません"
+          :description="turnstileErrorMessage ?? 'TURNSTILE_SITE_KEY が設定されていません。'" />
+
+        <div v-else id="setup-turnstile" class="pt-2" />
       </UForm>
     </UPageCard>
   </div>

@@ -13,7 +13,7 @@ const loading = ref(false);
 const otpSent = ref(false);
 const session = authClient.useSession();
 const route = useRoute();
-const { config, turnstileToken, resetTurnstileToken } = useTurnstile('login-turnstile');
+const { showTurnstileWidget, turnstileErrorMessage, turnstileToken, resetTurnstileToken } = useTurnstile('login-turnstile');
 
 const emailState = reactive({
   email: '',
@@ -259,7 +259,10 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
               class="underline hover:text-gray-800">プライバシーポリシー</ULink>に同意したとみなされます。
           </p>
 
-          <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center" />
+          <UAlert v-if="!showTurnstileWidget" color="warning" variant="soft" title="Turnstile を表示できません"
+            :description="turnstileErrorMessage ?? 'TURNSTILE_SITE_KEY が設定されていません。'" />
+
+          <div v-else id="login-turnstile" class="mt-4 flex justify-center" />
         </div>
       </UPageCard>
     </div>

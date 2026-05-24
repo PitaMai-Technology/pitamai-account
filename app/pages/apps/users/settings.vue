@@ -13,7 +13,7 @@ const session = authClient.useSession();
 const loading = ref(false);
 const activeTab = ref('profile');
 const resetEmailSent = ref(false);
-const { turnstileToken, resetTurnstileToken, config } = useTurnstile('settings-turnstile');
+const { showTurnstileWidget, turnstileErrorMessage, turnstileToken, resetTurnstileToken } = useTurnstile('settings-turnstile');
 
 const tabItems: TabsItem[] = [
   {
@@ -217,7 +217,10 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
         </p>
       </div>
 
-      <div v-if="config.public.TURNSTILE_SITE_KEY" id="settings-turnstile" class="flex" />
+      <UAlert v-if="!showTurnstileWidget" color="warning" variant="soft" title="Turnstile を表示できません"
+        :description="turnstileErrorMessage ?? 'TURNSTILE_SITE_KEY が設定されていません。'" />
+
+      <div v-else id="settings-turnstile" class="flex" />
 
       <UTabs v-model="activeTab" :items="tabItems">
         <template #profile>

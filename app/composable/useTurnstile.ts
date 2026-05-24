@@ -43,6 +43,11 @@ export function useTurnstile(containerId: string) {
   const config = useRuntimeConfig();
   const turnstileToken = ref('');
   const turnstileWidgetId = ref<string | number | null>(null);
+  const turnstileErrorMessage = ref<string | null>(null);
+  const showTurnstileWidget = computed(
+    () =>
+      Boolean(config.public.TURNSTILE_SITE_KEY) && !turnstileErrorMessage.value
+  );
 
   function getTurnstileApi(): TurnstileApi | null {
     const maybe = (globalThis as { turnstile?: TurnstileApi }).turnstile;
@@ -75,7 +80,10 @@ export function useTurnstile(containerId: string) {
 
   function mountTurnstile() {
     const siteKey = config.public.TURNSTILE_SITE_KEY;
-    if (!siteKey) return true;
+    if (!siteKey) {
+      turnstileErrorMessage.value = 'TURNSTILE_SITE_KEY が設定されていません。';
+      return false;
+    }
 
     const turnstile = getTurnstileApi();
     if (!turnstile) return false;
@@ -87,7 +95,9 @@ export function useTurnstile(containerId: string) {
     // すでにIDがある場合でも、コンテナ内にウィジェットが存在しないなら再レンダリングを許可
     if (turnstileWidgetId.value !== null) {
       // Turnstile が作成する iframe が存在するかチェック
-      const turnstileWidget = container.querySelector('iframe[src*="challenges.cloudflare.com"]');
+      const turnstileWidget = container.querySelector(
+        'iframe[src*="challenges.cloudflare.com"]'
+      );
       if (turnstileWidget) {
         return true;
       }
@@ -96,9 +106,10 @@ export function useTurnstile(containerId: string) {
     }
 
     try {
+      turnstileErrorMessage.value = null;
       turnstileWidgetId.value = turnstile.render(container, {
         sitekey: siteKey as string,
-        callback: (token) => {
+        callback: token => {
           turnstileToken.value = token;
         },
         'expired-callback': () => {
@@ -110,15 +121,21 @@ export function useTurnstile(containerId: string) {
       });
       return true;
     } catch (e) {
+      turnstileErrorMessage.value = 'Turnstile の表示に失敗しました。';
       console.error('Turnstile render error:', e);
       return false;
     }
   }
 
   onMounted(() => {
-    if (!config.public.TURNSTILE_SITE_KEY) return;
+    if (!config.public.TURNSTILE_SITE_KEY) {
+      turnstileErrorMessage.value = 'TURNSTILE_SITE_KEY が設定されていません。';
+      return;
+    }
 
     let timer: ReturnType<typeof setInterval> | null = null;
+    let attemptCount = 0;
+    const maxAttempts = 10;
 
     // マウントを試行し、成功したらタイマーを止める関数
     const checkAndMount = () => {
@@ -130,15 +147,34 @@ export function useTurnstile(containerId: string) {
       return isMounted;
     };
 
+    const startRetryTimer = () => {
+      if (timer) return;
+
+      attemptCount = 0;
+      timer = setInterval(() => {
+        attemptCount += 1;
+        if (checkAndMount() || attemptCount >= maxAttempts) {
+          if (!turnstileWidgetId.value && attemptCount >= maxAttempts) {
+            turnstileErrorMessage.value =
+              'Turnstile の読み込みに失敗しました。';
+          }
+          if (timer) clearInterval(timer);
+          timer = null;
+        }
+      }, 1000);
+    };
+
     // 初回実行
     if (!checkAndMount()) {
-      timer = setInterval(checkAndMount, 1000);
+      startRetryTimer();
     }
 
     // タブ復帰時などのイベントで再チェック。消えていればタイマーを再開。
     const recover = () => {
-      if (!checkAndMount() && !timer) {
-        timer = setInterval(checkAndMount, 1000);
+      if (turnstileErrorMessage.value) return;
+
+      if (!checkAndMount()) {
+        startRetryTimer();
       }
     };
 
@@ -157,6 +193,8 @@ export function useTurnstile(containerId: string) {
   return {
     turnstileToken,
     config,
+    showTurnstileWidget,
+    turnstileErrorMessage,
     resetTurnstileToken,
   };
 }
