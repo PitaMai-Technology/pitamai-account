@@ -21,6 +21,13 @@ export default defineNuxtConfig({
   security: {
     csrf: true,
     rateLimiter: false,
+    headers: {
+      contentSecurityPolicy: {
+        "script-src": ["'self'", 'https://challenges.cloudflare.com'],
+        "frame-src": ["'self'", 'https://challenges.cloudflare.com'],
+        "connect-src": ["'self'", 'https://challenges.cloudflare.com'],
+      },
+    },
   },
 
   routeRules: {
