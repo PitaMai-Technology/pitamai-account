@@ -21,11 +21,19 @@ export default defineNuxtConfig({
   security: {
     csrf: true,
     rateLimiter: false,
+    // 1. Nonce（使い捨てのランダム文字列）生成機能を有効化
+    nonce: true,
     headers: {
       contentSecurityPolicy: {
-        "script-src": ["'self'", 'https://challenges.cloudflare.com'],
-        "frame-src": ["'self'", 'https://challenges.cloudflare.com'],
-        "connect-src": ["'self'", 'https://challenges.cloudflare.com'],
+        // 2. script-src に "'nonce-{{nonce}}'" を追加
+        'script-src': [
+          "'self'",
+          'https://challenges.cloudflare.com',
+          "'nonce-{{nonce}}'",
+        ],
+        // frame-src と connect-src はそのままでOKです
+        'frame-src': ["'self'", 'https://challenges.cloudflare.com'],
+        'connect-src': ["'self'", 'https://challenges.cloudflare.com'],
       },
     },
   },
