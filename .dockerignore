@@ -7,7 +7,8 @@ node_modules
 dist
 
 # 環境変数ファイル (認証情報が含まれるため除外)
-.env
+.env*
+!.env.example
 
 # IDE / エディタ設定ファイル
 /.vscode
