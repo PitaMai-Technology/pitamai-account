@@ -39,4 +39,4 @@ RUN chown -R nuxt:nodejs /app
 
 USER nuxt
 EXPOSE 3000
-CMD ["node", ".output/server/index.mjs"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema ./prisma && node .output/server/index.mjs"]
