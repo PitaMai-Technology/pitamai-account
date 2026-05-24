@@ -119,8 +119,7 @@ export default defineEventHandler(async event => {
     event,
   });
 
-  const config = useRuntimeConfig();
-  const loginUrl = `${config.public.BETTER_AUTH_URL}/login`;
+  const loginUrl = `${process.env.BETTER_AUTH_URL}/login`;
   try {
     await sendEmail({
       to: updatedRequest.email,
