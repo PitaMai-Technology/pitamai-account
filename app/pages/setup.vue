@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import * as z from 'zod';
 import type { FormSubmitEvent } from '@nuxt/ui';
-import { useTurnstile } from '~/composable/useTurnstile';
 
 definePageMeta({
   layout: 'the-front',
@@ -10,7 +9,6 @@ definePageMeta({
 const toast = useToast();
 const loading = ref(false);
 const setupCompleted = ref(false);
-const { config, turnstileToken, resetTurnstileToken } = useTurnstile('setup-turnstile');
 
 const schema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
@@ -40,22 +38,10 @@ if (data.value?.isSetupCompleted) {
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
 
-  if (!turnstileToken.value) {
-    toast.add({
-      title: '確認が必要です',
-      description: 'Turnstile の認証を完了してください。',
-      color: 'warning',
-    });
-    return;
-  }
-
   loading.value = true;
   try {
     await $fetch('/api/setup/owner', {
       method: 'POST',
-      headers: {
-        'x-captcha-response': turnstileToken.value,
-      },
       body: {
         email: event.data.email,
         name: event.data.name,
@@ -81,7 +67,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       description: errorMessage,
       color: 'error',
     });
-    resetTurnstileToken();
   } finally {
     loading.value = false;
   }
@@ -114,8 +99,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         <UButton type="submit" :loading="loading" :disabled="loading">
           owner を作成
         </UButton>
-
-        <div v-if="config.public.TURNSTILE_SITE_KEY" id="setup-turnstile" class="pt-2" />
       </UForm>
     </UPageCard>
   </div>

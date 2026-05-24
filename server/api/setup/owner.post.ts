@@ -4,7 +4,6 @@ import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { recordAuditLog } from '~~/server/utils/audit';
 import { logger } from '~~/server/utils/logger';
-import { assertTurnstile } from '~~/server/utils/turnstile';
 
 const setupOwnerSchema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
@@ -13,8 +12,6 @@ const setupOwnerSchema = z.object({
 
 export default defineEventHandler(async event => {
   try {
-    await assertTurnstile(event);
-
     const existingOwnerCount = await prisma.user.count({
       where: {
         role: 'owner',

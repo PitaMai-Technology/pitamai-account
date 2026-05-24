@@ -2,7 +2,6 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import { z } from 'zod';
 import { authClient } from '~/composable/auth-client';
-import { useTurnstile } from '~/composable/useTurnstile';
 
 definePageMeta({
   layout: 'the-front',
@@ -13,7 +12,6 @@ const loading = ref(false);
 const otpSent = ref(false);
 const session = authClient.useSession();
 const route = useRoute();
-const { config, turnstileToken, resetTurnstileToken } = useTurnstile('login-turnstile');
 
 const emailState = reactive({
   email: '',
@@ -35,25 +33,11 @@ type SendOtpSchema = z.output<typeof emailOtpFormSchema>;
 type VerifyOtpSchema = z.output<typeof emailOtpVerifySchema>;
 
 async function onSendOtp(event: FormSubmitEvent<SendOtpSchema>) {
-  if (!turnstileToken.value) {
-    toast.add({
-      title: '確認が必要です',
-      description: '「ロボットではありません」の認証を完了してください。',
-      color: 'warning',
-    });
-    return;
-  }
-
   loading.value = true;
   try {
     const { error } = await authClient.emailOtp.sendVerificationOtp({
       email: event.data.email,
       type: 'sign-in',
-      fetchOptions: {
-        headers: {
-          'x-captcha-response': turnstileToken.value,
-        },
-      },
     });
 
     if (error) {
@@ -72,13 +56,11 @@ async function onSendOtp(event: FormSubmitEvent<SendOtpSchema>) {
         description: errorMessage,
         color: 'error',
       });
-      resetTurnstileToken();
       return;
     }
 
     emailState.email = event.data.email;
     otpSent.value = true;
-    resetTurnstileToken();
     toast.add({
       title: '送信完了',
       description: '認証コードを送信しました。メールを確認してください。',
@@ -95,22 +77,12 @@ async function onSendOtp(event: FormSubmitEvent<SendOtpSchema>) {
       description: errorMessage,
       color: 'error',
     });
-    resetTurnstileToken();
   } finally {
     loading.value = false;
   }
 }
 
 async function handleVerifyOtp(data: VerifyOtpSchema) {
-  if (!turnstileToken.value) {
-    toast.add({
-      title: '確認が必要です',
-      description: '「ロボットではありません」の認証を完了してください。',
-      color: 'warning',
-    });
-    return;
-  }
-
   loading.value = true;
   try {
     const isOAuthFlow =
@@ -120,11 +92,6 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
     const signInPayload: Parameters<typeof authClient.signIn.emailOtp>[0] = {
       email: emailState.email,
       otp: data.otp.join(''),
-      fetchOptions: {
-        headers: {
-          'x-captcha-response': turnstileToken.value,
-        },
-      },
     };
 
     if (!isOAuthFlow) {
@@ -140,7 +107,6 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
         description: error.message ?? '認証に失敗しました。コードを確認してください。',
         color: 'error',
       });
-      resetTurnstileToken();
       return;
     }
 
@@ -169,7 +135,6 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
       description: errorMessage,
       color: 'error',
     });
-    resetTurnstileToken();
   } finally {
     loading.value = false;
   }
@@ -259,7 +224,6 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
               class="underline hover:text-gray-800">プライバシーポリシー</ULink>に同意したとみなされます。
           </p>
 
-          <div v-if="config.public.TURNSTILE_SITE_KEY" id="login-turnstile" class="mt-4 flex justify-center" />
         </div>
       </UPageCard>
     </div>

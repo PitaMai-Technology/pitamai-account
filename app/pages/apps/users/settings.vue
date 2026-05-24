@@ -2,7 +2,6 @@
 import type { FormSubmitEvent, TabsItem } from '@nuxt/ui';
 import { z } from 'zod';
 import { authClient } from '~/composable/auth-client';
-import { useTurnstile } from '~/composable/useTurnstile';
 
 definePageMeta({
   layout: 'the-app',
@@ -13,7 +12,6 @@ const session = authClient.useSession();
 const loading = ref(false);
 const activeTab = ref('profile');
 const resetEmailSent = ref(false);
-const { turnstileToken, resetTurnstileToken, config } = useTurnstile('settings-turnstile');
 
 const tabItems: TabsItem[] = [
   {
@@ -107,15 +105,6 @@ async function onProfileSubmit(event: FormSubmitEvent<ProfileSchema>) {
 }
 
 async function onChangePasswordSubmit(event: FormSubmitEvent<ChangePasswordSchema>) {
-  if (!turnstileToken.value) {
-    toast.add({
-      title: '確認が必要です',
-      description: '「ロボットではありません」の認証を完了してください。',
-      color: 'warning',
-    });
-    return;
-  }
-
   if (loading.value) return;
 
   loading.value = true;
@@ -124,11 +113,6 @@ async function onChangePasswordSubmit(event: FormSubmitEvent<ChangePasswordSchem
       newPassword: event.data.newPassword,
       currentPassword: event.data.currentPassword,
       revokeOtherSessions: true,
-      fetchOptions: {
-        headers: {
-          'x-captcha-response': turnstileToken.value,
-        },
-      },
     });
 
     if (error) {
@@ -137,14 +121,12 @@ async function onChangePasswordSubmit(event: FormSubmitEvent<ChangePasswordSchem
         description: error.message || 'エラーが発生しました',
         color: 'error',
       });
-      resetTurnstileToken();
       return;
     }
 
     changePasswordState.currentPassword = '';
     changePasswordState.newPassword = '';
     changePasswordState.confirmPassword = '';
-    resetTurnstileToken();
 
     toast.add({
       title: 'パスワードを変更しました',
@@ -157,15 +139,6 @@ async function onChangePasswordSubmit(event: FormSubmitEvent<ChangePasswordSchem
 }
 
 async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>) {
-  if (!turnstileToken.value) {
-    toast.add({
-      title: '確認が必要です',
-      description: '「ロボットではありません」の認証を完了してください。',
-      color: 'warning',
-    });
-    return;
-  }
-
   if (loading.value) return;
 
   loading.value = true;
@@ -173,11 +146,6 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
     const { error } = await authClient.requestPasswordReset({
       email: event.data.email,
       redirectTo: `${window.location.origin}/reset-password`,
-      fetchOptions: {
-        headers: {
-          'x-captcha-response': turnstileToken.value,
-        },
-      },
     });
 
     if (error) {
@@ -186,12 +154,10 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
         description: error.message || 'エラーが発生しました',
         color: 'error',
       });
-      resetTurnstileToken();
       return;
     }
 
     resetEmailSent.value = true;
-    resetTurnstileToken();
     toast.add({
       title: 'メールを送信しました',
       description: 'パスワード再設定用のメールを送信しました。メールをご確認ください。',
@@ -216,8 +182,6 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
           認証サーバー利用に必要な基本プロフィールのみ管理できます。
         </p>
       </div>
-
-      <div v-if="config.public.TURNSTILE_SITE_KEY" id="settings-turnstile" class="flex" />
 
       <UTabs v-model="activeTab" :items="tabItems">
         <template #profile>

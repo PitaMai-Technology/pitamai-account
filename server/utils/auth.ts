@@ -1,11 +1,5 @@
 import { betterAuth } from 'better-auth';
-import {
-  organization,
-  admin,
-  captcha,
-  emailOTP,
-  jwt,
-} from 'better-auth/plugins';
+import { organization, admin, emailOTP, jwt } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
@@ -354,10 +348,6 @@ export const auth = betterAuth({
           alg: 'RS256',
         },
       },
-    }),
-    captcha({
-      provider: 'cloudflare-turnstile', // or google-recaptcha, hcaptcha, captchafox
-      secretKey: process.env.TURNSTILE_SECRET_KEY!,
     }),
     admin({
       defaultRole: 'member',
