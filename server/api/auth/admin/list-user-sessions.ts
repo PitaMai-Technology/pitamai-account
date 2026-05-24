@@ -2,7 +2,7 @@ import { readBody, createError } from 'h3';
 import { z } from 'zod';
 import { auth } from '~~/server/utils/auth';
 import { logger } from '~~/server/utils/logger';
-import { logAuditWithSession } from '~~/server/utils/audit';
+import { recordAuditLog } from '~~/server/utils/audit';
 
 const BodySchema = z.object({
   userId: z.string().min(1),
@@ -11,45 +11,49 @@ const BodySchema = z.object({
 type Body = z.infer<typeof BodySchema>;
 
 export default defineEventHandler(async event => {
-  let body: Body | undefined;
+  let validatedBody: Body | undefined;
 
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
-    const raw = await readBody(event);
-    const parsed = BodySchema.safeParse(raw);
+    const body = await readBody(event);
+    const parsed = BodySchema.safeParse(body);
 
     if (!parsed.success) {
       throw createError({ statusCode: 422, message: 'Validation Error' });
     }
 
-    body = parsed.data;
+    validatedBody = parsed.data;
+    const session = await auth.api.getSession({ headers: event.headers });
 
     const data = await auth.api.listUserSessions({
-      body: { userId: body.userId },
+      body: { userId: validatedBody.userId },
       headers: event.headers,
     });
 
-    await logAuditWithSession(event, {
+    await recordAuditLog({
+      userId: session?.user.id,
       action: 'ADMIN_ACCOUNT_SESSIONS_LIST',
-      targetId: body.userId,
+      targetId: validatedBody.userId,
       details: {
         source: 'auth/admin/list-user-sessions',
       },
+      event,
     });
 
     return data ?? { sessions: [] };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
 
-    if (body?.userId) {
-      await logAuditWithSession(event, {
+    if (validatedBody?.userId) {
+      const session = await auth.api.getSession({ headers: event.headers });
+      await recordAuditLog({
+        userId: session?.user.id,
         action: 'ADMIN_ACCOUNT_SESSIONS_LIST_FAILED',
-        targetId: body.userId,
+        targetId: validatedBody.userId,
         details: {
           source: 'auth/admin/list-user-sessions',
           errorMessage: msg,
         },
+        event,
       });
     }
 

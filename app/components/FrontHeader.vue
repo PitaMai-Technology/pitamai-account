@@ -33,7 +33,12 @@ const onSignOut = async () => {
 </script>
 
 <template>
-  <UHeader title="PitaMaiアカウント">
+  <UHeader>
+    <template #left>
+      <NuxtLink to="/" class="flex items-center gap-2">
+        <img src="/pitamai-only-logo.png" alt="PitaMai Logo" class="h-10 w-auto" />
+      </NuxtLink>
+    </template>
     <template #right>
       <template v-if="session.data">
         <UButton to="/apps/dashboard" target="_blank">ダッシュボード</UButton>

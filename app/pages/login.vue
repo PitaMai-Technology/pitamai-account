@@ -175,9 +175,6 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
   }
 }
 
-async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
-  await handleVerifyOtp(event.data);
-}
 </script>
 
 <template>
@@ -215,16 +212,19 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
       <UPageCard class="w-max max-w-md">
         <div class="space-y-4 w-full">
           <div>
-            <UAlert title="注意!" description="管理者側で事前に登録されていないと、認証メールが届きません。" class="text-sm mb-6" color="warning" />
             <h2 class="text-xl font-semibold">ログイン</h2>
             <p class="mt-1 text-sm">
               メールアドレス宛に届く認証コードでログインします。
+            </p>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              初めての方は <ULink to="/register" class="underline">新規申請</ULink> から申請してください。
             </p>
           </div>
 
           <USeparator class="my-6" />
 
-          <UForm v-if="!otpSent" :schema="emailOtpFormSchema" :state="emailState" class="space-y-4" @submit="onSendOtp">
+          <UForm v-if="!otpSent" :schema="emailOtpFormSchema" :state="emailState" class="space-y-4" @submit="onSendOtp"
+            @keydown.enter.prevent>
             <UFormField label="メールアドレス" name="email" required>
               <UInput v-model="emailState.email" type="email" placeholder="user@email.com" autocomplete="email" />
             </UFormField>
@@ -233,7 +233,8 @@ async function onVerifyOtp(event: FormSubmitEvent<VerifyOtpSchema>) {
             </UButton>
           </UForm>
 
-          <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4" @submit="onVerifyOtp">
+          <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4"
+            @submit="(event) => handleVerifyOtp(event.data)">
             <p class="text-sm">
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>

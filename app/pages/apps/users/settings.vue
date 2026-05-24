@@ -31,10 +31,6 @@ const profileSchema = z.object({
   bio: z.string().trim().optional(),
 });
 
-const changeEmailSchema = z.object({
-  newEmail: z.email('有効なメールアドレスを入力してください'),
-});
-
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(8, 'パスワードは最低8文字必要です'),
   newPassword: z.string().min(8, '新しいパスワードは最低8文字必要です'),
@@ -49,7 +45,6 @@ const resetPasswordSchema = z.object({
 });
 
 type ProfileSchema = z.output<typeof profileSchema>;
-type ChangeEmailSchema = z.output<typeof changeEmailSchema>;
 type ChangePasswordSchema = z.output<typeof changePasswordSchema>;
 type ResetPasswordSchema = z.output<typeof resetPasswordSchema>;
 
@@ -58,10 +53,6 @@ const profileState = reactive<ProfileSchema>({
   image: '',
   twitterUrl: '',
   bio: '',
-});
-
-const changeEmailState = reactive<ChangeEmailSchema>({
-  newEmail: '',
 });
 
 const changePasswordState = reactive<ChangePasswordSchema>({
@@ -82,7 +73,6 @@ watchEffect(() => {
   profileState.twitterUrl = data.user.twitterUrl ?? '';
   profileState.bio = data.user.bio ?? '';
   resetPasswordState.email = data.user.email ?? '';
-  changeEmailState.newEmail = '';
 });
 
 async function onProfileSubmit(event: FormSubmitEvent<ProfileSchema>) {
@@ -109,51 +99,6 @@ async function onProfileSubmit(event: FormSubmitEvent<ProfileSchema>) {
     await authClient.getSession();
     toast.add({
       title: '更新しました',
-      color: 'success',
-    });
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function onChangeEmailSubmit(event: FormSubmitEvent<ChangeEmailSchema>) {
-  if (!turnstileToken.value) {
-    toast.add({
-      title: '確認が必要です',
-      description: '「ロボットではありません」の認証を完了してください。',
-      color: 'warning',
-    });
-    return;
-  }
-
-  if (loading.value) return;
-
-  loading.value = true;
-  try {
-    const { error } = await authClient.changeEmail({
-      newEmail: event.data.newEmail,
-      fetchOptions: {
-        headers: {
-          'x-captcha-response': turnstileToken.value,
-        },
-      },
-    });
-
-    if (error) {
-      toast.add({
-        title: 'メールアドレス変更に失敗しました',
-        description: error.message || 'エラーが発生しました',
-        color: 'error',
-      });
-      resetTurnstileToken();
-      return;
-    }
-
-    changeEmailState.newEmail = '';
-    resetTurnstileToken();
-    toast.add({
-      title: 'メールアドレスを変更しました',
-      description: '新しいメールアドレスで確認メールが送信されました。確認メールをチェックしてください。',
       color: 'success',
     });
   } finally {
@@ -305,21 +250,13 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
 
             <div class="space-y-4">
               <div>
-                <h2 class="font-semibold text-sm mb-2">メールアドレスを変更</h2>
+                <h2 class="font-semibold text-sm mb-2">メールアドレスの変更</h2>
                 <p class="text-sm text-neutral-500 mb-4">
-                  新しいメールアドレスを入力すると、確認メールが送信されます。
+                  メールアドレスの変更には管理者への申請が必要です。ここからは変更できません。<wbr>
+                  変更を希望する場合は、Discordサーバーにて、
+                  <AppCopyText value="@役員会" /> にメンションを飛ばしてください。
                 </p>
               </div>
-
-              <UForm :schema="changeEmailSchema" :state="changeEmailState" class="space-y-4"
-                @submit="onChangeEmailSubmit">
-                <UFormField label="新しいメールアドレス" name="newEmail" required>
-                  <UInput v-model="changeEmailState.newEmail" type="email" autocomplete="email"
-                    placeholder="newemail@example.com" />
-                </UFormField>
-
-                <UButton type="submit" :loading="loading">メールアドレスを変更</UButton>
-              </UForm>
             </div>
           </div>
         </template>

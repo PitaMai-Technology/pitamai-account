@@ -1,5 +1,6 @@
 {
   "name": "pitamai-only",
+  "packageManager": "pnpm@10.33.4",
   "type": "module",
   "private": true,
   "scripts": {
@@ -8,6 +9,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "db:deploy": "pnpm exec prisma migrate deploy",
     "generate:better-auth": "pnpm dlx @better-auth/cli generate --config server/utils/auth.ts",
     "migration:better-auth": "pnpm dlx @better-auth/cli migrate --config server/utils/auth.ts",
     "generate:prisma": "pnpm exec prisma generate --schema ./prisma",
@@ -28,7 +30,8 @@
     "better-auth": "^1.6.10",
     "eslint": "^9.39.4",
     "import-in-the-middle": "^2.0.6",
-    "nuxt": "^4.4.5",
+    "nuxt": "^4.4.6",
+    "nuxt-security": "2.6.0",
     "pinia": "^3.0.4",
     "pino": "^10.3.1",
     "resend": "^6.12.3",
@@ -52,33 +55,31 @@
   "prisma": {
     "schema": "./prisma"
   },
-  "pnpm": {
-    "overrides": {
-      "@vercel/nft": "^0.27.4",
-      "vite": "^7.3.2",
-      "nitropack": "^2.13.4",
-      "h3": "^1.15.9",
-      "kysely": "^0.28.17",
-      "postcss": "^8.5.10",
-      "yaml": "^2.8.3",
-      "tar": "^7.5.11",
-      "serialize-javascript": "^7.0.5",
-      "picomatch": "^4.0.4",
-      "defu": "^6.1.5",
-      "drizzle-orm": "^0.45.2",
-      "effect": "^3.20.0",
-      "flatted": "^3.4.2",
-      "brace-expansion": "^5.0.5",
-      "minimatch": "^9.0.7"
-    },
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@sentry/cli"
-    ]
+  "overrides": {
+    "@vercel/nft": "^0.27.4",
+    "vite": "^7.3.2",
+    "nitropack": "^2.13.4",
+    "h3": "^1.15.9",
+    "kysely": "^0.28.17",
+    "postcss": "^8.5.10",
+    "yaml": "^2.8.3",
+    "tar": "^7.5.11",
+    "serialize-javascript": "^7.0.5",
+    "picomatch": "^4.0.4",
+    "defu": "^6.1.5",
+    "drizzle-orm": "^0.45.2",
+    "effect": "^3.20.0",
+    "flatted": "^3.4.2",
+    "brace-expansion": "^5.0.5",
+    "minimatch": "^9.0.7"
   },
+  "onlyBuiltDependencies": [
+    "@prisma/client",
+    "@sentry/cli"
+  ],
   "engines": {
     "node": ">=24",
-    "pnpm": ">=10"
+    "pnpm": ">=10 <11"
   },
-  "version": "0.1.0-alpha.4"
+  "version": "0.1.0-rc.0"
 }

@@ -1,10 +1,8 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
-  await assertActiveMemberRole(event, ['owner']);
   try {
     const body = await readBody(event);
     const result = organizationCreateSchema.safeParse(body);
@@ -18,17 +16,16 @@ export default defineEventHandler(async event => {
 
     const validated = result.data;
 
-    // 認証情報を全ヘッダーごと渡す（better-auth公式推奨）
-    const { headers } = event;
+    // auth.api.createOrganization に headers を渡すことで自動的に権限チェックが行われます
     const data = await auth.api.createOrganization({
       body: validated,
-      headers,
+      headers: event.headers,
     });
 
     // 監査ログ記録
     await logAuditWithSession(event, {
       action: 'ORGANIZATION_CREATE',
-      targetId: data?.id, // 作成された組織ID
+      targetId: data?.id,
       organizationId: data?.id,
       details: {
         name: validated.name,
@@ -39,6 +36,8 @@ export default defineEventHandler(async event => {
     return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+      
       logger.error(e, 'Organization creation error');
       throw createError({
         statusCode: 400,

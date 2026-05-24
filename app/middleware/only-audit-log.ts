@@ -1,17 +1,19 @@
 import { authClient } from '~/composable/auth-client';
-import type { OrgRole } from '~~/server/utils/authorize';
+import type { OrgRole } from '~~/shared/types/auth';
 
 export default defineNuxtRouteMiddleware(async to => {
-  // SSR 時はロール情報がまだ取れないので、クライアント側でのみチェック
-  if (import.meta.server) return;
+  // Better Auth クライアントを使用してセッションを取得（SSR 対応）
+  const { data, error } = await authClient.getSession({
+    fetchOptions: {
+      headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
+    },
+  });
 
-  // グローバル(user.role)ベースで判定（Better Auth クライアント API を使用）
-  const { data, error } = await authClient.getSession();
   if (error || !data?.user?.role) return navigateTo('/apps/error');
 
   const role = data.user.role as OrgRole;
   const canAccess = authClient.admin.checkRolePermission({
-    permissions: { project: ['audit-log', 'owner'] },
+    permissions: { auditLog: ['read'] },
     role,
   });
 

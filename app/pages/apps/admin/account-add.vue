@@ -25,6 +25,8 @@ const state = reactive<Partial<Schema>>({
   role: 'member',
 });
 
+const sendWelcomeEmail = ref(true);
+
 const loading = ref(false);
 
 // 共通確認モーダル
@@ -59,6 +61,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         email: event.data.email,
         name: event.data.name || undefined,
         role: event.data.role || undefined,
+        sendEmail: sendWelcomeEmail.value,
       },
     });
 
@@ -80,6 +83,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     state.email = '';
     state.name = '';
     state.role = 'member';
+    sendWelcomeEmail.value = true;
   } catch (e: unknown) {
     console.error('account create user error:', e);
     if (e instanceof Error) {
@@ -107,7 +111,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       <div>
         <h1 class="text-2xl font-semibold">アカウント作成</h1>
         <p class="mt-2 text-sm text-gray-600">
-          管理者権限でユーザーを作成します。初回ログイン後、本人がパスワードを設定します。
+          管理者権限でユーザーを作成します。初回ログインはメールに送信されるワンタイムパスワード（OTP）で行います。
         </p>
       </div>
 
@@ -128,6 +132,16 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           ]" placeholder="ロールを選択" />
           <p class="mt-1 text-xs text-gray-500">
             未選択または member の場合は標準権限として登録されます。
+          </p>
+        </UFormField>
+
+        <UFormField name="sendWelcomeEmail">
+          <UCheckbox
+            v-model="sendWelcomeEmail"
+            label="作成完了メールをユーザーに送信する"
+          />
+          <p class="mt-1 text-xs text-gray-500">
+            チェックをオンにすると、ログインURLを記載したメールを送信します。
           </p>
         </UFormField>
 

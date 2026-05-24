@@ -1,14 +1,14 @@
 import { authClient } from '~/composable/auth-client';
-import type { OrgRole } from '~~/server/utils/authorize';
 
 export default defineNuxtRouteMiddleware(async to => {
   if (!to.path.startsWith('/apps/admin/organization')) return;
 
-  // SSR 時はロール情報がまだ取れないので、クライアント側でのみチェック
-  if (import.meta.server) return;
+  const fetchOptions = {
+    headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
+  };
 
   // グローバル admin/owner ロールを持つユーザーは常にアクセス可能
-  const { data: sessionData } = await authClient.getSession();
+  const { data: sessionData } = await authClient.getSession({ fetchOptions });
   const globalRole = sessionData?.user?.role;
 
   if (globalRole === 'owner' || globalRole === 'admins') {
@@ -16,14 +16,11 @@ export default defineNuxtRouteMiddleware(async to => {
   }
 
   // グローバル権限がない場合、アクティブ組織での自分のロールを取得
-  // アクティブ組織が未設定の場合、エラーページにリダイレクト
-  const { data, error } = await authClient.organization.getActiveMemberRole({});
+  const { data, error } = await authClient.organization.getActiveMemberRole({
+    fetchOptions,
+  });
 
-  if (error) {
-    return navigateTo('/apps/error');
-  }
-
-  if (!data?.role) {
+  if (error || !data?.role) {
     return navigateTo('/apps/error');
   }
 

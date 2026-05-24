@@ -1,0 +1,10 @@
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@sentry/cli'
+  - better-sqlite3
+  - esbuild
+  - prisma
+  - unrs-resolver
+  - vue-demi

@@ -1,6 +1,6 @@
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
-import type { OrgRole } from '~~/server/utils/authorize';
+import type { OrgRole } from '~~/shared/types/auth';
 
 /**
  * 組織ロール Pinia ストア

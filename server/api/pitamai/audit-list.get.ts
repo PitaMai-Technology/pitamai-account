@@ -1,11 +1,29 @@
-import { z } from 'zod';
 import prisma from '~~/lib/prisma';
 import { AuditListQuerySchema } from '~~/shared/types/audit-list';
 import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
-  // audit-log 権限、または owner 権限を持つユーザーのみ許可
-  await assertActiveMemberRole(event, ['owner']);
+  // Better Auth 標準の hasPermission API を直接使用
+  const permissionResult = await auth.api.userHasPermission({
+    headers: event.headers,
+    body: {
+      permissions: {
+        auditLog: ['read'],
+      },
+    },
+  });
+
+  const hasPermission =
+    typeof permissionResult === 'boolean'
+      ? permissionResult
+      : !!permissionResult?.success;
+
+  if (!hasPermission) {
+    throw createError({
+      statusCode: 403,
+      message: 'この操作を行う権限がありません',
+    });
+  }
 
   const query = await getValidatedQuery(event, body =>
     AuditListQuerySchema.parse(body)
@@ -91,11 +109,8 @@ export default defineEventHandler(async event => {
 
   if (startAt || endAt) {
     const gte = startAt ? new Date(startAt) : undefined;
-    if (gte) gte.setUTCHours(0, 0, 0, 0);
-
     const lteBase = endAt ?? startAt;
     const lte = lteBase ? new Date(lteBase) : undefined;
-    if (lte) lte.setUTCHours(23, 59, 59, 999);
 
     where.createdAt = {
       ...(gte ? { gte } : {}),

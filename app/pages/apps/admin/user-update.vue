@@ -71,7 +71,7 @@ async function onSubmit(event?: FormSubmitEvent<UserUpdate>) {
     <div class="mt-4 space-y-4">
       <UForm :schema="userUpdateSchema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="対象ユーザー ID" name="userId" required>
-          <UInput v-model="state.userId" placeholder="user-id" />
+          <AppUserSelect v-model="state.userId" />
           <p class="text-xs text-info mt-1">
             <NuxtLink to="/apps/admin/account">全体アカウントの一覧で確認できます。</NuxtLink>
           </p>

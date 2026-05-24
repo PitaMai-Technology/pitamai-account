@@ -1,9 +1,7 @@
-// 管理者が任意のユーザーのメールアドレスを即時に更新するエンドポイント（最小実装）
 import { readBody, createError } from 'h3';
-import prisma from '~~/lib/prisma';
 import { userChangeEmailSchema } from '~~/shared/types/user-change-email';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
 import { logger } from '~~/server/utils/logger';
+import { auth } from '~~/server/utils/auth';
 
 export default defineEventHandler(async event => {
   try {
@@ -16,15 +14,23 @@ export default defineEventHandler(async event => {
 
     const { userId, newEmail } = parsed.data;
 
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: { email: newEmail },
+    // Better Auth の adminUpdateUser を使用してメールアドレスを更新
+    // これにより管理権限のチェックが自動的に行われます
+    const updated = await auth.api.adminUpdateUser({
+      body: {
+        userId,
+        data: {
+          email: newEmail,
+        },
+      },
+      headers: event.headers,
     });
+
     return { success: true, user: updated };
   } catch (e: unknown) {
     if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
+
       logger.error(e, 'admin-change-email error');
       throw createError({
         statusCode: 400,

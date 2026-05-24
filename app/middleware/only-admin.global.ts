@@ -1,6 +1,5 @@
-// app/middleware/only-admin-or-owner.global.ts
 import { authClient } from '~/composable/auth-client';
-import type { OrgRole } from '~~/server/utils/authorize';
+import type { OrgRole } from '~~/shared/types/auth';
 
 export default defineNuxtRouteMiddleware(async to => {
   // /apps/admin 配下だけ対象
@@ -9,19 +8,38 @@ export default defineNuxtRouteMiddleware(async to => {
   // /apps/admin/organization/** はアクティブ組織ベースのガードに任せる
   if (to.path.startsWith('/apps/admin/organization')) return;
 
-  // SSR 時はロール情報がまだ取れないので、クライアント側でのみチェック
-  if (import.meta.server) return;
+  // Better Auth クライアントを使用してセッションを取得（SSR 対応）
+  const { data: sessionData } = await authClient.getSession({
+    fetchOptions: {
+      headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
+    },
+  });
 
-  // Better Auth クライアント API を使って現在のセッション／role を取得して判定
-  const { data: sessionData } = await authClient.getSession();
-  const role = sessionData?.user?.role as OrgRole;
+  // runtime validation for OrgRole to avoid unsafe assertions
+  const possibleRole = sessionData?.user?.role;
 
-  if (!role) return navigateTo('/apps/error');
+  const isOrgRole = (v: unknown): v is OrgRole => {
+    return v === 'member' || v === 'admins' || v === 'owner';
+  };
+
+  if (!isOrgRole(possibleRole)) {
+    // invalid or missing role — fail closed
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn('[only-admin] invalid session role:', possibleRole);
+    }
+
+    return navigateTo('/apps/error');
+  }
+
+  const role: OrgRole = possibleRole;
 
   const canAccess = authClient.admin.checkRolePermission({
     permissions: { user: ['list'] },
     role,
   });
 
-  if (!canAccess) return navigateTo('/apps/error');
+  if (!canAccess) {
+    return navigateTo('/apps/error');
+  }
 });

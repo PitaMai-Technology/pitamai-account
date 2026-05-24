@@ -79,7 +79,7 @@ async function onSubmit(event: FormSubmitEvent<OrganizationCreateForm>) {
 <template>
   <div>
     <UPageCard class="mx-auto w-full space-y-6">
-      <h1 class="text-2xl font-semibold">組織作成</h1>
+      <h1 class="text-2xl font-semibold">組織を作成</h1>
       <p class="mt-2 text-sm text-gray-600"> 新たな組織を作成します。 </p>
       <UForm :schema="organizationCreateSchema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="組織名" name="name" required>

@@ -6,8 +6,6 @@ import { logger } from '~~/server/utils/logger';
 export default defineEventHandler(async event => {
   let targetUserId: string | undefined;
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
     const body = await readBody<{ userId?: string }>(event);
 
     if (!body?.userId) {

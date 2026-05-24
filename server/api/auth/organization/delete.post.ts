@@ -1,41 +1,51 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
+import { recordAuditLog } from '~~/server/utils/audit';
 import { logger } from '~~/server/utils/logger';
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['owner']);
-
     const body = await readBody(event);
-    const result = organizationDeleteSchema.safeParse(body);
+    const session = await auth.api.getSession({ headers: event.headers });
 
-    if (!result.success) {
-      throw createError({
-        statusCode: 422,
-        message: 'Validation Error',
-      });
+    if (!session?.user?.id) {
+      throw createError({ statusCode: 401, message: 'Unauthorized' });
     }
 
-    const { organizationId } = result.data;
+    const organizationId =
+      body.organizationId ?? body.id ?? body.organization_id;
 
-    // 監査ログ記録
-    await logAuditWithSession(event, {
-      action: 'ORGANIZATION_DELETE',
-      targetId: organizationId, // 削除された組織ID
-      organizationId: organizationId,
-    });
+    try {
+      // auth.api.deleteOrganization が内部で権限チェック
+      const result = await auth.api.deleteOrganization({
+        body,
+        headers: event.headers,
+      });
 
-    const { headers } = event;
-    const data = await auth.api.deleteOrganization({
-      body: {
+      await recordAuditLog({
+        userId: session.user.id,
+        action: 'ORGANIZATION_DELETE',
+        targetId: organizationId,
+        details: { outcome: 'success' },
+        event,
+      });
+
+      return result;
+    } catch (e) {
+      await recordAuditLog({
+        userId: session.user.id,
+        action: 'ORGANIZATION_DELETE_FAILED',
         organizationId,
-      },
-      headers,
-    });
-    return data;
+        details: { outcome: 'error' },
+        event,
+      });
+      throw e;
+    }
   } catch (e: unknown) {
     if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403))
+        throw e;
+
       logger.error(e, 'Organization deletion error');
       throw createError({
         statusCode: 400,

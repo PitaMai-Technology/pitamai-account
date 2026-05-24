@@ -8,12 +8,27 @@ export default defineNuxtConfig({
     '@sentry/nuxt/module',
     '@nuxtjs/mdc',
     '@pinia/nuxt',
+    'nuxt-security',
   ],
   css: ['~/assets/main.css'],
 
   nitro: {
     externals: {
       external: ['@prisma/client', '.prisma/client'],
+    },
+  },
+
+  security: {
+    csrf: true,
+    rateLimiter: false,
+  },
+
+  routeRules: {
+    '/api/**': {
+      csurf: false,
+    },
+    '/api/register-user/register': {
+      csurf: true,
     },
   },
 

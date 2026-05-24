@@ -16,8 +16,6 @@ export default defineEventHandler(async event => {
   let payload: BanUserBody | undefined;
 
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
     const body = await readBody(event);
     const parsed = BanUserBodySchema.safeParse(body);
 

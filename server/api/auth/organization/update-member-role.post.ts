@@ -1,48 +1,36 @@
 import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
-import { UpdateMemberRoleSchema } from '~~/shared/types/member-update-role';
-import { assertActiveMemberRole } from '~~/server/utils/authorize';
-import { logAuditWithSession } from '~~/server/utils/audit';
 import { logger } from '~~/server/utils/logger';
+import { logAuditWithSession } from '~~/server/utils/audit';
 
 export default defineEventHandler(async event => {
   try {
-    await assertActiveMemberRole(event, ['admins', 'owner']);
-
     const body = await readBody(event);
-    const result = UpdateMemberRoleSchema.safeParse(body);
 
-    if (!result.success) {
-      throw createError({ statusCode: 422, message: 'Validation Error' });
-    }
-
-    const { organizationId, memberId, role } = result.data;
-    const { headers } = event;
+    // auth.api.updateMemberRole が内部で権限チェックを行います
+    const data = await auth.api.updateMemberRole({
+      body,
+      headers: event.headers,
+    });
 
     // 監査ログ記録
     await logAuditWithSession(event, {
       action: 'MEMBER_ROLE_UPDATE',
-      targetId: memberId, // ロールが更新されたメンバーID
-      organizationId: organizationId,
-      details: {
-        newRole: role,
-      },
+      targetId: body.memberId,
+      organizationId: body.organizationId,
+      details: { newRole: body.role },
     });
 
-    return await auth.api.updateMemberRole({
-      body: {
-        organizationId,
-        memberId,
-        role,
-      },
-      headers,
-    });
+    return data;
   } catch (e: unknown) {
     if (e instanceof Error) {
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403))
+        throw e;
+
       logger.error(e, 'Update member role error');
       throw createError({
         statusCode: 400,
-        message: 'メンバーのロール更新に失敗しました',
+        message: 'ロールの更新に失敗しました',
         cause: e,
       });
     }

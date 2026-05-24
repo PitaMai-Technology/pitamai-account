@@ -37,8 +37,11 @@ model User {
 
   twitterUrl String?
   bio        String?
+  registrationRequestId String?
+  registrationRequest   RegistrationRequest? @relation(fields: [registrationRequestId], references: [id])
 
   @@unique([email])
+  @@unique([registrationRequestId])
   @@map("user")
 }
 
