@@ -37,7 +37,6 @@ RUN pnpm install --prod --frozen-lockfile
 # グループ・ユーザーを作成し、アプリケーションディレクトリの所有権を付与
 # 依存は root でインストールしたままにし、実行プロセスのみ非rootで動かす
 RUN addgroup -S nodejs && adduser -S nuxt -G nodejs
-RUN chown -R nuxt:nodejs /app
 
 USER nuxt
 EXPOSE 3000

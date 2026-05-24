@@ -52,6 +52,7 @@ export function useTurnstile(containerId: string) {
   useHead({
     script: [
       {
+        key: 'turnstile-api',
         src: 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit',
         defer: true,
         async: true,

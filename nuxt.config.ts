@@ -25,15 +25,19 @@ export default defineNuxtConfig({
     nonce: true,
     headers: {
       contentSecurityPolicy: {
-        // 2. script-src に "'nonce-{{nonce}}'" を追加
         'script-src': [
           "'self'",
           'https://challenges.cloudflare.com',
           "'nonce-{{nonce}}'",
         ],
-        // frame-src と connect-src はそのままでOKです
         'frame-src': ["'self'", 'https://challenges.cloudflare.com'],
-        'connect-src': ["'self'", 'https://challenges.cloudflare.com'],
+        'worker-src': ["'self'", 'blob:'],
+        'connect-src': [
+          "'self'",
+          'https://challenges.cloudflare.com',
+          'https://*.ingest.us.sentry.io',
+          'https://*.ingest.sentry.io',
+        ],
       },
     },
   },
