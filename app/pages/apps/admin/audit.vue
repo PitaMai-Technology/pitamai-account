@@ -44,8 +44,10 @@ function resetFilters() {
   dateFilter.start = undefined;
   dateFilter.end = undefined;
   calendarRange.value = { start: undefined, end: undefined };
+  // Reset paging; if already on first page, trigger fetch explicitly
+  const prev = state.offset;
   state.offset = 0;
-  fetchLogs();
+  if (prev === 0) fetchLogs();
 }
 
 useDateRangeFilter({
@@ -103,10 +105,11 @@ async function fetchLogs() {
 async function onSubmit(event?: FormSubmitEvent<Schema>) {
   event?.preventDefault?.();
   if (loading.value) return;
-  state.offset = 0;
   state.search = globalSearchInput.value || undefined;
   tableFilter.value = '';
-  await fetchLogs();
+  const prev = state.offset;
+  state.offset = 0;
+  if (prev === 0) await fetchLogs();
 }
 
 watch(() => state.offset, () => {

@@ -2,6 +2,7 @@ import { auth } from '~~/server/utils/auth';
 import { readBody, createError } from 'h3';
 import { RemoveMemberSchema } from '~~/shared/types/member-remove';
 import { logger } from '~~/server/utils/logger';
+import { logAuditWithSession } from '~~/server/utils/audit';
 
 type MemberRecord = { id: string };
 
@@ -76,7 +77,12 @@ export default defineEventHandler(async event => {
     try {
       return await tryRemove(payload);
     } catch (err: unknown) {
-      if (err instanceof Error && 'statusCode' in err && (err.statusCode === 401 || err.statusCode === 403)) throw err;
+      if (
+        err instanceof Error &&
+        'statusCode' in err &&
+        (err.statusCode === 401 || err.statusCode === 403)
+      )
+        throw err;
 
       const msg = err instanceof Error ? err.message : String(err);
       logger.warn({ error: msg }, 'auth.api.removeMember failed');
@@ -114,8 +120,9 @@ export default defineEventHandler(async event => {
     }
   } catch (e: unknown) {
     if (e instanceof Error) {
-      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403)) throw e;
-      
+      if ('statusCode' in e && (e.statusCode === 401 || e.statusCode === 403))
+        throw e;
+
       logger.error(e, 'Remove member error');
       throw createError({
         statusCode: 400,

@@ -47,15 +47,8 @@ export default defineEventHandler(async event => {
     });
   }
 
-  if (request.status !== 'pending') {
-    throw createError({
-      statusCode: 409,
-      message: 'すでに審査済みです',
-    });
-  }
-
-  const updatedRequest = await prisma.registrationRequest.update({
-    where: { id: request.id },
+  const updateResult = await prisma.registrationRequest.updateMany({
+    where: { id: request.id, status: 'pending' },
     data: {
       status: 'rejected',
       reviewedAt: new Date(),
@@ -64,12 +57,23 @@ export default defineEventHandler(async event => {
     },
   });
 
+  if (updateResult.count === 0) {
+    throw createError({
+      statusCode: 409,
+      message: 'すでに審査済みです',
+    });
+  }
+
+  const updatedRequest = await prisma.registrationRequest.findUnique({
+    where: { id: request.id },
+  });
+
   await logAuditWithSession(event, {
     action: 'REGISTRATION_REQUEST_REJECTED',
-    targetId: updatedRequest.id,
+    targetId: updatedRequest?.id,
     details: {
-      email: updatedRequest.email,
-      rejectionReason: updatedRequest.rejectionReason,
+      email: updatedRequest?.email,
+      rejectionReason: updatedRequest?.rejectionReason,
     },
   });
 

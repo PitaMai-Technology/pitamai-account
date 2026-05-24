@@ -23,4 +23,11 @@ ENV HOST=0.0.0.0
 EXPOSE 3000
 
 # 起動直前にも generate を走らせる（マウントによる上書き対策）
+# 開発コンテナも非rootで実行するためのユーザーを作成し、/app の所有権を渡す
+RUN addgroup -S nodejs && adduser -S nuxt -G nodejs
+RUN chown -R nuxt:nodejs /app
+
+USER nuxt
+
+# 起動直前にも generate を走らせる（マウントによる上書き対策）
 CMD ["sh", "-c", "pnpm exec prisma generate && pnpm dev"]

@@ -71,10 +71,22 @@ export default defineEventHandler(async event => {
     // email が既に存在することを意味します（findUnique ですでにチェックしていますが、
     // レースコンディション対策として catch 内でも処理します）
 
-    if (existingRequest && existingRequest.status === 'pending') {
+    const latestRequest = await prisma.registrationRequest.findUnique({
+      where: { email: normalizedEmail },
+      include: { user: true },
+    });
+
+    if (latestRequest?.status === 'pending') {
       throw createError({
         statusCode: 409,
         message: 'メールアドレス周りでのエラーが発生しました。(409-3)',
+      });
+    }
+
+    if (latestRequest?.status === 'approved' && latestRequest.user) {
+      throw createError({
+        statusCode: 409,
+        message: 'メールアドレス周りでのエラーが発生しました。(409-2)',
       });
     }
 

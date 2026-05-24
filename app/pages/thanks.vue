@@ -25,7 +25,7 @@ if (route.query.from !== 'register') {
             構成員への申請が完了しました。問題がなければ承認され、メールが送信されますので、<wbr>しばらくお待ちください。
             また、承認されないと、ログインできませんのでご注意ください。
           </p>
-          <p>なおDiscordサーバーが主な活動場所なので、まだ参加されていない場合は、 <ULink to="https://discord.gg/szxdR8jZbT" target="_blank"
+          <p>なおDiscordサーバーが主な活動場所なので、まだ参加されていない場合は、 <ULink to="https://discord.gg/rf3et8MhKh" target="_blank"
               class="underline hover:text-gray-800">https://discord.gg/rf3et8MhKh</ULink> 参加を推奨します。
           </p>
           <p>なお、連絡がない場合、お手数ですが以下のメールアドレスにお問い合わせください。</p>
