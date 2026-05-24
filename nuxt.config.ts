@@ -54,14 +54,17 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // サーバ専用（公開されない）
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-    TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
+    TURNSTILE_SECRET_KEY:
+      process.env.TURNSTILE_SECRET_KEY ?? process.env.NUXT_TURNSTILE_SECRET_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM: process.env.RESEND_FROM,
     RESEND_DISABLED: process.env.RESEND_DISABLED,
     // クライアントにも公開
     public: {
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-      TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY,
+      TURNSTILE_SITE_KEY:
+        process.env.TURNSTILE_SITE_KEY ??
+        process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
     },
   },
 

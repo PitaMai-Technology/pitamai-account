@@ -81,7 +81,8 @@ export function useTurnstile(containerId: string) {
   function mountTurnstile() {
     const siteKey = config.public.TURNSTILE_SITE_KEY;
     if (!siteKey) {
-      turnstileErrorMessage.value = 'TURNSTILE_SITE_KEY が設定されていません。';
+      turnstileErrorMessage.value =
+        'TURNSTILE_SITE_KEY または NUXT_PUBLIC_TURNSTILE_SITE_KEY が設定されていません。';
       return false;
     }
 
@@ -129,7 +130,8 @@ export function useTurnstile(containerId: string) {
 
   onMounted(() => {
     if (!config.public.TURNSTILE_SITE_KEY) {
-      turnstileErrorMessage.value = 'TURNSTILE_SITE_KEY が設定されていません。';
+      turnstileErrorMessage.value =
+        'TURNSTILE_SITE_KEY または NUXT_PUBLIC_TURNSTILE_SITE_KEY が設定されていません。';
       return;
     }
 
