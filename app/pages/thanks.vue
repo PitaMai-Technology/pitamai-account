@@ -25,10 +25,18 @@ if (route.query.from !== 'register') {
             構成員への申請が完了しました。問題がなければ承認され、メールが送信されますので、<wbr>しばらくお待ちください。
             また、承認されないと、ログインできませんのでご注意ください。
           </p>
-          <p>なおDiscordサーバーが主な活動場所なので、まだ参加されていない場合は、 <ULink to="https://discord.gg/rf3et8MhKh" rel="noopener noreferrer"
-              target="_blank" class="underline hover:text-gray-800">https://discord.gg/rf3et8MhKh</ULink> 参加を推奨します。
-          </p>
-          <p>なお、連絡がない場合、お手数ですが以下のメールアドレスにお問い合わせください。</p>
+          <div
+            class="flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-4 text-center sm:flex-row sm:gap-4 sm:text-left">
+            <div class="min-w-0">
+              <p class="font-medium text-gray-900">主な活動場所はDiscordです。</p>
+              <p class="text-sm text-gray-500">新規の案内や連絡はDiscordで行っています。</p>
+            </div>
+            <UButton to="https://discord.gg/rf3et8MhKh" target="_blank" rel="noopener noreferrer" color="neutral"
+              variant="outline" icon="i-lucide-external-link" class="shrink-0">
+              Discordサーバーへ
+            </UButton>
+          </div>
+          <p>なお、3日間連絡がない場合、お手数ですが以下のメールアドレスにお問い合わせください。</p>
           <p class="text-sm text-gray-500">
             <NuxtLink to="mailto:info@pitamai.com" target="_blank" class="underline hover:text-gray-800">
               info@pitamai.com
