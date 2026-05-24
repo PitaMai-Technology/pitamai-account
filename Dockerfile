@@ -10,13 +10,14 @@ COPY prisma ./prisma
 
 # 依存関係のインストール（開発・ビルドに必要な全依存）
 RUN pnpm install --frozen-lockfile
-RUN pnpm exec prisma generate --schema ./prisma
 
 
 # アプリケーションのビルド用ステージ
 FROM base AS builder
 # 💡 修正: ビルドの直前でソースコード全体をコピーする
 COPY . .
+RUN pnpm exec prisma migrate deploy --schema ./prisma
+RUN pnpm exec prisma generate --schema ./prisma
 RUN pnpm build
 
 # 実行用ステージ
