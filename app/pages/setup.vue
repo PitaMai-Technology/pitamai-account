@@ -40,7 +40,7 @@ if (data.value?.isSetupCompleted) {
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
 
-  if (!turnstileToken.value) {
+  if (showTurnstileWidget.value && !turnstileToken.value) {
     toast.add({
       title: '確認が必要です',
       description: 'Turnstile の認証を完了してください。',

@@ -64,8 +64,8 @@ export async function verifyTurnstileToken(
 }
 
 export async function assertTurnstile(event: H3Event): Promise<void> {
-  const config = useRuntimeConfig();
-  const secretKey = config.TURNSTILE_SECRET_KEY;
+  const secretKey =
+    process.env.TURNSTILE_SECRET_KEY ?? process.env.NUXT_TURNSTILE_SECRET_KEY;
 
   if (!secretKey) {
     throw createError({
