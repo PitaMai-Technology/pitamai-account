@@ -32,9 +32,10 @@ COPY prisma ./prisma
 # 本番環境用の依存関係のみをインストール
 RUN pnpm install --prod --frozen-lockfile
 
-# グループ・ユーザーを作成し、実行プロセスのみ非rootで動かす
+# グループ・ユーザーを作成し、Prisma が触る依存ツリーだけ書き込み可能にする
 RUN addgroup -S nodejs && adduser -S nuxt -G nodejs
+RUN chown -R nuxt:nodejs /app/node_modules
 
 USER nuxt
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy --schema ./prisma && node .output/server/index.mjs"]
+CMD ["sh", "-c", "pnpm db:deploy && node .output/server/index.mjs"]

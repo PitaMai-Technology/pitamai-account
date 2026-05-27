@@ -9,7 +9,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "db:deploy": "pnpm exec prisma migrate deploy",
+    "db:deploy": "pnpm exec prisma migrate deploy --schema ./prisma",
     "generate:better-auth": "pnpm dlx @better-auth/cli generate --config server/utils/auth.ts",
     "migration:better-auth": "pnpm dlx @better-auth/cli migrate --config server/utils/auth.ts",
     "generate:prisma": "pnpm exec prisma generate --schema ./prisma",
