@@ -4,7 +4,6 @@ import EmalSign from './components/EmalSign.vue'
 const props = defineProps<{
   name?: string
   loginUrl?: string
-  supportUrl?: string
 }>();
 </script>
 
