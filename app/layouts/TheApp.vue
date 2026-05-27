@@ -94,9 +94,6 @@ if (import.meta.client) {
       <div class="text-center">
         <AppThinkingLoading class="mx-auto" />
         <h1 class="text-2xl mt-2 font-bold dark:text-gray-100">読み込み中です...</h1>
-        <p class="mt-1 text-gray-600 dark:text-gray-300">
-          実は、令和7年3月19日からピタマイは存在していました。
-        </p>
       </div>
     </div>
   </div>
