@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     '@nuxtjs/mdc',
     '@pinia/nuxt',
     'nuxt-security',
+    'nuxt-email-renderer',
   ],
   css: ['~/assets/main.css'],
 
