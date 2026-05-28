@@ -10,7 +10,8 @@ import { oauthProvider } from '@better-auth/oauth-provider';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import prisma from '~~/lib/prisma';
-import { sendEmail } from './email';
+import { sendEmail } from '~~/server/utils/email';
+import { renderEmail } from '~~/server/utils/renderEmail';
 import { createError } from 'h3';
 import { createAuthMiddleware } from 'better-auth/api';
 import { recordAuditLog } from '~~/server/utils/audit';
@@ -85,9 +86,9 @@ const getOAuthClientAuditPayload = async (ctx: AuthHookContextLike) => {
   const response = await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
   const responseClient =
     response &&
-    typeof response === 'object' &&
-    response.client &&
-    typeof response.client === 'object'
+      typeof response === 'object' &&
+      response.client &&
+      typeof response.client === 'object'
       ? response.client
       : undefined;
 
@@ -154,13 +155,15 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url, token }) => {
       const config = useRuntimeConfig();
       const resetLink = `${config.public.BETTER_AUTH_URL}/reset-password?token=${token}`;
-      console.log(`🔔 sendResetPassword called for ${user.email}`);
-      console.log(`🔗 password reset url: ${resetLink}`);
       try {
+        const html = await renderEmail('ResetPasswordEmail', {
+          resetLink,
+        });
+
         await sendEmail({
           to: user.email,
           subject: 'PitaMai - パスワード再設定',
-          text: `パスワード再設定のためのリンク: ${resetLink}\n\nこのリンクは有効期限があります。\nこのメールに心当たりがない場合は無視してください。`,
+          html,
         });
       } catch (err) {
         console.error('❌ sendResetPassword failed:', err);
@@ -199,13 +202,15 @@ export const auth = betterAuth({
   emailVerification: {
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      console.log(`🔔 sendVerificationEmail called for ${user.email}`);
-      console.log(`🔗 verification url: ${url}`);
       try {
+        const html = await renderEmail('VerifyEmail', {
+          verificationUrl: url,
+        });
+
         await sendEmail({
           to: user.email,
           subject: 'PitaMaiアカウント - メール検証',
-          text: `メール検証のためのリンク: ${url}\n\nこのリンクは有効期限があります。`,
+          html,
         });
       } catch (err) {
         console.error('❌ sendVerificationEmail failed:', err);
@@ -300,7 +305,7 @@ export const auth = betterAuth({
 
       const oauthClientActionPair =
         oauthClientAuditActions[
-          ctx.path as keyof typeof oauthClientAuditActions
+        ctx.path as keyof typeof oauthClientAuditActions
         ];
 
       if (oauthClientActionPair && ctx.request?.method === 'POST') {
@@ -405,10 +410,15 @@ export const auth = betterAuth({
               ? 'メール認証'
               : 'パスワード設定';
 
+        const html = await renderEmail('OtpEmail', {
+          otp,
+          purpose,
+        });
+
         await sendEmail({
           to: email,
           subject,
-          text: `${purpose}の認証コード: ${otp}\n\nこのコードは5分間有効です。\nこのメールに心当たりがない場合は無視してください。`,
+          html,
         });
 
         await recordAuditLog({
@@ -432,21 +442,16 @@ export const auth = betterAuth({
         const inviteLink =
           config.public.BETTER_AUTH_URL +
           `/apps/organization/accept-invitation?invitationId=${data.id}`;
+        const html = await renderEmail('InvitationEmail', {
+          inviterEmail: data.inviter.user.email,
+          organizationName: data.organization.name,
+          inviteLink,
+        });
+
         await sendEmail({
           to: data.email,
           subject: `組織内システム「PitaMaiアカウント」への招待メール`,
-          text: `
-              招待リンクです。
-              ${data.inviter.user.email}さんからの招待です。
-
-              あなたは「${data.organization.name}」のメンバーとして招待されています。
-              
-              以下のリンクをクリックしてログインしてください：
-              
-              ${inviteLink}
-
-              このメールに心当たりがない場合は、無視してください。
-            `,
+          html,
         });
       },
       ac,

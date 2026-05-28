@@ -3,6 +3,7 @@ import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
 import { recordAuditLog } from '~~/server/utils/audit';
 import { sendEmail } from '~~/server/utils/email';
+import { renderEmail } from '~~/server/utils/renderEmail';
 
 export default defineEventHandler(async event => {
   const session = await auth.api.getSession({ headers: event.headers });
@@ -121,10 +122,15 @@ export default defineEventHandler(async event => {
 
   const loginUrl = `${process.env.BETTER_AUTH_URL}/login`;
   try {
+    const html = await renderEmail('WelcomeEmail', {
+      name: updatedRequest.name,
+      loginUrl,
+    });
+
     await sendEmail({
       to: updatedRequest.email,
       subject: '【ピタマイ・テクノロジー】構成員への申請承認のお知らせ',
-      text: `${updatedRequest.name} さん\n\nピタマイ・テクノロジーへの構成員申請が承認されました。\n\n以下のログインページより、構成員管理システムにログインしてください。\n\nログインURL:\n${loginUrl}`,
+      html,
     });
   } catch (emailError) {
     console.error('Failed to send approval welcome email', emailError);
