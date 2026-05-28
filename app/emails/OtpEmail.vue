@@ -1,5 +1,8 @@
 <script setup lang="ts">
 
+import { computed } from 'vue'
+import EmailSign from './components/EmailSign.vue';
+
 const props = defineProps<{
   otp: string
   purpose: string // 'ログイン', 'メール検証', 'パスワード設定' など
