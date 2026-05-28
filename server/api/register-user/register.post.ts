@@ -2,6 +2,7 @@ import { createError, readBody } from 'h3';
 import prisma from '~~/lib/prisma';
 import { registerRequestSchema } from '~~/shared/types/register-request';
 import { recordAuditLog } from '~~/server/utils/audit';
+import { sendDiscordWebhook } from '~~/server/utils/discord-webhook';
 
 export default defineEventHandler(async event => {
   const body = await readBody(event);
@@ -117,6 +118,22 @@ export default defineEventHandler(async event => {
       agreedToTerms,
     },
     event,
+  });
+
+  // Discord Webhookで新規登録申請を通知
+  await sendDiscordWebhook({
+    username: 'PitaMaiアカウント',
+    embeds: [
+      {
+        title: '📋 新しい構成員申請があります',
+        description: '[こちらのサイトから審査できます](https://auth.pitamai.com/apps/admin/register-request)',
+        color: 0x5865f2, // Discord Blurple
+        fields: [
+          { name: '申請ID', value: request.id },
+        ],
+        timestamp: new Date().toISOString(),
+      },
+    ],
   });
 
   return {
