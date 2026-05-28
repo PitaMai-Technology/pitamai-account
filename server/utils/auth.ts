@@ -10,7 +10,7 @@ import { oauthProvider } from '@better-auth/oauth-provider';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import prisma from '~~/lib/prisma';
-import { sendEmail } from './email';
+import { sendEmail } from '~~/server/utils/email';
 import { renderEmail } from '~~/server/utils/renderEmail';
 import { createError } from 'h3';
 import { createAuthMiddleware } from 'better-auth/api';
@@ -155,8 +155,6 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url, token }) => {
       const config = useRuntimeConfig();
       const resetLink = `${config.public.BETTER_AUTH_URL}/reset-password?token=${token}`;
-      console.log(`🔔 sendResetPassword called for ${user.email}`);
-      console.log(`🔗 password reset url: ${resetLink}`);
       try {
         const html = await renderEmail('ResetPasswordEmail', {
           resetLink,
@@ -204,8 +202,6 @@ export const auth = betterAuth({
   emailVerification: {
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      console.log(`🔔 sendVerificationEmail called for ${user.email}`);
-      console.log(`🔗 verification url: ${url}`);
       try {
         const html = await renderEmail('VerifyEmail', {
           verificationUrl: url,

@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import EmalSign from './components/EmalSign.vue'
 
 const props = defineProps<{
-  inviterEmail?: string
-  organizationName?: string
-  inviteLink?: string
+  inviterEmail: string
+  organizationName: string
+  inviteLink: string
 }>();
 </script>
 
@@ -34,7 +33,7 @@ const props = defineProps<{
 
             <EHr />
 
-            <EmalSign />
+            <EmailSign />
           </EContainer>
         </EContainer>
       </ESection>

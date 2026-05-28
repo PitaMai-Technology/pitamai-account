@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import EmalSign from './components/EmalSign.vue'
 
 const props = defineProps<{
-  resetLink?: string
+  resetLink: string
 }>();
 </script>
 
@@ -31,7 +30,7 @@ const props = defineProps<{
 
             <EHr />
 
-            <EmalSign />
+            <EmailSign />
           </EContainer>
         </EContainer>
       </ESection>

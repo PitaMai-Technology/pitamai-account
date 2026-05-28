@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import EmalSign from './components/EmalSign.vue'
 
 const props = defineProps<{
-  otp?: string
-  purpose?: string // 'ログイン', 'メール検証', 'パスワード設定' など
+  otp: string
+  purpose: string // 'ログイン', 'メール検証', 'パスワード設定' など
 }>();
 
 const title = computed(() => {
@@ -38,15 +36,16 @@ const title = computed(() => {
             <!-- 認証コードを強調表示 -->
             <EContainer
               style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 24px 0; text-align: center;">
-              <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #1f2937;">{{ props.otp
-                }}</span>
+              <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #1f2937;">
+                {{ props.otp }}
+              </span>
             </EContainer>
 
             <EText style="color: #6b7280; font-size: 14px;">※このコードは5分間のみ有効です。</EText>
 
             <EHr />
 
-            <EmalSign />
+            <EmailSign />
           </EContainer>
         </EContainer>
       </ESection>
