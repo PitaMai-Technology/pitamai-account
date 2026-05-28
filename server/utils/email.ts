@@ -1,11 +1,10 @@
-// server/utils/email.ts
-import { Resend } from 'resend';
+import { Resend, type CreateEmailOptions } from 'resend';
 
 type SendEmailParams = {
   to: string;
   subject: string;
-  text: string;
   html?: string;
+  text?: string;
   from?: string;
 };
 
@@ -39,14 +38,22 @@ export async function sendEmail({
 
   const resend = new Resend(resendApiKey);
 
+  const finalHtml = html || (text ? text.replace(/\n/g, '<br>') : undefined);
+
+  if (!finalHtml) {
+    throw new Error('Either html or text must be provided to send an email');
+  }
+
   try {
-    const response = await resend.emails.send({
+    const payload: CreateEmailOptions = {
       from: sender,
       to,
       subject,
+      html: finalHtml,
       text,
-      html,
-    });
+    };
+
+    const response = await resend.emails.send(payload);
 
     if (response.error) {
       console.error('❌ Failed to send email:', {

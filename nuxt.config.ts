@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     '@nuxtjs/mdc',
     '@pinia/nuxt',
     'nuxt-security',
+    'nuxt-email-renderer',
   ],
   css: ['~/assets/main.css'],
 
@@ -59,6 +60,7 @@ export default defineNuxtConfig({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM: process.env.RESEND_FROM,
     RESEND_DISABLED: process.env.RESEND_DISABLED,
+    DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
     // クライアントにも公開
     public: {
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,

@@ -201,7 +201,7 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
       <div class="flex items-center justify-center p-4">
         <UPageCard class="w-max max-w-md">
           <div class="flex flex-col items-center space-y-4 py-8">
-            <UIcon name="i-lucide-loader-circle" class="h-16 w-16 text-primary animate-spin" />
+            <AppThinkingLoading />
             <h2 class="text-xl font-semibold">ローディング中です...</h2>
           </div>
         </UPageCard>

@@ -13,7 +13,15 @@ const setupOwnerSchema = z.object({
 
 export default defineEventHandler(async event => {
   try {
-    await assertTurnstile(event);
+    const turnstileSecretKey =
+      process.env.TURNSTILE_SECRET_KEY ?? process.env.NUXT_TURNSTILE_SECRET_KEY;
+    if (turnstileSecretKey) {
+      await assertTurnstile(event);
+    } else {
+      logger.warn(
+        'TURNSTILE_SECRET_KEY is not configured; skipping Turnstile verification for setup owner'
+      );
+    }
 
     const existingOwnerCount = await prisma.user.count({
       where: {

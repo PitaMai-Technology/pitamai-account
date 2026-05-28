@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { randomInt } from 'crypto';
 import { storeToRefs } from 'pinia';
 import { authClient } from '~/composable/auth-client';
 import { useActiveOrg } from '~/composable/useActiveOrg';
@@ -16,7 +17,6 @@ useSeoMeta({
   ogTitle: 'PitaMaiアカウント - 管理画面',
   robots: computed(() => route.path.startsWith('/apps') ? 'noindex, nofollow' : 'index, follow'),
 });
-
 
 if (import.meta.client) {
   watch(
@@ -88,12 +88,20 @@ if (import.meta.client) {
     </UDashboardGroup>
 
     <!-- セッションが保留中の場合のオーバーレイローダー -->
-    <div v-if="session.isPending" class="fixed inset-0 z-50 grid place-items-center bg-white/70 dark:bg-gray-900/80"
+    <div v-if="session.isPending"
+      class="backgrounds-filter fixed inset-0 z-50 grid place-items-center bg-white/20 dark:bg-gray-900/20"
       aria-busy="true" aria-live="polite">
       <div class="text-center">
-        <AppThinkingLoading />
-        <h1 class="text-4xl mt-8 font-bold dark:text-gray-100">読み込み中...</h1>
+        <AppThinkingLoading class="mx-auto" />
+        <h1 class="text-2xl mt-2 font-bold dark:text-gray-100">読み込み中です...</h1>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.backgrounds-filter {
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+</style>

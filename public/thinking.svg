@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) and edited for CSS animations -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 33.866667 33.866667"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4 (86a8ad7, 2024-10-11)"
+   sodipodi:docname="favicon.svg"
+   inkscape:export-filename="favicon.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xml:space="preserve"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="true"
+     inkscape:zoom="4"
+     inkscape:cx="63.25"
+     inkscape:cy="55.125"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1">
+    <inkscape:grid
+       id="grid2"
+       units="mm"
+       originx="-339.63788"
+       originy="-368.17566"
+       spacingx="0.99999998"
+       spacingy="1"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       dotted="false"
+       gridanglex="30"
+       gridanglez="30"
+       visible="true" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1">
+    <style>
+      /* ループの全体時間を 0.5秒 に設定。
+         「0個 → 1個 → 2個」の順に、33.3%（0.1667秒）ずつ均等に切り替えます。
+         
+         0%    〜 33.3% : 0個 (両方非表示)
+         33.3% 〜 66.6% : 1個 (path2 表示、path2-6 非表示)
+         66.6% 〜 100%  : 2個 (両方表示)
+      */
+
+      #path2 {
+        animation: bubbleOne 0.5s infinite steps(1, end);
+      }
+
+      #path2-6 {
+        animation: bubbleTwo 0.5s infinite steps(1, end);
+      }
+
+      /* 1つ目の楕円 (path2): 0個の期間（0%〜33.3%）だけ非表示、それ以降（33.3%〜100%）は表示 */
+      @keyframes bubbleOne {
+        0% { opacity: 0; }
+        33.33% { opacity: 1; }
+        100% { opacity: 1; }
+      }
+
+      /* 2つ目の楕円 (path2-6): 2個の期間（66.6%〜100%）だけ表示、それ以外は非表示 */
+      @keyframes bubbleTwo {
+        0% { opacity: 0; }
+        66.66% { opacity: 1; }
+        100% { opacity: 1; }
+      }
+    </style>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-89.480371,-97.229284)">
+    <path
+       sodipodi:type="star"
+       style="fill:#4d663e;fill-opacity:1;stroke:#101010;stroke-width:0.507116;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path1"
+       inkscape:flatsided="true"
+       sodipodi:sides="3"
+       sodipodi:cx="86.401558"
+       sodipodi:cy="107.37765"
+       sodipodi:r1="12.468282"
+       sodipodi:r2="6.2341409"
+       sodipodi:arg1="0.52359878"
+       sodipodi:arg2="1.5707963"
+       inkscape:rounded="0"
+       inkscape:randomized="0"
+       d="m 97.199407,113.61179 -21.595698,0 10.797849,-18.702424 z"
+       inkscape:transform-center-x="-2.514108"
+       transform="matrix(0.69850252,-0.41484209,0.40328062,0.71852757,-8.9011849,79.944256)" />
+    <path
+       sodipodi:type="star"
+       style="fill:#b8fb97;fill-opacity:1;stroke:#101010;stroke-width:0.5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path1-6"
+       inkscape:flatsided="true"
+       sodipodi:sides="3"
+       sodipodi:cx="86.401558"
+       sodipodi:cy="107.37765"
+       sodipodi:r1="12.468282"
+       sodipodi:r2="6.2341409"
+       sodipodi:arg1="0.52359878"
+       sodipodi:arg2="1.5707963"
+       inkscape:rounded="0"
+       inkscape:randomized="0"
+       d="m 97.199407,113.61179 -21.595698,0 10.797849,-18.702424 z"
+       transform="matrix(0.5866753,0.5866753,-0.5866753,0.5866753,114.5153,-7.5146059)"
+       inkscape:transform-center-y="1.3387006"
+       inkscape:transform-center-x="1.3387075" />
+    <path
+       sodipodi:type="star"
+       style="fill:#b8fb97;fill-opacity:1;stroke:#101010;stroke-width:0.489886;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path1-8"
+       inkscape:flatsided="true"
+       sodipodi:sides="3"
+       sodipodi:cx="86.401558"
+       sodipodi:cy="107.37765"
+       sodipodi:r1="12.468282"
+       sodipodi:r2="6.2341409"
+       sodipodi:arg1="0.52359878"
+       sodipodi:arg2="1.5707963"
+       inkscape:rounded="0"
+       inkscape:randomized="0"
+       d="m 97.199407,113.61179 -21.595698,0 10.797849,-18.702424 z"
+       inkscape:transform-center-y="-1.3387076"
+       transform="matrix(0.8348472,0.21473806,-0.22369663,0.80141336,67.333927,13.958608)"
+       inkscape:transform-center-x="1.3945576" />
+    <ellipse
+       style="fill:#b7fa96;fill-opacity:1;stroke:#101010;stroke-width:0.414842;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path2"
+       cx="112.94641"
+       cy="104.88987"
+       rx="1.8963603"
+       ry="1.1720152" />
+    <ellipse
+       style="fill:#b8fb97;fill-opacity:1;stroke:#101010;stroke-width:0.414842;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path2-6"
+       cx="118.9912"
+       cy="99.569427"
+       rx="4.1484179"
+       ry="2.091398" />
+  </g>
+</svg>
