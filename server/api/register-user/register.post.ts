@@ -121,7 +121,7 @@ export default defineEventHandler(async event => {
   });
 
   // Discord Webhookで新規登録申請を通知
-  await sendDiscordWebhook({
+  sendDiscordWebhook({
     username: 'PitaMaiアカウント',
     embeds: [
       {
