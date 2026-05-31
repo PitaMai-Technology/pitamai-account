@@ -1,7 +1,7 @@
 # 共通ベースステージ
 FROM node:24-alpine AS base
 
-RUN corepack enable && corepack prepare pnpm@10.33.4 --activate
+RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
 WORKDIR /app
 
 # 💡 修正: まず依存定義ファイルだけをコピーしてレイヤーキャッシュを効かせる
@@ -19,7 +19,7 @@ RUN pnpm build
 
 # 実行用ステージ
 FROM node:24-alpine AS runner
-RUN corepack enable && corepack prepare pnpm@10.33.4 --activate
+RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
 
 WORKDIR /app
 ENV NODE_ENV=production
