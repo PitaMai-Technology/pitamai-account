@@ -5,7 +5,7 @@ RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
 WORKDIR /app
 
 # 💡 修正: まず依存定義ファイルだけをコピーしてレイヤーキャッシュを効かせる
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 
 # 依存関係のインストール（開発・ビルドに必要な全依存）
@@ -26,7 +26,7 @@ ENV NODE_ENV=production
 
 # ビルド成果物とパッケージ定義、Prismaスキーマのコピー
 COPY --from=builder /app/.output .output
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 
 # 本番環境用の依存関係のみをインストール
