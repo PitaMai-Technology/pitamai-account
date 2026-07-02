@@ -121,8 +121,11 @@ async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
 
           <USeparator class="my-6" />
 
+          <UAlert color="warning" class="w-full" description="現在、構成員申請は一時的に受け付けていません。申請が再開されるまでお待ちください。" />
+
           <div class="flex justify-center gap-2">
-            <UButton type="submit" :loading="loading" block>
+            <!-- 現在一時的に受け付けしていないため、一時的に無効化 -->
+            <UButton type="submit" disabled :loading="loading" block>
               申請する
             </UButton>
           </div>
