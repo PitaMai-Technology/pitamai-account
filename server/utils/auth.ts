@@ -13,113 +13,29 @@ import prisma from '~~/lib/prisma';
 import { sendEmail } from '~~/server/utils/email';
 import { renderEmail } from '~~/server/utils/renderEmail';
 import { createError } from 'h3';
-import { createAuthMiddleware } from 'better-auth/api';
-import { recordAuditLog } from '~~/server/utils/audit';
-import { logger } from '~~/server/utils/logger';
+import { recordAuditLog } from '~~/server/utils/audit-recorder';
+import { auditLogPlugin } from '~~/server/utils/auth-audit-plugin';
+import { authGuardsPlugin } from '~~/server/utils/auth-guards-plugin';
 
-type OAuthClientAuditBody = {
-  client_id?: string;
-  client_name?: string;
-  redirect_uris?: string[];
-  scope?: string;
-  token_endpoint_auth_method?: string;
-  update?: {
-    client_name?: string;
-    redirect_uris?: string[];
-    scope?: string;
-    token_endpoint_auth_method?: string;
-  };
-};
-
-type OAuthClientAuditResponse = {
-  client_id?: string;
-  client_secret?: string;
-  client_name?: string;
-  redirect_uris?: string[];
-  scope?: string;
-  token_endpoint_auth_method?: string;
-  client?: {
-    client_id?: string;
-    client_name?: string;
-    redirect_uris?: string[];
-    scope?: string;
-    token_endpoint_auth_method?: string;
-  };
-};
-
-type AuthHookContextLike = {
-  body?: unknown;
-  context: {
-    returned?: unknown;
-  };
-};
-
-const getAuthHookResponse = async <T>(
-  ctx: AuthHookContextLike
-): Promise<T | null> => {
-  const returned = ctx.context.returned;
-  if (!returned) return null;
-
-  if (returned instanceof Response) {
-    // Check for any 2xx status code (success range)
-    if (returned.status < 200 || returned.status >= 300) {
-      return null;
-    }
-
-    // Handle 204 No Content - no body to parse
-    if (returned.status === 204) {
-      return null;
-    }
-
-    // For other 2xx statuses (200, 201, etc.), parse the JSON body
-    return (await returned.clone().json()) as T;
-  }
-
-  return returned as T;
-};
-
-const getOAuthClientAuditPayload = async (ctx: AuthHookContextLike) => {
-  const body = (
-    ctx.body && typeof ctx.body === 'object' ? ctx.body : {}
-  ) as OAuthClientAuditBody;
-
-  const response = await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
-  const responseClient =
-    response &&
-      typeof response === 'object' &&
-      response.client &&
-      typeof response.client === 'object'
-      ? response.client
-      : undefined;
-
-  return {
-    clientId:
-      response?.client_id ?? responseClient?.client_id ?? body.client_id,
-    details: {
-      clientName:
-        response?.client_name ??
-        responseClient?.client_name ??
-        body.client_name ??
-        body.update?.client_name,
-      redirectUris:
-        response?.redirect_uris ??
-        responseClient?.redirect_uris ??
-        body.redirect_uris ??
-        body.update?.redirect_uris,
-      scope:
-        response?.scope ??
-        responseClient?.scope ??
-        body.scope ??
-        body.update?.scope,
-      tokenEndpointAuthMethod:
-        response?.token_endpoint_auth_method ??
-        responseClient?.token_endpoint_auth_method ??
-        body.token_endpoint_auth_method ??
-        body.update?.token_endpoint_auth_method,
-    },
-  };
-};
-
+/**
+ * Better Auth のサーバー設定本体。
+ *
+ * サーバー API から認証機能を呼ぶ場合は、この `auth.api` を使い、
+ * ブラウザーから届いた headers を必ず渡す。
+ *
+ * @example
+ * ```ts
+ * const session = await auth.api.getSession({ headers: event.headers })
+ *
+ * await auth.api.setRole({
+ *   headers: event.headers,
+ *   body: { userId, role: 'admins' },
+ * })
+ * ```
+ *
+ * クライアント側ではこのファイルを import せず、
+ * `app/composable/auth-client.ts` の `authClient` を使う。
+ */
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
@@ -220,139 +136,16 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     sendOnSignIn: true,
   },
-  hooks: {
-    after: createAuthMiddleware(async ctx => {
-      const newSession = ctx.context.newSession;
-      if (newSession) {
-        let action: string;
-        let provider: string;
-        // パスに基づいて認証経路を判別
-        if (ctx.path.startsWith('/sign-in/email-otp')) {
-          action = 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS';
-          provider = 'email-otp';
-        } else if (ctx.path.startsWith('/sign-in/email')) {
-          action = 'ACCOUNT_SIGN_IN_EMAIL_PASSWORD_SUCCESS';
-          provider = 'email-password';
-        } else if (ctx.path.startsWith('/sign-up/email')) {
-          action = 'ACCOUNT_SIGN_UP_EMAIL_SUCCESS';
-          provider = 'email-password';
-        } else if (ctx.path.startsWith('/verify-email')) {
-          action = 'ACCOUNT_EMAIL_VERIFICATION_SUCCESS';
-          provider = 'email-verification';
-        } else {
-          // その他の認証経路
-          action = 'ACCOUNT_SIGN_IN_SUCCESS';
-          provider = 'unknown';
-        }
-        try {
-          await recordAuditLog({
-            userId: newSession.user.id,
-            action: action,
-            details: {
-              provider: provider,
-              path: ctx.path,
-            },
-          });
-        } catch (e) {
-          logger.error({ error: e }, 'Failed to record sign-in audit log');
-        }
-      }
-      // OAuth2 Consent Logging
-      if (
-        ctx.path.endsWith('/oauth2/consent') &&
-        ctx.request?.method === 'POST'
-      ) {
-        try {
-          const body = (
-            ctx.body && typeof ctx.body === 'object' ? ctx.body : {}
-          ) as { accept?: boolean; scope?: string };
-          const session = await auth.api.getSession({
-            headers: ctx.headers || {},
-          });
-          if (session?.user) {
-            await recordAuditLog({
-              userId: session.user.id,
-              action: body.accept
-                ? 'OAUTH_CONSENT_ACCEPTED'
-                : 'OAUTH_CONSENT_DENIED',
-              details: {
-                scope: body.scope,
-                path: ctx.path,
-              },
-            });
-          }
-        } catch (e) {
-          logger.error(
-            { error: e },
-            'Failed to record OAuth consent audit log'
-          );
-        }
-      }
-      const oauthClientAuditActions = {
-        '/oauth2/create-client': {
-          success: 'OAUTH_CLIENT_CREATE',
-          failed: 'OAUTH_CLIENT_CREATE_FAILED',
-        },
-        '/oauth2/update-client': {
-          success: 'OAUTH_CLIENT_UPDATE',
-          failed: 'OAUTH_CLIENT_UPDATE_FAILED',
-        },
-        '/oauth2/delete-client': {
-          success: 'OAUTH_CLIENT_DELETE',
-          failed: 'OAUTH_CLIENT_DELETE_FAILED',
-        },
-      } as const;
-
-      const oauthClientActionPair =
-        oauthClientAuditActions[
-        ctx.path as keyof typeof oauthClientAuditActions
-        ];
-
-      if (oauthClientActionPair && ctx.request?.method === 'POST') {
-        try {
-          const response =
-            await getAuthHookResponse<OAuthClientAuditResponse>(ctx);
-          const isSuccess =
-            response !== null &&
-            !('error' in response) &&
-            !('code' in response);
-          const oauthClientAction = isSuccess
-            ? oauthClientActionPair.success
-            : oauthClientActionPair.failed;
-
-          const payload = await getOAuthClientAuditPayload(ctx);
-          const session = await auth.api.getSession({
-            headers: ctx.headers || {},
-          });
-
-          if (session?.user?.id) {
-            const activeOrganizationId =
-              typeof session.session?.activeOrganizationId === 'string'
-                ? session.session.activeOrganizationId
-                : undefined;
-
-            await recordAuditLog({
-              userId: session.user.id,
-              organizationId: activeOrganizationId,
-              action: oauthClientAction,
-              targetId: payload.clientId,
-              details: {
-                path: ctx.path,
-                success: isSuccess,
-                ...payload.details,
-              },
-            });
-          }
-        } catch (e) {
-          logger.error(
-            { error: e, path: ctx.path },
-            'Failed to record OAuth client audit log'
-          );
-        }
-      }
-    }),
-  },
   plugins: [
+    // 認証・管理操作の記録はここでまとめて有効化する。
+    // 個別の `/api/auth/*` ルートに監査処理を書く必要はない。
+    auditLogPlugin(),
+
+    // ロール判定だけでは表現できない、サービス固有の事前条件を適用する。
+    // 現在は「未登録メールへの招待禁止」「自分自身の組織削除禁止」を扱う。
+    authGuardsPlugin(),
+
+    // OAuth/OIDC で使う署名鍵を公開するための JWT/JWKS 機能。
     jwt({
       jwks: {
         keyPairConfig: {
@@ -364,6 +157,9 @@ export const auth = betterAuth({
       provider: 'cloudflare-turnstile', // or google-recaptcha, hcaptcha, captchafox
       secretKey: process.env.TURNSTILE_SECRET_KEY!,
     }),
+
+    // グローバルロールの権限は permissions.ts で定義する。
+    // admins は一覧・取得・更新、owner は BAN/削除/ロール変更を含む全管理操作。
     admin({
       defaultRole: 'member',
       adminRoles: ['admins', 'owner'],
