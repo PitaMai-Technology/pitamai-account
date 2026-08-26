@@ -58,6 +58,79 @@ const isSuccessful = (returned: unknown) => {
   return !('error' in record) && !('code' in record);
 };
 
+type AuthenticationAudit = {
+  provider: string;
+  action: string;
+};
+
+/**
+ * newSession が作られたパスから、認証方式と記録する action をまとめて決める。
+ *
+ * provider と action を別々に判定すると、新しい認証方法を追加した際に
+ * 片方だけ直して食い違う可能性があるため、同じ分岐からペアで返している。
+ */
+const getAuthenticationAudit = (path: string): AuthenticationAudit => {
+  if (path.startsWith('/sign-in/email-otp')) {
+    return {
+      provider: 'email-otp',
+      action: 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS',
+    };
+  }
+
+  if (path.startsWith('/sign-in/email')) {
+    return {
+      provider: 'email-password',
+      action: 'ACCOUNT_SIGN_IN_EMAIL_PASSWORD_SUCCESS',
+    };
+  }
+
+  if (path.startsWith('/sign-up/email')) {
+    return {
+      provider: 'email-password',
+      action: 'ACCOUNT_SIGN_UP_EMAIL_SUCCESS',
+    };
+  }
+
+  if (path.startsWith('/verify-email')) {
+    return {
+      provider: 'email-verification',
+      action: 'ACCOUNT_EMAIL_VERIFICATION_SUCCESS',
+    };
+  }
+
+  return {
+    provider: 'unknown',
+    action: 'ACCOUNT_SIGN_IN_SUCCESS',
+  };
+};
+
+/**
+ * エンドポイントごとに異なる監査対象 ID の格納場所を吸収する。
+ *
+ * 上にある条件ほど優先度が高い。新しい Better Auth API を監査対象へ加えた際、
+ * 対象 ID が別のフィールドに入るなら、この関数へ条件を追加する。
+ */
+const getAuditTargetId = (
+  body: JsonRecord,
+  response: JsonRecord,
+  responseClient: JsonRecord,
+  responseMember: JsonRecord
+) => {
+  if (typeof body.userId === 'string') return body.userId;
+  if (typeof body.memberId === 'string') return body.memberId;
+  if (typeof body.memberIdOrEmail === 'string') return body.memberIdOrEmail;
+  if (typeof body.email === 'string') return body.email;
+  if (typeof body.client_id === 'string') return body.client_id;
+  if (typeof response.client_id === 'string') return response.client_id;
+  if (typeof responseClient.client_id === 'string') {
+    return responseClient.client_id;
+  }
+  if (typeof responseMember.id === 'string') return responseMember.id;
+  if (typeof response.id === 'string') return response.id;
+
+  return undefined;
+};
+
 // 「実行を受け付けた」こと自体を残したい操作だけをここに置く。
 // たとえば BAN は REQUEST と SUCCESS/FAILED の2段階で追跡できる。
 //
@@ -212,24 +285,7 @@ export const auditLogPlugin = () =>
               // ログイン成功時は newSession が入る。
               // パスから認証方法を判定し、同じユーザーでも OTP とパスワードを区別する。
               if (newSession?.user.id) {
-                const provider = ctx.path.startsWith('/sign-in/email-otp')
-                  ? 'email-otp'
-                  : ctx.path.startsWith('/sign-in/email')
-                    ? 'email-password'
-                    : ctx.path.startsWith('/sign-up/email')
-                      ? 'email-password'
-                      : ctx.path.startsWith('/verify-email')
-                        ? 'email-verification'
-                        : 'unknown';
-                const action = ctx.path.startsWith('/sign-in/email-otp')
-                  ? 'ACCOUNT_SIGN_IN_EMAIL_OTP_SUCCESS'
-                  : ctx.path.startsWith('/sign-in/email')
-                    ? 'ACCOUNT_SIGN_IN_EMAIL_PASSWORD_SUCCESS'
-                    : ctx.path.startsWith('/sign-up/email')
-                      ? 'ACCOUNT_SIGN_UP_EMAIL_SUCCESS'
-                      : ctx.path.startsWith('/verify-email')
-                        ? 'ACCOUNT_EMAIL_VERIFICATION_SUCCESS'
-                        : 'ACCOUNT_SIGN_IN_SUCCESS';
+                const { provider, action } = getAuthenticationAudit(ctx.path);
 
                 await recordAuditLog({
                   userId: newSession.user.id,
@@ -280,26 +336,12 @@ export const auditLogPlugin = () =>
 
               // エンドポイントによって対象 ID の置き場所が異なるため、
               // 明示的な user/member/client ID を優先し、最後に response.id を見る。
-              const targetId =
-                typeof body.userId === 'string'
-                  ? body.userId
-                  : typeof body.memberId === 'string'
-                    ? body.memberId
-                    : typeof body.memberIdOrEmail === 'string'
-                      ? body.memberIdOrEmail
-                      : typeof body.email === 'string'
-                        ? body.email
-                        : typeof body.client_id === 'string'
-                          ? body.client_id
-                          : typeof response.client_id === 'string'
-                            ? response.client_id
-                            : typeof responseClient.client_id === 'string'
-                              ? responseClient.client_id
-                              : typeof responseMember.id === 'string'
-                                ? responseMember.id
-                                : typeof response.id === 'string'
-                                  ? response.id
-                                  : undefined;
+              const targetId = getAuditTargetId(
+                body,
+                response,
+                responseClient,
+                responseMember
+              );
 
               await recordAuditLog({
                 userId: session.user.id,
