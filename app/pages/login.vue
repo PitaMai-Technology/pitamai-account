@@ -13,7 +13,31 @@ const loading = ref(false);
 const otpSent = ref(false);
 const session = authClient.useSession();
 const route = useRoute();
-const { showTurnstileWidget, turnstileErrorMessage, turnstileToken, resetTurnstileToken } = useTurnstile('login-turnstile');
+const {
+  showTurnstileWidget,
+  turnstileErrorMessage,
+  turnstileToken,
+  resetTurnstileToken,
+} = useTurnstile('login-turnstile');
+
+// useSession はタブへ戻ったときにもセッションを再確認する。
+// そのたびにローディング画面へ切り替えるとフォームの DOM まで破棄され、
+// まだ完了していない Turnstile ウィジェットも一緒に消えてしまう。
+// 全画面ローディングを出すのは、ページを開いた直後の初回確認だけにする。
+const hasResolvedInitialSession = ref(false);
+const isInitialSessionPending = computed(
+  () => session.value.isPending && !hasResolvedInitialSession.value
+);
+
+watch(
+  () => session.value.isPending,
+  isPending => {
+    if (!isPending) {
+      hasResolvedInitialSession.value = true;
+    }
+  },
+  { immediate: true }
+);
 
 const emailState = reactive({
   email: '',
@@ -38,7 +62,7 @@ async function onSendOtp(event: FormSubmitEvent<SendOtpSchema>) {
   if (!turnstileToken.value) {
     toast.add({
       title: '確認が必要です',
-      description: '「ロボットではありません」の認証を完了してください。',
+      description: '「ロボットではありません」認証を完了してください。',
       color: 'warning',
     });
     return;
@@ -102,29 +126,16 @@ async function onSendOtp(event: FormSubmitEvent<SendOtpSchema>) {
 }
 
 async function handleVerifyOtp(data: VerifyOtpSchema) {
-  if (!turnstileToken.value) {
-    toast.add({
-      title: '確認が必要です',
-      description: '「ロボットではありません」の認証を完了してください。',
-      color: 'warning',
-    });
-    return;
-  }
-
   loading.value = true;
   try {
     const isOAuthFlow =
       route.query.oauth_query !== undefined ||
       route.query.sig !== undefined ||
-      (route.query.client_id !== undefined && route.query.response_type === 'code');
+      (route.query.client_id !== undefined &&
+        route.query.response_type === 'code');
     const signInPayload: Parameters<typeof authClient.signIn.emailOtp>[0] = {
       email: emailState.email,
       otp: data.otp.join(''),
-      fetchOptions: {
-        headers: {
-          'x-captcha-response': turnstileToken.value,
-        },
-      },
     };
 
     if (!isOAuthFlow) {
@@ -137,10 +148,10 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
     if (error) {
       toast.add({
         title: 'エラー',
-        description: error.message ?? '認証に失敗しました。コードを確認してください。',
+        description:
+          error.message ?? '認証に失敗しました。コードを確認してください。',
         color: 'error',
       });
-      resetTurnstileToken();
       return;
     }
 
@@ -169,12 +180,10 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
       description: errorMessage,
       color: 'error',
     });
-    resetTurnstileToken();
   } finally {
     loading.value = false;
   }
 }
-
 </script>
 
 <template>
@@ -197,7 +206,7 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
         </div>
       </UPageCard>
     </div>
-    <template v-else-if="session.isPending">
+    <template v-else-if="isInitialSessionPending">
       <div class="flex items-center justify-center p-4">
         <UPageCard class="w-max max-w-md">
           <div class="flex flex-col items-center space-y-4 py-8">
@@ -217,7 +226,9 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
               メールアドレス宛に届く認証コードでログインします。
             </p>
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              初めての方は <ULink to="/register" class="underline">新規申請</ULink> から申請してください。
+              初めての方は
+              <ULink to="/register" class="underline">新規申請</ULink>
+              から申請してください。
             </p>
           </div>
 
@@ -234,19 +245,21 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
           </UForm>
 
           <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4"
-            @submit="(event) => handleVerifyOtp(event.data)">
+            @submit="event => handleVerifyOtp(event.data)">
             <p class="text-sm">
               {{ emailState.email }} に送信された6桁コードを入力してください。
             </p>
             <UFormField label="認証コード(6桁の数字)" name="otp" required class="flex flex-col items-center">
-              <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="async () => {
-                const result = emailOtpVerifySchema.safeParse(otpState);
-                if (result.success) await handleVerifyOtp(result.data);
-              }" />
+              <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="
+                async () => {
+                  const result = emailOtpVerifySchema.safeParse(otpState);
+                  if (result.success) await handleVerifyOtp(result.data);
+                }
+              " />
             </UFormField>
             <div class="flex gap-2">
               <UButton type="submit" :loading="loading">ログイン</UButton>
-              <UButton type="button" variant="outline" :disabled="loading" @click="otpSent = false">
+              <UButton type="button" variant="outline" :disabled="loading" @click="() => { otpSent = !otpSent }">
                 メールを変更
               </UButton>
             </div>
@@ -259,10 +272,17 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
               class="underline hover:text-gray-800">プライバシーポリシー</ULink>に同意したとみなされます。
           </p>
 
-          <UAlert v-if="!showTurnstileWidget" color="warning" variant="soft" title="Turnstile を表示できません"
-            :description="turnstileErrorMessage ?? 'TURNSTILE_SITE_KEY が設定されていません。'" />
+          <!--
+            CAPTCHA は認証コードを送信する最初の段階だけ表示する。
+            コンテナは v-if で破棄せず v-show で隠し、メール変更で前の画面へ
+            戻ったときに同じウィジェットをそのまま再表示できるようにする。
+          -->
+          <UAlert v-if="!otpSent && !showTurnstileWidget" color="warning" variant="soft" title="Turnstile を表示できません"
+            :description="turnstileErrorMessage ??
+              'TURNSTILE_SITE_KEY が設定されていません。'
+              " />
 
-          <div v-else id="login-turnstile" class="mt-4 flex justify-center" />
+          <div v-show="!otpSent && showTurnstileWidget" id="login-turnstile" class="mt-4 flex justify-center" />
         </div>
       </UPageCard>
     </div>

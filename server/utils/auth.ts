@@ -156,6 +156,22 @@ export const auth = betterAuth({
     captcha({
       provider: 'cloudflare-turnstile', // or google-recaptcha, hcaptcha, captchafox
       secretKey: process.env.TURNSTILE_SECRET_KEY!,
+
+      // endpoints を指定すると Better Auth の標準値を置き換えるため、
+      // このサービスで保護するエンドポイントをすべて明示する。
+      //
+      // Email OTP ログインでは、コードを送る最初のリクエストだけを検証する。
+      // `/sign-in/email-otp` はここへ追加しない。Turnstile のトークンは一度しか
+      // 検証できないため、OTP 確認時に同じトークンを再利用してはいけない。
+      //
+      // 現在の Better Auth はエンドポイントを部分一致で判定するため、
+      // `/sign-in/email` を含めると `/sign-in/email-otp` にも一致してしまう。
+      // このサービスではパスワードログインを公開していないので、ここには含めない。
+      endpoints: [
+        '/sign-up/email',
+        '/request-password-reset',
+        '/email-otp/send-verification-otp',
+      ],
     }),
 
     // グローバルロールの権限は permissions.ts で定義する。

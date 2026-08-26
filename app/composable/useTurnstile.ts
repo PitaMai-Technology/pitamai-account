@@ -37,6 +37,7 @@ type TurnstileApi = {
     options: TurnstileRenderOptions
   ) => string | number;
   reset: (widgetId?: string | number) => void;
+  remove: (widgetId: string | number) => void;
 };
 
 export function useTurnstile(containerId: string) {
@@ -75,6 +76,31 @@ export function useTurnstile(containerId: string) {
         // すでにウィジェットが破棄されている場合などのエラーを抑制
         console.warn('Turnstile reset failed (non-critical):', e);
       }
+    }
+  }
+
+  /**
+   * ページを離れるときなど、現在のウィジェットがもう不要な場合に使う。
+   *
+   * reset は同じ DOM 上でもう一度認証させるための操作で、ウィジェット自体は残る。
+   * 一方、ページ遷移ではコンテナも破棄されるため remove で Turnstile 側の登録まで消す。
+   * これを行わないと、再訪時に古い ID と新しいコンテナが食い違うことがある。
+   */
+  function removeTurnstileWidget() {
+    turnstileToken.value = '';
+
+    const widgetId = turnstileWidgetId.value;
+    turnstileWidgetId.value = null;
+    if (widgetId === null) return;
+
+    const turnstile = getTurnstileApi();
+    if (!turnstile) return;
+
+    try {
+      turnstile.remove(widgetId);
+    } catch (e) {
+      // DOM が先に破棄された場合でも、ページ遷移そのものは止めない。
+      console.warn('Turnstile remove failed (non-critical):', e);
     }
   }
 
@@ -187,8 +213,8 @@ export function useTurnstile(containerId: string) {
       if (timer) clearInterval(timer);
       window.removeEventListener('focus', recover);
       document.removeEventListener('visibilitychange', recover);
-      // ウィジェットを明示的にクリア
-      resetTurnstileToken();
+      // ページ遷移ではコンテナも消えるため、reset ではなく remove する。
+      removeTurnstileWidget();
     });
   });
 
