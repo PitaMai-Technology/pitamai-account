@@ -264,25 +264,7 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
 
 <template>
   <div>
-    <div class="flex items-center justify-center gap-4">
-      <img src="/pitamai-only-logo.png" class="h-12" alt="PitaMai Logo" />
-      <p class="text-xl font-semibold">共通アカウント</p>
-    </div>
-    <div v-if="session.data" class="flex items-center justify-center p-4 w-full">
-      <UPageCard class="w-max max-w-md">
-        <div class="flex flex-col items-center space-y-4 py-8">
-          <UIcon name="i-lucide-check-circle" class="h-16 w-16 text-success" />
-          <h2 class="text-xl font-semibold">ログイン済みです</h2>
-          <p class="text-center">
-            ようこそ、{{ session.data.user.name }}さん
-          </p>
-          <UButton to="/apps/dashboard" color="primary">
-            ダッシュボードへ移動
-          </UButton>
-        </div>
-      </UPageCard>
-    </div>
-    <template v-else-if="isInitialSessionPending">
+    <template v-if="session.isPending">
       <div class="flex items-center justify-center p-4">
         <UPageCard class="w-max max-w-md">
           <div class="flex flex-col items-center space-y-4 py-8">
@@ -292,123 +274,146 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
         </UPageCard>
       </div>
     </template>
-    <div v-else class="flex items-center justify-center p-4">
-      <!-- w-maxをつけないと、overflowする -->
-      <UPageCard class="w-max max-w-md">
-        <template #body>
-          <div class="space-y-4 w-full">
-            <div>
-              <h2 class="text-xl font-semibold">ログイン</h2>
-              <p class="mt-1 text-sm">
-                PitaMaiアカウントへようこそ。パスキーでログインができます。
-              </p>
-              <p class="mt-2 text-sm text-muted">
-                初めての方は
-                <ULink to="/register" class="underline">新規申請</ULink>
-                から申請してください。
-              </p>
-            </div>
-
-            <UButton icon="i-lucide-key-round" block :loading="passkeyLoading" :disabled="!passkeySupported || loading"
-              @click="onPasskeySignIn">
-              パスキーでログイン
-            </UButton>
-
-            <p v-if="!passkeySupported" class="text-xs text-muted">
-              このブラウザーではパスキーを利用できません。認証コードでログインしてください。
+    <template v-else>
+      <div class="flex items-center justify-center gap-4">
+        <img src="/pitamai-only-logo.png" class="h-12" alt="PitaMai Logo" />
+        <p class="text-xl font-semibold">共通アカウント</p>
+      </div>
+      <div v-if="session.data" class="flex items-center justify-center p-4 w-full">
+        <UPageCard class="w-max max-w-md">
+          <div class="flex flex-col items-center space-y-4 py-8">
+            <UIcon name="i-lucide-check-circle" class="h-16 w-16 text-success" />
+            <h2 class="text-xl font-semibold">ログイン済みです</h2>
+            <p class="text-center">
+              ようこそ、{{ session.data.user.name }}さん
             </p>
+            <UButton to="/apps/dashboard" color="primary">
+              ダッシュボードへ移動
+            </UButton>
+          </div>
+        </UPageCard>
+      </div>
+      <div v-else class="flex items-center justify-center p-4">
+        <!-- w-maxをつけないと、overflowする -->
+        <UPageCard class="w-max max-w-md">
+          <template #body>
+            <div class="space-y-4 w-full">
+              <div>
+                <h2 class="text-xl font-semibold">ログイン</h2>
+                <p class="mt-1 text-sm">
+                  PitaMaiアカウントへようこそ。パスキーでログインができます。
+                </p>
+                <p class="mt-2 text-sm text-muted">
+                  初めての方は
+                  <ULink to="/register" class="underline">新規申請(構成員申請)</ULink>
+                  から申請してください。
+                </p>
+              </div>
 
-            <!--
+              <UButton icon="i-lucide-key-round" block :loading="passkeyLoading"
+                :disabled="!passkeySupported || loading" @click="onPasskeySignIn">
+                パスキーでログイン
+              </UButton>
+
+              <p v-if="!passkeySupported" class="text-xs text-muted">
+                このブラウザーではパスキーを利用できません。認証コードでログインしてください。
+              </p>
+
+              <!--
             OTPはパスキーを利用できない場合の予備手段として、初期状態では閉じておく。
             一度開いた内容は破棄せず、Turnstileのウィジェットと成功トークンを維持する。
           -->
-          </div>
-        </template>
-      </UPageCard>
-    </div>
+            </div>
+          </template>
+        </UPageCard>
+      </div>
 
-    <div class="m-auto flex w-full max-w-md items-center justify-center">
-      <UPageCard class="w-full" :ui="{ body: 'w-full' }">
-        <template #body>
-          <UCollapsible v-model:open="otpFallbackOpen" :unmount-on-hide="false" class="w-full">
-            <UButton color="neutral" class="w-full" variant="ghost" block :trailing-icon="otpFallbackOpen
-              ? 'i-lucide-chevron-up'
-              : 'i-lucide-chevron-down'
-              ">
-              <span class="flex items-center gap-2">
-                メール認証コードでログイン
-                <UBadge color="warning" variant="subtle" size="sm">
-                  非推奨
-                </UBadge>
-              </span>
-            </UButton>
 
-            <template #content>
-              <div class="mt-4 space-y-4 border-t border-muted pt-4">
-                <UAlert color="warning" variant="soft" title="メール認証コードは予備のログイン方法です"
-                  description="利用できる場合は、フィッシングに強いパスキーでのログインをおすすめします。" />
+      <div class="m-auto flex w-full max-w-md items-center justify-center">
+        <UPageCard class="w-full" :ui="{ body: 'w-full' }">
+          <template #body>
+            <UCollapsible v-model:open="otpFallbackOpen" :unmount-on-hide="false" class="w-full">
+              <UButton color="neutral" class="w-full" variant="ghost" block :trailing-icon="otpFallbackOpen
+                ? 'i-lucide-chevron-up'
+                : 'i-lucide-chevron-down'
+                ">
+                <span class="flex items-center gap-2">
+                  メール認証コードでログイン
+                  <UBadge color="warning" variant="subtle" size="sm">
+                    非推奨
+                  </UBadge>
+                </span>
+              </UButton>
 
-                <UForm v-if="!otpSent" :schema="emailOtpFormSchema" :state="emailState" class="space-y-4"
-                  @submit="onSendOtp" @keydown.enter.prevent>
-                  <UFormField label="メールアドレス" name="email" required>
-                    <UInput v-model="emailState.email" type="email" placeholder="user@example.com" autocomplete="email"
-                      class="w-full" />
-                  </UFormField>
-                  <UButton type="submit" :loading="loading" block>
-                    認証コードを送信
-                  </UButton>
-                </UForm>
+              <template #content>
+                <div class="mt-4 space-y-4 border-t border-muted pt-4">
+                  <UAlert color="warning" variant="soft" title="メール認証コードは予備のログイン方法です"
+                    description="利用できる場合は、フィッシングに強いパスキーでのログインをおすすめします。" />
 
-                <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4"
-                  @submit="event => handleVerifyOtp(event.data)">
-                  <p class="text-sm">
-                    {{ emailState.email }}
-                    に送信された6桁コードを入力してください。
-                  </p>
-                  <UFormField label="認証コード(6桁の数字)" name="otp" required class="flex flex-col items-center">
-                    <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="
-                      async () => {
-                        const result =
-                          emailOtpVerifySchema.safeParse(otpState);
-                        if (result.success)
-                          await handleVerifyOtp(result.data);
-                      }
-                    " />
-                  </UFormField>
-                  <div class="flex gap-2">
-                    <UButton type="submit" :loading="loading">
-                      ログイン
+                  <UForm v-if="!otpSent" :schema="emailOtpFormSchema" :state="emailState" class="space-y-4"
+                    @submit="onSendOtp" @keydown.enter.prevent>
+                    <UFormField label="メールアドレス" name="email" required>
+                      <UInput v-model="emailState.email" type="email" placeholder="user@example.com"
+                        autocomplete="email" class="w-full" />
+                    </UFormField>
+                    <UButton type="submit" :loading="loading" block>
+                      認証コードを送信
                     </UButton>
-                    <UButton type="button" variant="outline" :disabled="loading" @click="() => { otpSent = false }">
-                      メールを変更
-                    </UButton>
-                  </div>
-                </UForm>
+                  </UForm>
 
-                <!--
+                  <UForm v-else :schema="emailOtpVerifySchema" :state="otpState" class="space-y-4"
+                    @submit="event => handleVerifyOtp(event.data)">
+                    <p class="text-sm">
+                      {{ emailState.email }}
+                      に送信された6桁コードを入力してください。
+                    </p>
+                    <UFormField label="認証コード(6桁の数字)" name="otp" required class="flex flex-col items-center">
+                      <UPinInput v-model="otpState.otp" type="number" :length="6" otp autofocus @complete="
+                        async () => {
+                          const result =
+                            emailOtpVerifySchema.safeParse(otpState);
+                          if (result.success)
+                            await handleVerifyOtp(result.data);
+                        }
+                      " />
+                    </UFormField>
+                    <div class="flex gap-2">
+                      <UButton type="submit" :loading="loading">
+                        ログイン
+                      </UButton>
+                      <UButton type="button" variant="outline" :disabled="loading" @click="() => { otpSent = false }">
+                        メールを変更
+                      </UButton>
+                    </div>
+                  </UForm>
+
+                  <!--
                   CAPTCHAは認証コードを送信する最初の段階だけ表示する。
                   OTP入力へ進んだ後もDOMは残し、メール変更時に同じウィジェットを再利用する。
                 -->
-                <UAlert v-if="!otpSent && !showTurnstileWidget" color="warning" variant="soft"
-                  title="Turnstile を表示できません" :description="turnstileErrorMessage ??
-                    'TURNSTILE_SITE_KEY が設定されていません。'
-                    " />
+                  <DevOnly>
+                    <UAlert v-if="!otpSent && !showTurnstileWidget" color="warning" variant="soft"
+                      title="Turnstile を表示できません" :description="turnstileErrorMessage ??
+                        'TURNSTILE_SITE_KEY が設定されていません。'
+                        " />
+                  </DevOnly>
 
-                <div v-show="!otpSent" id="login-turnstile" class="flex justify-center" />
-              </div>
-            </template>
-            <template #footer>
-              <USeparator class="my-2" />
-              <p class="text-xs text-center mt-6">
-                ログインすると、<ULink to="https://wiki.pitamai.com/s/9ec0829c-02a5-402a-ba17-347400fc2e16" target="_blank"
-                  class="underline hover:text-default">利用規約</ULink>と、<ULink
-                  to="https://wiki.pitamai.com/s/7fb52506-1f33-4aa7-b3e6-3db6b48b919b" target="_blank"
-                  class="underline hover:text-default">プライバシーポリシー</ULink>に同意したとみなされます。
-              </p>
-            </template>
-          </UCollapsible>
-        </template>
-      </UPageCard>
-    </div>
+                  <div v-show="!otpSent" id="login-turnstile" class="flex justify-center" />
+                </div>
+              </template>
+              <template #footer>
+                <USeparator class="my-2" />
+                <p class="text-xs text-center mt-6">
+                  ログインすると、<ULink to="https://wiki.pitamai.com/s/9ec0829c-02a5-402a-ba17-347400fc2e16" target="_blank"
+                    class="underline hover:text-default">利用規約</ULink>と、<ULink
+                    to="https://wiki.pitamai.com/s/7fb52506-1f33-4aa7-b3e6-3db6b48b919b" target="_blank"
+                    class="underline hover:text-default">プライバシーポリシー</ULink>に同意したとみなされます。
+                </p>
+              </template>
+            </UCollapsible>
+          </template>
+        </UPageCard>
+      </div>
+    </template>
   </div>
 </template>

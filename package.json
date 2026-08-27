@@ -1,6 +1,6 @@
 {
   "name": "pitamai-only",
-  "packageManager": "pnpm@10.33.4",
+  "packageManager": "pnpm@11.24.0",
   "type": "module",
   "private": true,
   "scripts": {
@@ -22,7 +22,7 @@
     "@better-auth/passkey": "1.6.10",
     "@nuxt/content": "^3.15.2",
     "@nuxt/eslint": "^1.15.2",
-    "@nuxt/ui": "^4.7.1",
+    "@nuxt/ui": "^4.11.0",
     "@pinia/nuxt": "^0.11.3",
     "@prisma/client": "^6.19.3",
     "@sentry/nuxt": "^10.52.0",
@@ -31,7 +31,7 @@
     "better-auth": "^1.6.10",
     "eslint": "^9.39.4",
     "import-in-the-middle": "^2.0.6",
-    "nuxt": "^4.4.6",
+    "nuxt": "^4.5.2",
     "nuxt-email-renderer": "2.8.0",
     "nuxt-security": "2.6.0",
     "pinia": "^3.0.4",
@@ -57,31 +57,13 @@
   "prisma": {
     "schema": "./prisma"
   },
-  "overrides": {
-    "@vercel/nft": "^0.27.4",
-    "vite": "^7.3.2",
-    "nitropack": "^2.13.4",
-    "h3": "^1.15.9",
-    "kysely": "^0.28.17",
-    "postcss": "^8.5.10",
-    "yaml": "^2.8.3",
-    "tar": "^7.5.11",
-    "serialize-javascript": "^7.0.5",
-    "picomatch": "^4.0.4",
-    "defu": "^6.1.5",
-    "drizzle-orm": "^0.45.2",
-    "effect": "^3.20.0",
-    "flatted": "^3.4.2",
-    "brace-expansion": "^5.0.5",
-    "minimatch": "^9.0.7"
-  },
   "onlyBuiltDependencies": [
     "@prisma/client",
     "@sentry/cli"
   ],
   "engines": {
     "node": ">=24",
-    "pnpm": ">=10 <11"
+    "pnpm": ">=11"
   },
   "version": "0.2.0-rc.0"
 }

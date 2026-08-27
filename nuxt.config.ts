@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@sentry/nuxt/module',
+    ...(process.env.NODE_ENV === 'production' ? ['@sentry/nuxt/module'] : []),
     '@nuxt/content',
     '@pinia/nuxt',
     'nuxt-security',
@@ -72,10 +72,12 @@ export default defineNuxtConfig({
     },
   },
 
-  sentry: {
-    org: 'pitamai-technology',
-    project: 'auth-server',
-  },
+  ...(process.env.NODE_ENV === 'production' ? {
+    sentry: {
+      org: 'pitamai-technology',
+      project: 'auth-server',
+    },
+  } : {}),
 
   sourcemap: {
     client: 'hidden',
