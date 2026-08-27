@@ -9,6 +9,7 @@ definePageMeta({
 });
 
 const toast = useToast();
+const { $csrfFetch } = useNuxtApp();
 const confirmStore = useConfirmDialogStore();
 const loading = ref(false);
 const clients = ref<
@@ -231,7 +232,7 @@ async function onCreateClient(event: FormSubmitEvent<Schema>) {
 
     if (createdClientId) {
       try {
-        await $fetch('/api/pitamai/require-pkce', {
+        await $csrfFetch('/api/pitamai/require-pkce', {
           method: 'POST',
           body: {
             clientId: createdClientId,
@@ -416,7 +417,7 @@ async function onUpdateClient(client: {
     }
 
     try {
-      await $fetch('/api/pitamai/require-pkce', {
+      await $csrfFetch('/api/pitamai/require-pkce', {
         method: 'POST',
         body: {
           clientId: client.client_id,

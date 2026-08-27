@@ -6,7 +6,7 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     '@nuxt/ui',
     '@sentry/nuxt/module',
-    '@nuxtjs/mdc',
+    '@nuxt/content',
     '@pinia/nuxt',
     'nuxt-security',
     'nuxt-email-renderer',
@@ -26,8 +26,10 @@ export default defineNuxtConfig({
     nonce: true,
     headers: {
       contentSecurityPolicy: {
+        'default-src': ["'self'"],
         'script-src': [
           "'self'",
+          "'wasm-unsafe-eval'",
           'https://challenges.cloudflare.com',
           "'nonce-{{nonce}}'",
         ],
@@ -44,11 +46,11 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/api/**': {
+    '/__nuxt_content/**': {
       csurf: false,
     },
-    '/api/register-user/register': {
-      csurf: true,
+    '/api/auth/**': {
+      csurf: false,
     },
   },
 

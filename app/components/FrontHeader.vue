@@ -1,5 +1,21 @@
 <script setup lang="ts">
+import type { NavigationMenuItem } from '@nuxt/ui';
 import { authClient } from '~/composable/auth-client';
+
+const navigationItems = [
+  {
+    label: 'プライバシ・ポリシー',
+    to: '/kiyaku/privacy-policy',
+  },
+  {
+    label: '運営規約',
+    to: '/kiyaku/unei',
+  },
+  {
+    label: 'PitaMaiアカウント利用規約',
+    to: '/kiyaku/pitamai-account',
+  },
+] satisfies NavigationMenuItem[];
 
 const toast = useToast();
 const loading = ref(false);
@@ -39,6 +55,9 @@ const onSignOut = async () => {
         <img src="/pitamai-only-logo.png" alt="PitaMai Logo" class="h-10 w-auto" />
       </NuxtLink>
     </template>
+
+    <UNavigationMenu :items="navigationItems" />
+
     <template #right>
       <template v-if="session.data">
         <UButton to="/apps/dashboard" target="_blank">ダッシュボード</UButton>
@@ -49,6 +68,14 @@ const onSignOut = async () => {
       <template v-else-if="session.isPending">
         <TheLoader />
       </template>
+      <template v-else>
+        <UButton icon="i-lucide-log-in" to="/login" color="primary">ログイン</UButton>
+        <UButton icon="i-lucide-user-plus" to="/register" color="primary" variant="outline">構成員申請</UButton>
+      </template>
+    </template>
+
+    <template #body>
+      <UNavigationMenu :items="navigationItems" orientation="vertical" class="-mx-2.5" />
     </template>
   </UHeader>
 </template>

@@ -79,17 +79,15 @@ async function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
           </p>
           <ul class="mt-6 list-disc list-inside text-md text-gray-600 dark:text-gray-300">
             <li>
-              <ULink to="https://wiki.pitamai.com/s/9ec0829c-02a5-402a-ba17-347400fc2e16" target="_blank"
-                class="underline hover:text-gray-800">PitaMaiアカウントの利用規約</ULink>
+              <NuxtLink to="/kiyaku/pitamai-account" target="_blank" class="underline hover:text-gray-800">
+                PitaMaiアカウントの利用規約</NuxtLink>
             </li>
             <li>
-              <ULink
-                to="https://wiki.pitamai.com/s/401f5d89-efe8-49aa-b88f-423a26515851/doc/44ou44k44oe44kk44o744og44kv44oo44ot44k444o8iombiwwtuimje0hcao5a6a5qykq-9bpzeGP6OG"
-                target="_blank" class="underline hover:text-gray-800">運営規約</ULink>
+              <NuxtLink to="/kiyaku/unei" target="_blank" class="underline hover:text-gray-800">運営規約</NuxtLink>
             </li>
             <li>
-              <ULink to="https://wiki.pitamai.com/s/7fb52506-1f33-4aa7-b3e6-3db6b48b919b" target="_blank"
-                class="underline hover:text-gray-800">プライバシーポリシー</ULink>
+              <NuxtLink to="/kiyaku/privacy-policy" target="_blank" class="underline hover:text-gray-800">プライバシーポリシー
+              </NuxtLink>
             </li>
           </ul>
         </div>

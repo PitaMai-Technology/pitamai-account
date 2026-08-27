@@ -10,6 +10,7 @@ definePageMeta({
 });
 
 const toast = useToast();
+const { $csrfFetch } = useNuxtApp();
 
 const schema = z.object({
   email: z.email('メールアドレスの形式が正しくありません'),
@@ -49,7 +50,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   }
 
   try {
-    const created = await $fetch<{
+    const created = await $csrfFetch<{
       created: boolean;
       user: {
         id: string;

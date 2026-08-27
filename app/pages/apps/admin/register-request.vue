@@ -29,6 +29,7 @@ type RegistrationRequest = {
 
 const route = useRoute();
 const toast = useToast();
+const { $csrfFetch } = useNuxtApp();
 const confirmStore = useConfirmDialogStore();
 const { confirm: confirmDialog } = confirmStore;
 
@@ -238,7 +239,7 @@ async function approveRequest(request: RegistrationRequest) {
 
   loading.value = true;
   try {
-    await $fetch(`/api/pitamai/register-requests/${request.id}/approve`, {
+    await $csrfFetch(`/api/pitamai/register-requests/${request.id}/approve`, {
       method: 'POST',
     });
 
@@ -272,7 +273,7 @@ async function submitReject() {
   loading.value = true;
   try {
     const currentRequest = pendingRejectRequest.value;
-    await $fetch(`/api/pitamai/register-requests/${currentRequest.id}/reject`, {
+    await $csrfFetch(`/api/pitamai/register-requests/${currentRequest.id}/reject`, {
       method: 'POST',
       body: { rejectionReason: rejectReasonDraft.value },
     });
@@ -303,7 +304,7 @@ async function deleteRequest(request: RegistrationRequest) {
 
   loading.value = true;
   try {
-    await $fetch(`/api/pitamai/register-requests/${request.id}/delete`, {
+    await $csrfFetch(`/api/pitamai/register-requests/${request.id}/delete`, {
       method: 'POST',
     });
 

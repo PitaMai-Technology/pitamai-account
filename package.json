@@ -20,9 +20,9 @@
   "dependencies": {
     "@better-auth/oauth-provider": "^1.6.10",
     "@better-auth/passkey": "1.6.10",
+    "@nuxt/content": "^3.15.2",
     "@nuxt/eslint": "^1.15.2",
     "@nuxt/ui": "^4.7.1",
-    "@nuxtjs/mdc": "0.19.2",
     "@pinia/nuxt": "^0.11.3",
     "@prisma/client": "^6.19.3",
     "@sentry/nuxt": "^10.52.0",
