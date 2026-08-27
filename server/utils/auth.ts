@@ -7,6 +7,7 @@ import {
   jwt,
 } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
+import { passkey } from '@better-auth/passkey';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { ac, owner, admins, member } from '~~/server/utils/permissions';
 import prisma from '~~/lib/prisma';
@@ -16,6 +17,12 @@ import { createError } from 'h3';
 import { recordAuditLog } from '~~/server/utils/audit-recorder';
 import { auditLogPlugin } from '~~/server/utils/auth-audit-plugin';
 import { authGuardsPlugin } from '~~/server/utils/auth-guards-plugin';
+
+// WebAuthn は登録時とログイン時のオリジンを厳密に照合する。
+// 本番では BETTER_AUTH_URL に、実際にブラウザーから開く HTTPS URL を設定する。
+const betterAuthUrl = new URL(
+  process.env.BETTER_AUTH_URL ?? 'http://localhost:3000'
+);
 
 /**
  * Better Auth のサーバー設定本体。
@@ -153,6 +160,16 @@ export const auth = betterAuth({
         },
       },
     }),
+
+    // パスキーの登録は標準設定どおりログイン済みユーザーだけに許可する。
+    // rpID にポートは含めず、origin には scheme とポートを含む完全なオリジンを渡す。
+    // 例: http://localhost:3000 -> rpID: localhost / origin: http://localhost:3000
+    passkey({
+      rpName: 'PitaMai 共通アカウント',
+      rpID: betterAuthUrl.hostname,
+      origin: betterAuthUrl.origin,
+    }),
+
     captcha({
       provider: 'cloudflare-turnstile', // or google-recaptcha, hcaptcha, captchafox
       secretKey: process.env.TURNSTILE_SECRET_KEY!,
@@ -276,6 +293,10 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: '/login',
       consentPage: '/consent',
+      // Nuxt では server/routes 側で issuer path 付きのメタデータを公開している。
+      silenceWarnings: {
+        oauthAuthServerConfig: true,
+      },
       scopes: ['openid', 'profile', 'email', 'offline_access'],
       validAudiences: [
         process.env.OAUTH_DEFAULT_AUDIENCE ?? process.env.BETTER_AUTH_URL ?? '',

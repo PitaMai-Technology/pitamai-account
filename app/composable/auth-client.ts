@@ -1,5 +1,6 @@
 import { createAuthClient } from 'better-auth/vue';
 import { oauthProviderClient } from '@better-auth/oauth-provider/client';
+import { passkeyClient } from '@better-auth/passkey/client';
 import {
   emailOTPClient,
   organizationClient,
@@ -58,6 +59,10 @@ export const authClient = createAuthClient({
     }),
     oauthProviderClient(),
     emailOTPClient(),
+
+    // サーバーの passkey() と対になるクライアントプラグイン。
+    // ログイン画面では signIn.passkey、設定画面では passkey.addPasskey などを使う。
+    passkeyClient(),
 
     // permissions.ts と同じ ac/roles を渡し、画面側でも型付きで権限を確認できるようにする。
     adminClient({

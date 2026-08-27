@@ -40,11 +40,25 @@ type TurnstileApi = {
   remove: (widgetId: string | number) => void;
 };
 
-export function useTurnstile(containerId: string) {
+type UseTurnstileOptions = {
+  /**
+   * true の場合はページのマウント直後に表示を試みる。
+   * 折りたたみ内など、初期表示でコンテナが存在しない場合は false にし、
+   * requestTurnstileMount() を表示後に呼ぶ。
+   */
+  autoMount?: boolean;
+};
+
+export function useTurnstile(
+  containerId: string,
+  options: UseTurnstileOptions = {}
+) {
   const config = useRuntimeConfig();
   const turnstileToken = ref('');
   const turnstileWidgetId = ref<string | number | null>(null);
   const turnstileErrorMessage = ref<string | null>(null);
+  const mountRequested = ref(options.autoMount !== false);
+  let startRetryTimer: (() => void) | null = null;
   const showTurnstileWidget = computed(
     () =>
       Boolean(config.public.TURNSTILE_SITE_KEY) && !turnstileErrorMessage.value
@@ -154,6 +168,23 @@ export function useTurnstile(containerId: string) {
     }
   }
 
+  /**
+   * 折りたたみやモーダルを開き、コンテナがDOMへ追加された後に呼ぶ。
+   * Turnstileのスクリプトがまだ届いていない場合は、自動的に再試行する。
+   *
+   * @example
+   * ```ts
+   * await nextTick()
+   * requestTurnstileMount()
+   * ```
+   */
+  function requestTurnstileMount() {
+    mountRequested.value = true;
+    if (!mountTurnstile()) {
+      startRetryTimer?.();
+    }
+  }
+
   onMounted(() => {
     if (!config.public.TURNSTILE_SITE_KEY) {
       turnstileErrorMessage.value =
@@ -175,7 +206,7 @@ export function useTurnstile(containerId: string) {
       return isMounted;
     };
 
-    const startRetryTimer = () => {
+    const beginRetryTimer = () => {
       if (timer) return;
 
       attemptCount = 0;
@@ -191,18 +222,19 @@ export function useTurnstile(containerId: string) {
         }
       }, 1000);
     };
+    startRetryTimer = beginRetryTimer;
 
-    // 初回実行
-    if (!checkAndMount()) {
-      startRetryTimer();
+    // 折りたたみ内では、コンテナが表示されるまで初期化を待つ。
+    if (mountRequested.value && !checkAndMount()) {
+      beginRetryTimer();
     }
 
     // タブ復帰時などのイベントで再チェック。消えていればタイマーを再開。
     const recover = () => {
-      if (turnstileErrorMessage.value) return;
+      if (!mountRequested.value || turnstileErrorMessage.value) return;
 
       if (!checkAndMount()) {
-        startRetryTimer();
+        beginRetryTimer();
       }
     };
 
@@ -211,6 +243,7 @@ export function useTurnstile(containerId: string) {
 
     onBeforeUnmount(() => {
       if (timer) clearInterval(timer);
+      startRetryTimer = null;
       window.removeEventListener('focus', recover);
       document.removeEventListener('visibilitychange', recover);
       // ページ遷移ではコンテナも消えるため、reset ではなく remove する。
@@ -224,5 +257,6 @@ export function useTurnstile(containerId: string) {
     showTurnstileWidget,
     turnstileErrorMessage,
     resetTurnstileToken,
+    requestTurnstileMount,
   };
 }

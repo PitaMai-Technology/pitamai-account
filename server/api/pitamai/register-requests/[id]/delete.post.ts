@@ -1,7 +1,7 @@
 import { createError, getRouterParam } from 'h3';
 import prisma from '~~/lib/prisma';
 import { auth } from '~~/server/utils/auth';
-import { recordAuditLog } from '~~/server/utils/audit';
+import { recordAuditLog } from '~~/server/utils/audit-recorder';
 
 export default defineEventHandler(async event => {
   const session = await auth.api.getSession({ headers: event.headers });

@@ -70,6 +70,13 @@ type AuthenticationAudit = {
  * 片方だけ直して食い違う可能性があるため、同じ分岐からペアで返している。
  */
 const getAuthenticationAudit = (path: string): AuthenticationAudit => {
+  if (path === '/passkey/verify-authentication') {
+    return {
+      provider: 'passkey',
+      action: 'ACCOUNT_SIGN_IN_PASSKEY_SUCCESS',
+    };
+  }
+
   if (path.startsWith('/sign-in/email-otp')) {
     return {
       provider: 'email-otp',
@@ -121,6 +128,7 @@ const getAuditTargetId = (
   if (typeof body.memberIdOrEmail === 'string') return body.memberIdOrEmail;
   if (typeof body.email === 'string') return body.email;
   if (typeof body.client_id === 'string') return body.client_id;
+  if (typeof body.id === 'string') return body.id;
   if (typeof response.client_id === 'string') return response.client_id;
   if (typeof responseClient.client_id === 'string') {
     return responseClient.client_id;
@@ -216,7 +224,22 @@ const responseAuditActions = {
     success: 'OAUTH_CLIENT_DELETE',
     failed: 'OAUTH_CLIENT_DELETE_FAILED',
   },
+  '/passkey/verify-registration': {
+    success: 'ACCOUNT_PASSKEY_ADD_SUCCESS',
+    failed: 'ACCOUNT_PASSKEY_ADD_FAILED',
+  },
+  '/passkey/update-passkey': {
+    success: 'ACCOUNT_PASSKEY_UPDATE_SUCCESS',
+    failed: 'ACCOUNT_PASSKEY_UPDATE_FAILED',
+  },
+  '/passkey/delete-passkey': {
+    success: 'ACCOUNT_PASSKEY_DELETE_SUCCESS',
+    failed: 'ACCOUNT_PASSKEY_DELETE_FAILED',
+  },
 } as const;
+
+// パスキー操作では ID と結果だけを監査対象にする。
+// publicKey、credentialID、WebAuthn のレスポンスは details へコピーしない。
 
 // get-session のような高頻度 API では監査処理を動かさない。
 // 対象パスだけに絞ることで、不要なセッション取得や DB 書き込みを避ける。
@@ -226,6 +249,7 @@ const shouldAuditResponse = (path: string) =>
   path.startsWith('/sign-in/') ||
   path.startsWith('/sign-up/') ||
   path.startsWith('/verify-email') ||
+  path === '/passkey/verify-authentication' ||
   path.startsWith('/callback/');
 
 export const auditLogPlugin = () =>

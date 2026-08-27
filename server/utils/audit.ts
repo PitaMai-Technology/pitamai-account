@@ -1,9 +1,6 @@
 import type { H3Event } from 'h3';
 import { auth } from '~~/server/utils/auth';
-import {
-  recordAuditLog,
-  type AuditLogParams,
-} from '~~/server/utils/audit-recorder';
+import { recordAuditLog } from '~~/server/utils/audit-recorder';
 
 /**
  * Nuxt API から使うための入口。
@@ -12,8 +9,6 @@ import {
  * Better Auth の hook からこのファイルを import すると `auth.ts` と循環するため、
  * hook 側では `audit-recorder.ts` を直接使う。
  */
-export { recordAuditLog, type AuditLogParams };
-
 /**
  * H3Event からログイン中のユーザーを取得して監査ログを残す。
  * アプリ固有の `/api/pitamai/*` で使う想定。

@@ -1,7 +1,7 @@
 import { createError, readBody } from 'h3';
 import prisma from '~~/lib/prisma';
 import { registerRequestSchema } from '~~/shared/types/register-request';
-import { recordAuditLog } from '~~/server/utils/audit';
+import { recordAuditLog } from '~~/server/utils/audit-recorder';
 import { sendDiscordWebhook } from '~~/server/utils/discord-webhook';
 
 export default defineEventHandler(async event => {

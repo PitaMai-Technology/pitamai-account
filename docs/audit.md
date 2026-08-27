@@ -1,7 +1,10 @@
-# server/utils/audit.ts の仕様
+# 監査ログユーティリティの仕様
 
-`server/utils/audit.ts` は、サーバーサイドで「誰が・何を・どのIDに対して・どんな状態で」操作したかを、
+`server/utils/audit-recorder.ts` と `server/utils/audit.ts` は、サーバーサイドで「誰が・何を・どのIDに対して・どんな状態で」操作したかを、
 **Prisma の `AuditLog` テーブル + Sentry + アプリの logger** に一括で記録するためのユーティリティです。
+
+- `audit-recorder.ts`: 低レベルな `recordAuditLog` を提供します。
+- `audit.ts`: セッションを取得する高レベルな `logAuditWithSession` を提供します。
 
 ---
 
