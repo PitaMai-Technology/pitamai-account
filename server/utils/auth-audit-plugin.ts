@@ -112,6 +112,47 @@ const getAuthenticationAudit = (path: string): AuthenticationAudit => {
 };
 
 /**
+ * 未認証のまま終了し得る認証パスを、失敗時の監査イベントへ変換する。
+ *
+ * 返り値にはリクエスト本文を含めない。パスワード、OTP、WebAuthn 応答などの
+ * 認証情報を監査ログへ誤って保存しないため、記録する補助情報は呼び出し側で
+ * provider、path、結果に限定する。
+ */
+const getAuthenticationFailureAudit = (
+  path: string
+): AuthenticationAudit | undefined => {
+  if (path === '/passkey/verify-authentication') {
+    return {
+      provider: 'passkey',
+      action: 'ACCOUNT_SIGN_IN_PASSKEY_FAILED',
+    };
+  }
+
+  if (path === '/sign-in/email-otp') {
+    return {
+      provider: 'email-otp',
+      action: 'ACCOUNT_SIGN_IN_EMAIL_OTP_FAILED',
+    };
+  }
+
+  if (path === '/sign-in/email') {
+    return {
+      provider: 'email-password',
+      action: 'ACCOUNT_SIGN_IN_EMAIL_PASSWORD_FAILED',
+    };
+  }
+
+  if (path === '/verify-email' || path === '/email-otp/verify-email') {
+    return {
+      provider: 'email-verification',
+      action: 'ACCOUNT_EMAIL_VERIFICATION_FAILED',
+    };
+  }
+
+  return undefined;
+};
+
+/**
  * エンドポイントごとに異なる監査対象 ID の格納場所を吸収する。
  *
  * 上にある条件ほど優先度が高い。新しい Better Auth API を監査対象へ加えた際、
@@ -249,6 +290,7 @@ const shouldAuditResponse = (path: string) =>
   path.startsWith('/sign-in/') ||
   path.startsWith('/sign-up/') ||
   path.startsWith('/verify-email') ||
+  path === '/email-otp/verify-email' ||
   path === '/passkey/verify-authentication' ||
   path.startsWith('/callback/');
 
@@ -258,7 +300,8 @@ export const auditLogPlugin = () =>
     hooks: {
       before: [
         {
-          matcher: ctx => ctx.path in requestAuditActions,
+          matcher: ctx =>
+            ctx.path !== undefined && ctx.path in requestAuditActions,
           handler: createAuthMiddleware(async ctx => {
             try {
               // getSessionFromCtx を使うと、cookie や Authorization ヘッダーから
@@ -297,7 +340,8 @@ export const auditLogPlugin = () =>
       ],
       after: [
         {
-          matcher: ctx => shouldAuditResponse(ctx.path),
+          matcher: ctx =>
+            ctx.path !== undefined && shouldAuditResponse(ctx.path),
           handler: createAuthMiddleware(async ctx => {
             try {
               const body = asRecord(ctx.body);
@@ -305,6 +349,7 @@ export const auditLogPlugin = () =>
               const response = await getReturnedRecord(returned);
               const newSession = ctx.context.newSession;
               const session = newSession ?? (await getSessionFromCtx(ctx));
+              const success = isSuccessful(returned);
 
               // ログイン成功時は newSession が入る。
               // パスから認証方法を判定し、同じユーザーでも OTP とパスワードを区別する。
@@ -319,7 +364,28 @@ export const auditLogPlugin = () =>
                 });
               }
 
-              if (!session?.user.id) return;
+              if (!session?.user.id) {
+                const failureAudit = success
+                  ? undefined
+                  : getAuthenticationFailureAudit(ctx.path);
+
+                if (failureAudit) {
+                  await recordAuditLog({
+                    action: failureAudit.action,
+                    details: {
+                      provider: failureAudit.provider,
+                      path: ctx.path,
+                      success: false,
+                      errorMessage: isAPIError(returned)
+                        ? returned.message
+                        : undefined,
+                    },
+                    request: ctx.request,
+                  });
+                }
+
+                return;
+              }
 
               // 組織 ID が body にない操作では、現在選択中の組織を補助情報に使う。
               const activeOrganizationId =
@@ -346,7 +412,6 @@ export const auditLogPlugin = () =>
                 ];
               if (!actionPair) return;
 
-              const success = isSuccessful(returned);
               const responseClient = asRecord(response.client);
               const responseMember = asRecord(response.member);
               const update = asRecord(body.update);

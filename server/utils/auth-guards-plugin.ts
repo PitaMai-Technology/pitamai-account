@@ -71,30 +71,41 @@ export const authGuardsPlugin = () =>
             if (!memberIdOrEmail) return;
 
             const session = await getSessionFromCtx(ctx);
-            if (
-              session?.user &&
-              (memberIdOrEmail === session.user.id ||
-                memberIdOrEmail === session.user.email)
-            ) {
+            if (!session?.user) return;
+
+            const organizationId =
+              body.organizationId ||
+              session.session?.activeOrganizationId ||
+              undefined;
+            if (!organizationId) return;
+
+            // Member ID・ユーザー ID・メールアドレスのどれが渡されても、対象組織の
+            // Member を先に解決する。入力値を user.id と直接比較するだけでは、
+            // 自分の Member ID を指定した自己削除を検出できない。
+            const member = await prisma.member.findFirst({
+              where: {
+                organizationId,
+                OR: [
+                  { id: memberIdOrEmail },
+                  { userId: memberIdOrEmail },
+                  { user: { email: memberIdOrEmail } },
+                ],
+              },
+              select: { id: true, userId: true },
+            });
+            if (!member) return;
+
+            if (member.userId === session.user.id) {
               throw new APIError('FORBIDDEN', {
                 message: '自分自身を組織から削除することはできません。',
               });
             }
 
-            if (!body.organizationId || !memberIdOrEmail.includes('@')) return;
+            if (!memberIdOrEmail.includes('@')) return;
 
             // remove-member は member ID を渡すのが最も確実。
             // 画面からメールアドレスが渡された場合だけ、ここで member ID に直してから
             // Better Auth 本体へ処理を渡す。
-            const member = await prisma.member.findFirst({
-              where: {
-                organizationId: body.organizationId,
-                user: { email: memberIdOrEmail },
-              },
-              select: { id: true },
-            });
-            if (!member) return;
-
             // before hook で body を差し替える場合は context 全体を返す。
             // ctx.body を直接書き換えず、新しいオブジェクトとして返しておく。
             return {

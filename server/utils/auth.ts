@@ -21,7 +21,7 @@ import { authGuardsPlugin } from '~~/server/utils/auth-guards-plugin';
 // WebAuthn は登録時とログイン時のオリジンを厳密に照合する。
 // 本番では BETTER_AUTH_URL に、実際にブラウザーから開く HTTPS URL を設定する。
 const betterAuthUrl = new URL(
-  process.env.BETTER_AUTH_URL ?? 'http://localhost:3000'
+  process.env.BETTER_AUTH_URL ?? 'ERROR'
 );
 
 /**
@@ -72,7 +72,7 @@ export const auth = betterAuth({
     storeSessionInDatabase: true,
   },
   emailAndPassword: {
-    enabled: true,
+    enabled: false,
     requireEmailVerification: true,
     disableSignUp: true,
     sendResetPassword: async ({ user, url, token }) => {

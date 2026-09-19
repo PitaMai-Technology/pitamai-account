@@ -4,7 +4,7 @@ import { authClient } from '~/composable/auth-client';
 
 const navigationItems = [
   {
-    label: 'プライバシ・ポリシー',
+    label: 'プライバシーポリシー',
     to: '/kiyaku/privacy-policy',
   },
   {

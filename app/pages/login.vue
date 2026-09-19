@@ -264,7 +264,7 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
 
 <template>
   <div>
-    <template v-if="session.isPending">
+    <template v-if="isInitialSessionPending">
       <div class="flex items-center justify-center p-4">
         <UPageCard class="w-max max-w-md">
           <div class="flex flex-col items-center space-y-4 py-8">
@@ -330,7 +330,7 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
       </div>
 
 
-      <div class="m-auto flex w-full max-w-md items-center justify-center">
+      <div v-if="!session.data" class="m-auto flex w-full max-w-md items-center justify-center">
         <UPageCard class="w-full" :ui="{ body: 'w-full' }">
           <template #body>
             <UCollapsible v-model:open="otpFallbackOpen" :unmount-on-hide="false" class="w-full">

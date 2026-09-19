@@ -29,7 +29,7 @@
 feat(button): 無効状態のスタイルを追加
 fix(useLism): 属性名の変換ミスを修正
 refactor(core): アダプターの型定義を整理
-type(core): LismUI-Vueの型定義を追加
+types(core): LismUI-Vueの型定義を追加
 docs: LismCSSの導入手順を更新
 test: Buttonコンポーネントの状態を追加検証
 chore(deps): lism-cssを更新
