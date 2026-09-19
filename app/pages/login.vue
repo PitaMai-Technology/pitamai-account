@@ -301,7 +301,8 @@ async function handleVerifyOtp(data: VerifyOtpSchema) {
               <div>
                 <h2 class="text-xl font-semibold">ログイン</h2>
                 <p class="mt-1 text-sm">
-                  PitaMaiアカウントへようこそ。パスキーでログインができます。
+                  PitaMaiアカウントへようこそ。パスキーでログインができます。<br />
+                  なお、既存の構成員でパスキーがない方はメールでログインをしてから、新規設定をしてください。
                 </p>
                 <p class="mt-2 text-sm text-muted">
                   初めての方は
