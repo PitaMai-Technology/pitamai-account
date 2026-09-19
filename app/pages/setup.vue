@@ -8,6 +8,7 @@ definePageMeta({
 });
 
 const toast = useToast();
+const { $csrfFetch } = useNuxtApp();
 const loading = ref(false);
 const setupCompleted = ref(false);
 const { showTurnstileWidget, turnstileErrorMessage, turnstileToken, resetTurnstileToken } = useTurnstile('setup-turnstile');
@@ -51,7 +52,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
   loading.value = true;
   try {
-    await $fetch('/api/setup/owner', {
+    await $csrfFetch('/api/setup/owner', {
       method: 'POST',
       headers: {
         'x-captcha-response': turnstileToken.value,

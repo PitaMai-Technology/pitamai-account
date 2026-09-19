@@ -5,8 +5,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@sentry/nuxt/module',
-    '@nuxtjs/mdc',
+    ...(process.env.NODE_ENV === 'production' ? ['@sentry/nuxt/module'] : []),
+    '@nuxt/content',
     '@pinia/nuxt',
     'nuxt-security',
     'nuxt-email-renderer',
@@ -26,8 +26,10 @@ export default defineNuxtConfig({
     nonce: true,
     headers: {
       contentSecurityPolicy: {
+        'default-src': ["'self'"],
         'script-src': [
           "'self'",
+          "'wasm-unsafe-eval'",
           'https://challenges.cloudflare.com',
           "'nonce-{{nonce}}'",
         ],
@@ -44,11 +46,11 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/api/**': {
+    '/__nuxt_content/**': {
       csurf: false,
     },
-    '/api/register-user/register': {
-      csurf: true,
+    '/api/auth/**': {
+      csurf: false,
     },
   },
 
@@ -70,10 +72,12 @@ export default defineNuxtConfig({
     },
   },
 
-  sentry: {
-    org: 'pitamai-technology',
-    project: 'auth-server',
-  },
+  ...(process.env.NODE_ENV === 'production' ? {
+    sentry: {
+      org: 'pitamai-technology',
+      project: 'auth-server',
+    },
+  } : {}),
 
   sourcemap: {
     client: 'hidden',

@@ -2,7 +2,7 @@ import { createError, defineEventHandler, readBody } from 'h3';
 import { generateId } from 'better-auth';
 import { z } from 'zod';
 import prisma from '~~/lib/prisma';
-import { recordAuditLog } from '~~/server/utils/audit';
+import { recordAuditLog } from '~~/server/utils/audit-recorder';
 import { logger } from '~~/server/utils/logger';
 import { assertTurnstile } from '~~/server/utils/turnstile';
 

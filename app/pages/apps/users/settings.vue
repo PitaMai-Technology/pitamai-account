@@ -13,32 +13,53 @@ const session = authClient.useSession();
 const loading = ref(false);
 const activeTab = ref('profile');
 const resetEmailSent = ref(false);
-const { showTurnstileWidget, turnstileErrorMessage, turnstileToken, resetTurnstileToken } = useTurnstile('settings-turnstile');
+const {
+  showTurnstileWidget,
+  turnstileErrorMessage,
+  turnstileToken,
+  resetTurnstileToken,
+} = useTurnstile('settings-turnstile');
 
 const tabItems: TabsItem[] = [
   {
     label: 'プロフィール',
     slot: 'profile',
-    icon: "i-lucide-user-cog",
+    icon: 'i-lucide-user-cog',
     value: 'profile',
+  },
+  {
+    label: 'セキュリティ',
+    slot: 'security',
+    icon: 'i-lucide-shield-check',
+    value: 'security',
   },
 ];
 
 const profileSchema = z.object({
   name: z.string().trim().min(1, '表示名を入力してください'),
-  image: z.url('有効なURLを入力してください').trim().optional().or(z.literal('')),
-  twitterUrl: z.url('有効なURLを入力してください').trim().optional().or(z.literal('')),
+  image: z
+    .url('有効なURLを入力してください')
+    .trim()
+    .optional()
+    .or(z.literal('')),
+  twitterUrl: z
+    .url('有効なURLを入力してください')
+    .trim()
+    .optional()
+    .or(z.literal('')),
   bio: z.string().trim().optional(),
 });
 
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(8, 'パスワードは最低8文字必要です'),
-  newPassword: z.string().min(8, '新しいパスワードは最低8文字必要です'),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: 'パスワードが一致しません',
-  path: ['confirmPassword'],
-});
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(8, 'パスワードは最低8文字必要です'),
+    newPassword: z.string().min(8, '新しいパスワードは最低8文字必要です'),
+    confirmPassword: z.string(),
+  })
+  .refine(data => data.newPassword === data.confirmPassword, {
+    message: 'パスワードが一致しません',
+    path: ['confirmPassword'],
+  });
 
 const resetPasswordSchema = z.object({
   email: z.string().email('有効なメールアドレスを入力してください'),
@@ -106,7 +127,9 @@ async function onProfileSubmit(event: FormSubmitEvent<ProfileSchema>) {
   }
 }
 
-async function onChangePasswordSubmit(event: FormSubmitEvent<ChangePasswordSchema>) {
+async function onChangePasswordSubmit(
+  event: FormSubmitEvent<ChangePasswordSchema>
+) {
   if (!turnstileToken.value) {
     toast.add({
       title: '確認が必要です',
@@ -156,7 +179,9 @@ async function onChangePasswordSubmit(event: FormSubmitEvent<ChangePasswordSchem
   }
 }
 
-async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>) {
+async function onResetPasswordSubmit(
+  event: FormSubmitEvent<ResetPasswordSchema>
+) {
   if (!turnstileToken.value) {
     toast.add({
       title: '確認が必要です',
@@ -194,7 +219,8 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
     resetTurnstileToken();
     toast.add({
       title: 'メールを送信しました',
-      description: 'パスワード再設定用のメールを送信しました。メールをご確認ください。',
+      description:
+        'パスワード再設定用のメールを送信しました。メールをご確認ください。',
       color: 'success',
     });
 
@@ -217,17 +243,32 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
         </p>
       </div>
 
-      <UAlert v-if="!showTurnstileWidget" color="warning" variant="soft" title="Turnstile を表示できません"
-        :description="turnstileErrorMessage ?? 'TURNSTILE_SITE_KEY が設定されていません。'" />
+      <UAlert
+        v-if="!showTurnstileWidget"
+        color="warning"
+        variant="soft"
+        title="Turnstile を表示できません"
+        :description="
+          turnstileErrorMessage ?? 'TURNSTILE_SITE_KEY が設定されていません。'
+        "
+      />
 
       <div v-else id="settings-turnstile" class="flex" />
 
       <UTabs v-model="activeTab" :items="tabItems">
         <template #profile>
           <div class="pt-4">
-            <UForm :schema="profileSchema" :state="profileState" class="space-y-4" @submit="onProfileSubmit">
+            <UForm
+              :schema="profileSchema"
+              :state="profileState"
+              class="space-y-4"
+              @submit="onProfileSubmit"
+            >
               <UFormField label="メールアドレス">
-                <UInput :model-value="session.data?.user?.email ?? ''" disabled />
+                <UInput
+                  :model-value="session.data?.user?.email ?? ''"
+                  disabled
+                />
               </UFormField>
 
               <UFormField label="表示名" name="name" required>
@@ -235,11 +276,17 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
               </UFormField>
 
               <UFormField label="アイコン画像URL" name="image">
-                <UInput v-model="profileState.image" placeholder="https://example.com/avatar.png" />
+                <UInput
+                  v-model="profileState.image"
+                  placeholder="https://example.com/avatar.png"
+                />
               </UFormField>
 
               <UFormField label="Twitter URL" name="twitterUrl">
-                <UInput v-model="profileState.twitterUrl" placeholder="https://x.com/username" />
+                <UInput
+                  v-model="profileState.twitterUrl"
+                  placeholder="https://x.com/username"
+                />
               </UFormField>
 
               <UFormField label="bio" name="bio">
@@ -255,12 +302,23 @@ async function onResetPasswordSubmit(event: FormSubmitEvent<ResetPasswordSchema>
               <div>
                 <h2 class="font-semibold text-sm mb-2">メールアドレスの変更</h2>
                 <p class="text-sm text-neutral-500 mb-4">
-                  メールアドレスの変更には管理者への申請が必要です。ここからは変更できません。<wbr>
+                  メールアドレスの変更には管理者への申請が必要です。ここからは変更できません。<wbr />
                   変更を希望する場合は、Discordサーバーにて、
-                  <AppCopyText value="@役員会" /> にメンションを飛ばしてください。
+                  <AppCopyText value="@役員会" />
+                  にメンションを飛ばしてください。
                 </p>
               </div>
             </div>
+          </div>
+        </template>
+
+        <template #security>
+          <div class="pt-4">
+            <!--
+              パスキー管理はログイン済みセッションをそのまま使う。
+              Better Auth側で所有者を確認するので、このページからユーザーIDを渡す必要はない。
+            -->
+            <AppPasskeyManager />
           </div>
         </template>
       </UTabs>

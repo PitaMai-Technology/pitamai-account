@@ -37,13 +37,28 @@ type TurnstileApi = {
     options: TurnstileRenderOptions
   ) => string | number;
   reset: (widgetId?: string | number) => void;
+  remove: (widgetId: string | number) => void;
 };
 
-export function useTurnstile(containerId: string) {
+type UseTurnstileOptions = {
+  /**
+   * true の場合はページのマウント直後に表示を試みる。
+   * 折りたたみ内など、初期表示でコンテナが存在しない場合は false にし、
+   * requestTurnstileMount() を表示後に呼ぶ。
+   */
+  autoMount?: boolean;
+};
+
+export function useTurnstile(
+  containerId: string,
+  options: UseTurnstileOptions = {}
+) {
   const config = useRuntimeConfig();
   const turnstileToken = ref('');
   const turnstileWidgetId = ref<string | number | null>(null);
   const turnstileErrorMessage = ref<string | null>(null);
+  const mountRequested = ref(options.autoMount !== false);
+  let startRetryTimer: (() => void) | null = null;
   const showTurnstileWidget = computed(
     () =>
       Boolean(config.public.TURNSTILE_SITE_KEY) && !turnstileErrorMessage.value
@@ -75,6 +90,31 @@ export function useTurnstile(containerId: string) {
         // すでにウィジェットが破棄されている場合などのエラーを抑制
         console.warn('Turnstile reset failed (non-critical):', e);
       }
+    }
+  }
+
+  /**
+   * ページを離れるときなど、現在のウィジェットがもう不要な場合に使う。
+   *
+   * reset は同じ DOM 上でもう一度認証させるための操作で、ウィジェット自体は残る。
+   * 一方、ページ遷移ではコンテナも破棄されるため remove で Turnstile 側の登録まで消す。
+   * これを行わないと、再訪時に古い ID と新しいコンテナが食い違うことがある。
+   */
+  function removeTurnstileWidget() {
+    turnstileToken.value = '';
+
+    const widgetId = turnstileWidgetId.value;
+    turnstileWidgetId.value = null;
+    if (widgetId === null) return;
+
+    const turnstile = getTurnstileApi();
+    if (!turnstile) return;
+
+    try {
+      turnstile.remove(widgetId);
+    } catch (e) {
+      // DOM が先に破棄された場合でも、ページ遷移そのものは止めない。
+      console.warn('Turnstile remove failed (non-critical):', e);
     }
   }
 
@@ -128,6 +168,23 @@ export function useTurnstile(containerId: string) {
     }
   }
 
+  /**
+   * 折りたたみやモーダルを開き、コンテナがDOMへ追加された後に呼ぶ。
+   * Turnstileのスクリプトがまだ届いていない場合は、自動的に再試行する。
+   *
+   * @example
+   * ```ts
+   * await nextTick()
+   * requestTurnstileMount()
+   * ```
+   */
+  function requestTurnstileMount() {
+    mountRequested.value = true;
+    if (!mountTurnstile()) {
+      startRetryTimer?.();
+    }
+  }
+
   onMounted(() => {
     if (!config.public.TURNSTILE_SITE_KEY) {
       turnstileErrorMessage.value =
@@ -149,7 +206,7 @@ export function useTurnstile(containerId: string) {
       return isMounted;
     };
 
-    const startRetryTimer = () => {
+    const beginRetryTimer = () => {
       if (timer) return;
 
       attemptCount = 0;
@@ -165,18 +222,19 @@ export function useTurnstile(containerId: string) {
         }
       }, 1000);
     };
+    startRetryTimer = beginRetryTimer;
 
-    // 初回実行
-    if (!checkAndMount()) {
-      startRetryTimer();
+    // 折りたたみ内では、コンテナが表示されるまで初期化を待つ。
+    if (mountRequested.value && !checkAndMount()) {
+      beginRetryTimer();
     }
 
     // タブ復帰時などのイベントで再チェック。消えていればタイマーを再開。
     const recover = () => {
-      if (turnstileErrorMessage.value) return;
+      if (!mountRequested.value || turnstileErrorMessage.value) return;
 
       if (!checkAndMount()) {
-        startRetryTimer();
+        beginRetryTimer();
       }
     };
 
@@ -185,10 +243,11 @@ export function useTurnstile(containerId: string) {
 
     onBeforeUnmount(() => {
       if (timer) clearInterval(timer);
+      startRetryTimer = null;
       window.removeEventListener('focus', recover);
       document.removeEventListener('visibilitychange', recover);
-      // ウィジェットを明示的にクリア
-      resetTurnstileToken();
+      // ページ遷移ではコンテナも消えるため、reset ではなく remove する。
+      removeTurnstileWidget();
     });
   });
 
@@ -198,5 +257,6 @@ export function useTurnstile(containerId: string) {
     showTurnstileWidget,
     turnstileErrorMessage,
     resetTurnstileToken,
+    requestTurnstileMount,
   };
 }

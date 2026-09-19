@@ -28,6 +28,7 @@ const { confirm: confirmDialog, resolve: resolveConfirm } = confirmStore;
 usePageLeaveGuard('このページから離脱すると、入力中の内容は失われます。よろしいですか？');
 
 const toast = useToast();
+const { $csrfFetch } = useNuxtApp();
 
 async function onSubmit(event?: FormSubmitEvent<UserUpdate>) {
   event?.preventDefault?.();
@@ -42,7 +43,7 @@ async function onSubmit(event?: FormSubmitEvent<UserUpdate>) {
 
   loading.value = true;
   try {
-    await $fetch('/api/pitamai/admin-update-user', {
+    await $csrfFetch('/api/pitamai/admin-update-user', {
       method: 'POST',
       body: payload,
     });

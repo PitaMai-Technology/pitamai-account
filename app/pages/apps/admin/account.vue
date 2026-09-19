@@ -374,21 +374,9 @@ async function fetchUsers() {
       offset: Number(state.offset ?? 0),
     };
 
-    const { data, error } = await authClient.admin.listUsers({
-      query,
-    });
-
-    if (error) {
-      console.error('admin.listUsers error:', error);
-      toast.add({
-        title: 'エラー',
-        description: 'ユーザー一覧の取得に失敗しました',
-        color: 'error',
-      });
-      users.value = [];
-      total.value = undefined;
-      return;
-    }
+    // ユーザー情報だけなら authClient.admin.listUsers() でよい。
+    // この画面では登録申請の状態も表示するため、申請情報を結合する pitamai API を使う。
+    const data = await $fetch('/api/pitamai/admin-users', { query });
 
     if (data?.users && Array.isArray(data.users)) {
       users.value = data.users as AdminUser[];

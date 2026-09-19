@@ -35,10 +35,12 @@ model User {
   oauthaccesstokens  OauthAccessToken[]
   oauthconsents      OauthConsent[]
 
-  twitterUrl String?
-  bio        String?
+  twitterUrl            String?
+  bio                   String?
   registrationRequestId String?
   registrationRequest   RegistrationRequest? @relation(fields: [registrationRequestId], references: [id])
+
+  passkeys Passkey[]
 
   @@unique([email])
   @@unique([registrationRequestId])
@@ -191,7 +193,10 @@ model OauthClient {
   oauthaccesstokens       OauthAccessToken[]
   oauthconsents           OauthConsent[]
 
+  subjectType String?
+
   @@unique([clientId])
+  @@index([userId])
   @@map("oauthClient")
 }
 
@@ -212,6 +217,9 @@ model OauthRefreshToken {
   scopes            String[]
   oauthaccesstokens OauthAccessToken[]
 
+  @@index([clientId])
+  @@index([sessionId])
+  @@index([userId])
   @@map("oauthRefreshToken")
 }
 
@@ -232,6 +240,10 @@ model OauthAccessToken {
   scopes            String[]
 
   @@unique([token])
+  @@index([clientId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([refreshId])
   @@map("oauthAccessToken")
 }
 
@@ -246,5 +258,26 @@ model OauthConsent {
   createdAt   DateTime?
   updatedAt   DateTime?
 
+  @@index([clientId])
+  @@index([userId])
   @@map("oauthConsent")
+}
+
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime?
+  aaguid       String?
+
+  @@index([userId])
+  @@index([credentialID])
+  @@map("passkey")
 }
