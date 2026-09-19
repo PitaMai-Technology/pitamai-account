@@ -13,12 +13,6 @@ export default defineNuxtConfig({
   ],
   css: ['~/assets/main.css'],
 
-  nitro: {
-    externals: {
-      external: ['@prisma/client', '.prisma/client'],
-    },
-  },
-
   security: {
     csrf: true,
     rateLimiter: false,

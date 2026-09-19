@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/nuxt';
 import type { H3Event } from 'h3';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '~~/app/generated/prisma/client';
 import prisma from '~~/lib/prisma';
 import { logger } from '~~/server/utils/logger';
 
