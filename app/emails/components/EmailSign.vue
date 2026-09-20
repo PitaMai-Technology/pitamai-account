@@ -12,13 +12,13 @@
     </EText>
     <ul>
       <li>
-        <ELink href="https://wiki.pitamai.com/s/1b2c1cf4-6bb5-4033-83dd-4b4141387b5e">運営規約</ELink>
+        <ELink href="https://auth.pitamai.com/kiyaku/unei">運営規約</ELink>
       </li>
       <li>
-        <ELink href="https://wiki.pitamai.com/s/7fb52506-1f33-4aa7-b3e6-3db6b48b919b">プライバシーポリシー</ELink>
+        <ELink href="https://auth.pitamai.com/kiyaku/privacy-policy">プライバシーポリシー</ELink>
       </li>
       <li>
-        <ELink href="https://wiki.pitamai.com/s/9ec0829c-02a5-402a-ba17-347400fc2e16">PitaMaiアカウント利用規約</ELink>
+        <ELink href="https://auth.pitamai.com/kiyaku/pitamai-account">PitaMaiアカウント利用規約</ELink>
       </li>
     </ul>
   </EContainer>
