@@ -30,7 +30,7 @@
     "@sentry/nuxt": "^10.52.0",
     "@sentry/vite-plugin": "^4.9.1",
     "@vueuse/core": "^14.3.0",
-    "better-auth": "^1.6.10",
+    "better-auth": "^1.7.6",
     "better-sqlite3": "^12.11.1",
     "dotenv": "^18.0.0",
     "eslint": "^9.39.4",

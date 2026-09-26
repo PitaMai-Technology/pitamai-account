@@ -311,14 +311,18 @@ export const auth = betterAuth({
       requirePKCE: false,
       // Refresh Token Rotation を無効化（互換性維持のため）
       disableRefreshTokenRotation: true,
-      // IDトークン (JWT) に拡張フィールドを含める
-      // * 将来的に実装
-      // customIdTokenClaims: ({ user }) => {
-      //   return {
-      //     twitterUrl: user.twitterUrl,
-      //     bio: user.bio,
-      //   };
-      // },
+      // authorization code flow では email scope のクレームは通常 UserInfo で返される。
+      // ID Token のみを参照するクライアントとの互換性のため、許可済みの場合だけ含める。
+      customIdTokenClaims: ({ user, scopes }) => {
+        if (!scopes.includes('email')) {
+          return {};
+        }
+
+        return {
+          email: user.email,
+          email_verified: user.emailVerified,
+        };
+      },
       // // UserInfo エンドポイント (/oauth2/userinfo) のレスポンスに含める
       // customUserInfoClaims: ({ user }) => {
       //   return {
