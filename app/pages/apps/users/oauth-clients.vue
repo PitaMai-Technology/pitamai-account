@@ -34,7 +34,7 @@ const schema = z.object({
   clientName: z.string().trim().min(1, 'クライアント名は必須です'),
   redirectUri: z.url('有効なリダイレクトURIを入力してください'),
   scopesText: z.string().trim().min(1, 'スコープを1つ以上入力してください'),
-  isPublicClient: z.boolean().default(false),
+  tokenEndpointAuthMethod: z.enum(['none', 'client_secret_basic', 'client_secret_post']),
   requirePkce: z.boolean(),
 });
 
@@ -44,11 +44,18 @@ const state = reactive<Schema>({
   clientName: '',
   redirectUri: '',
   scopesText: 'openid profile email',
-  isPublicClient: false,
+  tokenEndpointAuthMethod: 'client_secret_post',
   requirePkce: false,
 });
 
 const scopeItems = ref(['openid', 'profile', 'email', 'offline_access']);
+const tokenEndpointAuthMethodItems = [
+  { label: 'Public Client (none)', value: 'none' },
+  { label: 'Client Secret Basic', value: 'client_secret_basic' },
+  { label: 'Client Secret Post', value: 'client_secret_post' },
+];
+
+const isPublicClient = computed(() => state.tokenEndpointAuthMethod === 'none');
 
 const createScopesModel = computed<string[]>({
   get: () => parseScopes(state.scopesText),
@@ -207,9 +214,7 @@ async function onCreateClient(event: FormSubmitEvent<Schema>) {
       client_name: event.data.clientName,
       redirect_uris: [event.data.redirectUri],
       scope: scopes.join(' '),
-      token_endpoint_auth_method: event.data.isPublicClient
-        ? 'none'
-        : 'client_secret_post',
+      token_endpoint_auth_method: event.data.tokenEndpointAuthMethod,
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
     });
@@ -236,7 +241,8 @@ async function onCreateClient(event: FormSubmitEvent<Schema>) {
           method: 'POST',
           body: {
             clientId: createdClientId,
-            requirePkce: event.data.isPublicClient ? true : event.data.requirePkce,
+            requirePkce:
+              event.data.tokenEndpointAuthMethod === 'none' ? true : event.data.requirePkce,
           },
         });
       } catch (pkceError) {
@@ -261,7 +267,7 @@ async function onCreateClient(event: FormSubmitEvent<Schema>) {
     state.clientName = '';
     state.redirectUri = '';
     state.scopesText = 'openid profile email';
-    state.isPublicClient = false;
+    state.tokenEndpointAuthMethod = 'client_secret_post';
     state.requirePkce = false;
 
     await refreshClients();
@@ -488,23 +494,19 @@ onMounted(async () => {
           </UFormField>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            <div
-              class="flex items-center justify-between p-3 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800">
-              <div class="flex flex-col">
-                <span class="text-sm font-medium">Public Client</span>
-                <span class="text-[10px] text-neutral-500 line-clamp-1">シークレットなし&PKCE必須</span>
-              </div>
-              <USwitch v-model="state.isPublicClient" />
-            </div>
+            <UFormField label="トークンエンドポイント認証方式" name="tokenEndpointAuthMethod"
+              description="Public Clientはnoneを選択してください">
+              <USelect v-model="state.tokenEndpointAuthMethod" :items="tokenEndpointAuthMethodItems" class="w-full" />
+            </UFormField>
 
             <div
               class="flex items-center justify-between p-3 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800"
-              :class="{ 'opacity-50': state.isPublicClient }">
+              :class="{ 'opacity-50': isPublicClient }">
               <div class="flex flex-col">
                 <span class="text-sm font-medium">PKCE 必須</span>
                 <span class="text-[10px] text-neutral-500 line-clamp-1">より安全な認証（推奨）</span>
               </div>
-              <USwitch v-model="state.requirePkce" :disabled="state.isPublicClient" />
+              <USwitch v-model="state.requirePkce" :disabled="isPublicClient" />
             </div>
           </div>
 
@@ -576,11 +578,17 @@ onMounted(async () => {
                 </div>
 
                 <div class="space-y-4">
-                  <UFormField label="許可スコープ" size="sm">
-                    <UInputMenu :model-value="parseScopes(client.editable_scope_text)" multiple create-item
-                      :items="scopeItems" size="sm" block @create="onCreateScopeItem"
-                      @update:model-value="value => updateClientScopes(client, value)" />
-                  </UFormField>
+                  <div
+                    class="flex items-center justify-between w-fit gap-4 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-100 dark:border-neutral-800">
+
+                    <UFormField label="許可スコープ" size="sm"
+                      class="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-100 dark:border-neutral-800">
+                      <UInputMenu :model-value="parseScopes(client.editable_scope_text)" multiple create-item
+                        :items="scopeItems" size="sm" block @create="onCreateScopeItem"
+                        @update:model-value="value => updateClientScopes(client, value)" />
+                    </UFormField>
+
+                  </div>
 
                   <div
                     class="flex items-center justify-between w-fit gap-4 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-100 dark:border-neutral-800">
