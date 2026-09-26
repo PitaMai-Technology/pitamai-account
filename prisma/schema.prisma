@@ -155,6 +155,9 @@ model Jwks {
   createdAt  DateTime
   expiresAt  DateTime?
 
+  alg String?
+  crv String?
+
   @@map("jwks")
 }
 
@@ -195,6 +198,16 @@ model OauthClient {
 
   subjectType String?
 
+  clientDiscoveryId                String?
+  clientCredentialsScopes          String[]              @default([])
+  backchannelLogoutUri             String?
+  backchannelLogoutSessionRequired Boolean?
+  applicationType                  String?
+  jwks                             String?
+  jwksUri                          String?
+  dpopBoundAccessTokens            Boolean?              @default(false)
+  oauthclientresources             OauthClientResource[]
+
   @@unique([clientId])
   @@index([userId])
   @@map("oauthClient")
@@ -217,10 +230,19 @@ model OauthRefreshToken {
   scopes            String[]
   oauthaccesstokens OauthAccessToken[]
 
+  authorizationCodeId     String?
+  resources               String[]
+  requestedUserInfoClaims String[]
+  rotatedAt               DateTime?
+  rotationReplayResponse  String?
+  rotationReplayExpiresAt DateTime?
+  confirmation            Json?
+
   @@index([clientId])
   @@index([sessionId])
   @@index([userId])
   @@map("oauthRefreshToken")
+  @@index([authorizationCodeId])
 }
 
 model OauthAccessToken {
@@ -239,12 +261,19 @@ model OauthAccessToken {
   createdAt         DateTime?
   scopes            String[]
 
+  authorizationCodeId     String?
+  resources               String[]
+  requestedUserInfoClaims String[]
+  revoked                 DateTime?
+  confirmation            Json?
+
   @@unique([token])
   @@index([clientId])
   @@index([sessionId])
   @@index([userId])
   @@index([refreshId])
   @@map("oauthAccessToken")
+  @@index([authorizationCodeId])
 }
 
 model OauthConsent {
@@ -257,6 +286,9 @@ model OauthConsent {
   scopes      String[]
   createdAt   DateTime?
   updatedAt   DateTime?
+
+  resources               String[]
+  requestedUserInfoClaims String[]
 
   @@index([clientId])
   @@index([userId])
@@ -280,4 +312,48 @@ model Passkey {
   @@index([userId])
   @@index([credentialID])
   @@map("passkey")
+}
+
+model OauthResource {
+  id                            String                @id
+  identifier                    String
+  name                          String
+  accessTokenTtl                Int?
+  refreshTokenTtl               Int?
+  signingAlgorithm              String?
+  signingKeyId                  String?
+  allowedScopes                 String[]
+  customClaims                  Json?
+  dpopBoundAccessTokensRequired Boolean?              @default(false)
+  disabled                      Boolean?              @default(false)
+  createdAt                     DateTime?
+  updatedAt                     DateTime?
+  policyVersion                 Int?                  @default(1)
+  metadata                      Json?
+  oauthclientresources          OauthClientResource[]
+
+  @@unique([identifier])
+  @@map("oauthResource")
+}
+
+model OauthClientResource {
+  id            String        @id
+  clientId      String
+  oauthclient   OauthClient   @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  resourceId    String
+  oauthresource OauthResource @relation(fields: [resourceId], references: [identifier], onDelete: Cascade)
+  metadata      Json?
+  createdAt     DateTime?
+
+  @@unique([clientId, resourceId], map: "oauthClientResource_clientId_resourceId_uidx")
+  @@index([clientId])
+  @@index([resourceId])
+  @@map("oauthClientResource")
+}
+
+model OauthClientAssertion {
+  id        String   @id
+  expiresAt DateTime
+
+  @@map("oauthClientAssertion")
 }
