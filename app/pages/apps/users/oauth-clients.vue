@@ -506,7 +506,8 @@ onMounted(async () => {
                 <span class="text-sm font-medium">PKCE 必須</span>
                 <span class="text-[10px] text-neutral-500 line-clamp-1">より安全な認証（推奨）</span>
               </div>
-              <USwitch v-model="state.requirePkce" :disabled="isPublicClient" />
+              <USwitch :model-value="isPublicClient || state.requirePkce" :disabled="isPublicClient"
+                @update:model-value="state.requirePkce = $event" />
             </div>
           </div>
 
@@ -574,6 +575,12 @@ onMounted(async () => {
 
                   <UFormField label="リダイレクトURI" size="sm">
                     <UInput class="w-full max-w-md mb-6" v-model="client.editable_redirect_uri" block />
+                  </UFormField>
+
+                  <UFormField label="トークンエンドポイント認証方式" class="mb-4" size="sm" description="作成後は変更できません">
+                    <UInput class="w-full max-w-md"
+                      :model-value="client.token_endpoint_auth_method || 'client_secret_basic'" icon="i-lucide-lock"
+                      readonly block />
                   </UFormField>
                 </div>
 
