@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@nuxt/icon": "^2.5.1",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/better-sqlite3": "^9.0.0",
     "@types/mailparser": "^3.9.0",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
