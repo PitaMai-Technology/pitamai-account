@@ -36,7 +36,7 @@
     "eslint": "^9.39.5",
     "import-in-the-middle": "^2.0.6",
     "nuxt": "^4.6.2",
-    "nuxt-email-renderer": "2.8.0",
+    "nuxt-email-renderer": "2.11.2",
     "nuxt-security": "2.6.0",
     "pg": "^8.23.1",
     "pinia": "^3.0.4",
