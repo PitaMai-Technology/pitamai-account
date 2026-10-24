@@ -33,7 +33,7 @@
     "better-auth": "^1.7.12",
     "better-sqlite3": "^12.11.1",
     "dotenv": "^18.0.8",
-    "eslint": "^9.39.5",
+    "eslint": "^10.0.0",
     "import-in-the-middle": "^2.0.6",
     "nuxt": "^4.6.2",
     "nuxt-email-renderer": "2.11.2",
