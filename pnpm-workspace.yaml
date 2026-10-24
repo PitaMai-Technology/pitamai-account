@@ -10,7 +10,7 @@ allowBuilds:
   '@parcel/watcher': true
 
 overrides:
-  'nuxt-security>xss': '1.0.16'
+  'nuxt-security>xss': '1.0.15'
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - '@prisma/client'

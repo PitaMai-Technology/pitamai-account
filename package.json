@@ -60,6 +60,11 @@
     "pino-pretty": "^13.2.0",
     "prettier": "^3.9.10"
   },
+  "overrides": {
+    "nuxt-security": {
+      "xss": "1.0.15"
+    }
+  },
   "onlyBuiltDependencies": [
     "@prisma/client",
     "@sentry/cli"
