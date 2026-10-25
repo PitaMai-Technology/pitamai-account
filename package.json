@@ -37,7 +37,7 @@
     "import-in-the-middle": "^2.0.6",
     "nuxt": "^4.6.2",
     "nuxt-email-renderer": "2.11.2",
-    "nuxt-security": "2.6.0",
+    "nuxt-security": "2.7.0",
     "pg": "^8.23.1",
     "pinia": "^3.0.4",
     "pino": "^10.4.0",
@@ -59,11 +59,6 @@
     "eslint-config-prettier": "^10.1.8",
     "pino-pretty": "^13.2.0",
     "prettier": "^3.9.10"
-  },
-  "overrides": {
-    "nuxt-security": {
-      "xss": "1.0.15"
-    }
   },
   "onlyBuiltDependencies": [
     "@prisma/client",

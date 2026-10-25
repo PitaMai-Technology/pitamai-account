@@ -8,9 +8,8 @@ allowBuilds:
   unrs-resolver: true
   vue-demi: true
   '@parcel/watcher': true
-
-overrides:
-  'nuxt-security>xss': '1.0.15'
+minimumReleaseAgeExclude:
+  - nuxt-security@2.7.0
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - '@prisma/client'
