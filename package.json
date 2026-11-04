@@ -1,6 +1,6 @@
 {
   "name": "pitamai-only",
-  "packageManager": "pnpm@12.4.2",
+  "packageManager": "pnpm@12.16.1",
   "type": "module",
   "private": true,
   "scripts": {
