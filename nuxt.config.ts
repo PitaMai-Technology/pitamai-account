@@ -13,6 +13,14 @@ export default defineNuxtConfig({
   ],
   css: ['~/assets/main.css'],
 
+  icon: {
+    provider: 'server',
+    fallbackToApi: false,
+    serverBundle: {
+      collections: ['lucide'],
+    },
+  },
+
   security: {
     csrf: true,
     rateLimiter: false,
@@ -66,12 +74,14 @@ export default defineNuxtConfig({
     },
   },
 
-  ...(process.env.NODE_ENV === 'production' ? {
-    sentry: {
-      org: 'pitamai-technology',
-      project: 'auth-server',
-    },
-  } : {}),
+  ...(process.env.NODE_ENV === 'production'
+    ? {
+        sentry: {
+          org: 'pitamai-technology',
+          project: 'auth-server',
+        },
+      }
+    : {}),
 
   sourcemap: {
     client: 'hidden',

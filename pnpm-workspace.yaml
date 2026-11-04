@@ -1,3 +1,6 @@
+overrides:
+  # @nuxt/icon 2.6.2 の既定 API 判定と互換性のあるバージョンに固定する。
+  '@iconify/vue': 5.0.4
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
