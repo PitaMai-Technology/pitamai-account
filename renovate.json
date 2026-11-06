@@ -5,6 +5,13 @@
   ],
   "packageRules": [
     {
+      "description": "@nuxt/icon 2.6.2 との互換性のため、修正版確認まで 5.0.4 を維持する",
+      "matchPackageNames": [
+        "@iconify/vue"
+      ],
+      "allowedVersions": "5.0.4"
+    },
+    {
       "matchManagers": [
         "github-actions"
       ],
