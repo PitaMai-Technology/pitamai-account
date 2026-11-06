@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@better-auth/oauth-provider": "^1.7.15",
-    "@better-auth/passkey": "1.7.17",
+    "@better-auth/passkey": "1.7.18",
     "@nuxt/content": "^3.16.2",
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/ui": "^4.12.0",
